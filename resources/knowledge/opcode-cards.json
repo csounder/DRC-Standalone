@@ -1,0 +1,4551 @@
+[
+  {
+    "name": "oscil",
+    "category": "oscillator",
+    "syntax": "... oscil ...",
+    "description": "oscil — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscili",
+      "oscil3",
+      "poscil",
+      "poscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-spatnote"
+    ]
+  },
+  {
+    "name": "oscili",
+    "category": "oscillator",
+    "syntax": "... oscili ...",
+    "description": "oscili — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscil3",
+      "poscil",
+      "poscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-wt"
+    ]
+  },
+  {
+    "name": "oscil3",
+    "category": "oscillator",
+    "syntax": "... oscil3 ...",
+    "description": "oscil3 — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "poscil",
+      "poscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "poscil",
+    "category": "oscillator",
+    "syntax": "... poscil ...",
+    "description": "poscil — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-6-2-simple-additive-table-b",
+      "zuccobook-cap-13-2-hipersaw-udo",
+      "zuccobook-cap-3-24-200oscil",
+      "zuccobook-cap-6-2-simple-additive-table",
+      "zuccobook-cap-6-10-moogladder-nogui"
+    ]
+  },
+  {
+    "name": "poscil3",
+    "category": "oscillator",
+    "syntax": "... poscil3 ...",
+    "description": "poscil3 — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "vco",
+    "category": "oscillator",
+    "syntax": "... vco ...",
+    "description": "vco — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-7-adsr",
+      "zuccobook-cap-6-10-moogladder-nogui",
+      "zuccobook-cap-3-6-bassline",
+      "csoundmanual-signalflowgraph",
+      "csoundmanual-biquada"
+    ]
+  },
+  {
+    "name": "vco2",
+    "category": "oscillator",
+    "syntax": "... vco2 ...",
+    "description": "vco2 — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-1",
+      "zuccobook-cap-3-7-adsr",
+      "zuccobook-cap-13-2-hipersaw-udo",
+      "zuccobook-cap-3-18-random-instrument",
+      "zuccobook-cap-6-10-moogladder-nogui"
+    ]
+  },
+  {
+    "name": "vco2init",
+    "category": "oscillator",
+    "syntax": "... vco2init ...",
+    "description": "vco2init — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-vco2ift",
+      "csoundmanual-vco2init",
+      "csoundmanual-vco2ft",
+      "csoundmanual-vco2",
+      "unknown-vco2"
+    ]
+  },
+  {
+    "name": "buzz",
+    "category": "oscillator",
+    "syntax": "... buzz ...",
+    "description": "buzz — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "dodgebook-526",
+      "dodgebook-filter",
+      "dodgebook-524a",
+      "dodgebook-524b",
+      "zuccobook-cap-3-1"
+    ]
+  },
+  {
+    "name": "gbuzz",
+    "category": "oscillator",
+    "syntax": "... gbuzz ...",
+    "description": "gbuzz — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-6-11-fofilter-nogui",
+      "lazzarinicsound-16-4",
+      "csoundmanual-phaser1",
+      "csoundmanual-resonr",
+      "csoundmanual-phaser2"
+    ]
+  },
+  {
+    "name": "foscil",
+    "category": "fm-oscillator",
+    "syntax": "... foscil ...",
+    "description": "foscil — fm-oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "foscili",
+      "crossfm",
+      "crossfmi"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "fm-oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-1",
+      "zuccobook-cap-3-18-random-instrument",
+      "csoundmanual-sequ2",
+      "csoundmanual-foscil",
+      "csoundmanual-divides"
+    ]
+  },
+  {
+    "name": "foscili",
+    "category": "fm-oscillator",
+    "syntax": "... foscili ...",
+    "description": "foscili — fm-oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "foscil",
+      "crossfm",
+      "crossfmi"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "fm-oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "dodgebook-wavmodfm",
+      "zuccobook-cap-7-4-fmsynth4mod-copia",
+      "csoundmanual-scanhammer",
+      "csoundmanual-trigseq",
+      "csoundmanual-foscili"
+    ]
+  },
+  {
+    "name": "crossfm",
+    "category": "fm-oscillator",
+    "syntax": "... crossfm ...",
+    "description": "crossfm — fm-oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "foscil",
+      "foscili",
+      "crossfmi"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "fm-oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-crossfm",
+      "csoundmanual-rnd-advanced"
+    ]
+  },
+  {
+    "name": "crossfmi",
+    "category": "fm-oscillator",
+    "syntax": "... crossfmi ...",
+    "description": "crossfmi — fm-oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "foscil",
+      "foscili",
+      "crossfm"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "fm-oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "hsboscil",
+    "category": "oscillator",
+    "syntax": "... hsboscil ...",
+    "description": "hsboscil — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-hsboscil",
+      "flossmanual-04a13-hsboscil",
+      "unknown-4",
+      "unknown-04a13-hsboscil",
+      "unknown-hsboscil"
+    ]
+  },
+  {
+    "name": "oscbnk",
+    "category": "oscillator",
+    "syntax": "... oscbnk ...",
+    "description": "oscbnk — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-oscbnk-advanced",
+      "csoundmanual-gen30",
+      "csoundmanual-oscbnk"
+    ]
+  },
+  {
+    "name": "pdhalf",
+    "category": "oscillator",
+    "syntax": "... pdhalf ...",
+    "description": "pdhalf — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-pdhalf",
+      "csoundmanual-syncphasor-czresonance",
+      "unknown-pdhalf"
+    ]
+  },
+  {
+    "name": "pdhalfy",
+    "category": "oscillator",
+    "syntax": "... pdhalfy ...",
+    "description": "pdhalfy — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-pdhalfy",
+      "unknown-pdhalf"
+    ]
+  },
+  {
+    "name": "pdclip",
+    "category": "oscillator",
+    "syntax": "... pdclip ...",
+    "description": "pdclip — oscillator opcode",
+    "parameters": [],
+    "seeAlso": [
+      "oscil",
+      "oscili",
+      "oscil3",
+      "poscil"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "oscillator",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-pdclip"
+    ]
+  },
+  {
+    "name": "grain",
+    "category": "granular",
+    "syntax": "... grain ...",
+    "description": "grain — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain3",
+      "granule",
+      "partikkel",
+      "fog"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-9-5-partikkel",
+      "zuccobook-cap-9-1-simple-grain",
+      "zuccobook-cap-9-2-grain2",
+      "lazzarinicsound-15-26",
+      "csoundmanual-partikkel"
+    ]
+  },
+  {
+    "name": "grain3",
+    "category": "granular",
+    "syntax": "... grain3 ...",
+    "description": "grain3 — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain",
+      "granule",
+      "partikkel",
+      "fog"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-grain3",
+      "flossmanual-04f05-grain3",
+      "flossmanual-04f06-grain3-random",
+      "unknown-04f05-grain3",
+      "unknown-04f06-grain3-random"
+    ]
+  },
+  {
+    "name": "granule",
+    "category": "granular",
+    "syntax": "... granule ...",
+    "description": "granule — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain",
+      "grain3",
+      "partikkel",
+      "fog"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "partikkel",
+    "category": "granular",
+    "syntax": "... partikkel ...",
+    "description": "partikkel — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain",
+      "grain3",
+      "granule",
+      "fog"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-9-5-partikkel",
+      "lazzarinicsound-15-5",
+      "lazzarinicsound-15-20",
+      "lazzarinicsound-15-4",
+      "lazzarinicsound-15-6"
+    ]
+  },
+  {
+    "name": "fog",
+    "category": "granular",
+    "syntax": "... fog ...",
+    "description": "fog — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain",
+      "grain3",
+      "granule",
+      "partikkel"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-fog"
+    ]
+  },
+  {
+    "name": "fof",
+    "category": "formant",
+    "syntax": "... fof ...",
+    "description": "fof — formant opcode",
+    "parameters": [],
+    "seeAlso": [
+      "fof2"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "formant",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-1",
+      "zuccobook-cap-3-18-random-instrument",
+      "zuccobook-cap-9-8-vocal-synthesis",
+      "csoundmanual-fof",
+      "csoundmanual-hvs2"
+    ]
+  },
+  {
+    "name": "fof2",
+    "category": "formant",
+    "syntax": "... fof2 ...",
+    "description": "fof2 — formant opcode",
+    "parameters": [],
+    "seeAlso": [
+      "fof"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "formant",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-fof2-2",
+      "csoundmanual-fof2",
+      "flossmanual-05g11-grain-delay",
+      "unknown-05g11-grain-delay",
+      "unknown-fof2"
+    ]
+  },
+  {
+    "name": "diskgrain",
+    "category": "granular",
+    "syntax": "... diskgrain ...",
+    "description": "diskgrain — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain",
+      "grain3",
+      "granule",
+      "partikkel"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "syncgrain",
+    "category": "granular",
+    "syntax": "... syncgrain ...",
+    "description": "syncgrain — granular opcode",
+    "parameters": [],
+    "seeAlso": [
+      "grain",
+      "grain3",
+      "granule",
+      "partikkel"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "granular",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "wgbow",
+    "category": "physical-model",
+    "syntax": "... wgbow ...",
+    "description": "wgbow — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgflute",
+      "wgclar",
+      "wgbrass",
+      "wgpluck"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-wgbow",
+      "flossmanual-04g09-wgbow",
+      "flossmanual-04g10-wgbow-enhanced",
+      "unknown-04g09-wgbow",
+      "unknown-04g10-wgbow-enhanced"
+    ]
+  },
+  {
+    "name": "wgflute",
+    "category": "physical-model",
+    "syntax": "... wgflute ...",
+    "description": "wgflute — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgclar",
+      "wgbrass",
+      "wgpluck"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-wgflute",
+      "unknown-wgflute"
+    ]
+  },
+  {
+    "name": "wgclar",
+    "category": "physical-model",
+    "syntax": "... wgclar ...",
+    "description": "wgclar — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgbrass",
+      "wgpluck"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-wgclar",
+      "boulangerbook-302",
+      "unknown-wgflute",
+      "unknown-wgclar"
+    ]
+  },
+  {
+    "name": "wgbrass",
+    "category": "physical-model",
+    "syntax": "... wgbrass ...",
+    "description": "wgbrass — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgpluck"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "wgpluck",
+    "category": "physical-model",
+    "syntax": "... wgpluck ...",
+    "description": "wgpluck — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-1",
+      "zuccobook-cap-3-18-random-instrument",
+      "csoundmanual-wgpluck",
+      "unknown-wgpluck"
+    ]
+  },
+  {
+    "name": "wgpluck2",
+    "category": "physical-model",
+    "syntax": "... wgpluck2 ...",
+    "description": "wgpluck2 — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-wgpluck2",
+      "boulangerbook-512",
+      "flossmanual-01d13-simple-algorithmic-note-generator",
+      "flossmanual-03h03-score-macro",
+      "unknown-01d13-simple-algorithmic-note-generator"
+    ]
+  },
+  {
+    "name": "repluck",
+    "category": "physical-model",
+    "syntax": "... repluck ...",
+    "description": "repluck — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-repluck",
+      "unknown-repluck"
+    ]
+  },
+  {
+    "name": "pluck",
+    "category": "physical-model",
+    "syntax": "... pluck ...",
+    "description": "pluck — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap2-3",
+      "zuccobook-cap-3-22-generative3",
+      "zuccobook-cap-13-3-chorus",
+      "zuccobook-cap-7-7-waveshape",
+      "zuccobook-cap-3-5-conversioni"
+    ]
+  },
+  {
+    "name": "streson",
+    "category": "physical-model",
+    "syntax": "... streson ...",
+    "description": "streson — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-10-3-wguide1-wguide2-streson"
+    ]
+  },
+  {
+    "name": "barmodel",
+    "category": "physical-model",
+    "syntax": "... barmodel ...",
+    "description": "barmodel — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-barmodel",
+      "csoundmanual-insremotm",
+      "csoundmanual-turnon",
+      "flossmanual-04g11-barmodel",
+      "unknown-04g11-barmodel"
+    ]
+  },
+  {
+    "name": "mode",
+    "category": "physical-model",
+    "syntax": "... mode ...",
+    "description": "mode — physical-model opcode",
+    "parameters": [],
+    "seeAlso": [
+      "wgbow",
+      "wgflute",
+      "wgclar",
+      "wgbrass"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "physical-model",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-10-4-mode",
+      "zuccobook-cap-10-6-wood",
+      "lazzarinicsound-10-4",
+      "csoundmanual-sequ1",
+      "csoundmanual-phaser2"
+    ]
+  },
+  {
+    "name": "diskin",
+    "category": "sample-playback",
+    "syntax": "... diskin ...",
+    "description": "diskin — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin2",
+      "loscil",
+      "loscil3",
+      "soundin"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-taninv2-advanced",
+      "flossmanual-14c02-simple-dynamic-gate",
+      "flossmanual-05b05-vbap-circle",
+      "flossmanual-03g10-udo-fileplay",
+      "flossmanual-05g02-simple-grain-continuous"
+    ]
+  },
+  {
+    "name": "diskin2",
+    "category": "sample-playback",
+    "syntax": "... diskin2 ...",
+    "description": "diskin2 — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "loscil",
+      "loscil3",
+      "soundin"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-10-3-wguide1-wguide2-streson",
+      "csoundmanual-tone",
+      "csoundmanual-wgpluck",
+      "flossmanual-05h01-pconvolve",
+      "flossmanual-03h01-macros-basic"
+    ]
+  },
+  {
+    "name": "loscil",
+    "category": "sample-playback",
+    "syntax": "... loscil ...",
+    "description": "loscil — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil3",
+      "soundin"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-b",
+      "csoundmanual-capb",
+      "flossmanual-05g11-grain-delay",
+      "unknown-05g11-grain-delay",
+      "unknown-loscil-loscil3"
+    ]
+  },
+  {
+    "name": "loscil3",
+    "category": "sample-playback",
+    "syntax": "... loscil3 ...",
+    "description": "loscil3 — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "soundin"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-loscil-loscil3"
+    ]
+  },
+  {
+    "name": "soundin",
+    "category": "sample-playback",
+    "syntax": "... soundin ...",
+    "description": "soundin — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-1",
+      "zuccobook-cap-3-18-random-instrument",
+      "flossmanual-05b13-udo-ambisonics2d-4",
+      "flossmanual-05b19-udo-aep",
+      "flossmanual-03c05-ifgoto-ik"
+    ]
+  },
+  {
+    "name": "flooper",
+    "category": "sample-playback",
+    "syntax": "... flooper ...",
+    "description": "flooper — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-mousechord-file",
+      "unknown-mousekeyboard-file"
+    ]
+  },
+  {
+    "name": "flooper2",
+    "category": "sample-playback",
+    "syntax": "... flooper2 ...",
+    "description": "flooper2 — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-06b01-flooper2",
+      "unknown-06b01-flooper2",
+      "unknown-mousechord-file",
+      "unknown-flooper2"
+    ]
+  },
+  {
+    "name": "sndwarp",
+    "category": "sample-playback",
+    "syntax": "... sndwarp ...",
+    "description": "sndwarp — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "sndwarpst",
+    "category": "sample-playback",
+    "syntax": "... sndwarpst ...",
+    "description": "sndwarpst — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "mincer",
+    "category": "sample-playback",
+    "syntax": "... mincer ...",
+    "description": "mincer — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-mincer"
+    ]
+  },
+  {
+    "name": "temposcal",
+    "category": "sample-playback",
+    "syntax": "... temposcal ...",
+    "description": "temposcal — sample-playback opcode",
+    "parameters": [],
+    "seeAlso": [
+      "diskin",
+      "diskin2",
+      "loscil",
+      "loscil3"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "sample-playback",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-temposcal"
+    ]
+  },
+  {
+    "name": "noise",
+    "category": "noise",
+    "syntax": "... noise ...",
+    "description": "noise — noise opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pinkish",
+      "dust",
+      "dust2"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "noise",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "dodgebook-325",
+      "dodgebook-filter",
+      "csoundmanual-atonex",
+      "csoundmanual-wguide1",
+      "csoundmanual-exitnow"
+    ]
+  },
+  {
+    "name": "pinkish",
+    "category": "noise",
+    "syntax": "... pinkish ...",
+    "description": "pinkish — noise opcode",
+    "parameters": [],
+    "seeAlso": [
+      "noise",
+      "dust",
+      "dust2"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "noise",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-bformenc1",
+      "csoundmanual-pinkish",
+      "flossmanual-05b02-pan-stereo",
+      "flossmanual-04b03-subtractive-vowels",
+      "flossmanual-05d06-flanger"
+    ]
+  },
+  {
+    "name": "dust",
+    "category": "noise",
+    "syntax": "... dust ...",
+    "description": "dust — noise opcode",
+    "parameters": [],
+    "seeAlso": [
+      "noise",
+      "pinkish",
+      "dust2"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "noise",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-mvmfilter",
+      "csoundmanual-dust"
+    ]
+  },
+  {
+    "name": "dust2",
+    "category": "noise",
+    "syntax": "... dust2 ...",
+    "description": "dust2 — noise opcode",
+    "parameters": [],
+    "seeAlso": [
+      "noise",
+      "pinkish",
+      "dust"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "noise",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-dust2",
+      "flossmanual-14c04-drum-replacement",
+      "unknown-14c04-drum-replacement"
+    ]
+  },
+  {
+    "name": "moogladder",
+    "category": "filter",
+    "syntax": "... moogladder ...",
+    "description": "moogladder — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder",
+      "diode_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-13-2-hipersaw-udo",
+      "zuccobook-cap-6-10-moogladder-nogui",
+      "zuccobook-cap-13-1-hipersaw",
+      "zuccobook-cap-3-6-bassline",
+      "lazzarinicsound-12-3"
+    ]
+  },
+  {
+    "name": "lpf18",
+    "category": "filter",
+    "syntax": "... lpf18 ...",
+    "description": "lpf18 — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "zdf_2pole",
+      "zdf_ladder",
+      "diode_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-modmatrix",
+      "csoundmanual-lpf18",
+      "flossmanual-05c05-filter-compar",
+      "flossmanual-05a10-lpshold-loopseg",
+      "unknown-05c05-filter-compar"
+    ]
+  },
+  {
+    "name": "zdf_2pole",
+    "category": "filter",
+    "syntax": "... zdf_2pole ...",
+    "description": "zdf_2pole — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_ladder",
+      "diode_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-zdf-2pole"
+    ]
+  },
+  {
+    "name": "zdf_ladder",
+    "category": "filter",
+    "syntax": "... zdf_ladder ...",
+    "description": "zdf_ladder — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "diode_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-zdf-ladder",
+      "flossmanual-05d08-custom-delay-line",
+      "unknown-05d08-custom-delay-line"
+    ]
+  },
+  {
+    "name": "diode_ladder",
+    "category": "filter",
+    "syntax": "... diode_ladder ...",
+    "description": "diode_ladder — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "k35_lpf",
+    "category": "filter",
+    "syntax": "... k35_lpf ...",
+    "description": "k35_lpf — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "k35_hpf",
+    "category": "filter",
+    "syntax": "... k35_hpf ...",
+    "description": "k35_hpf — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "butterlp",
+    "category": "filter",
+    "syntax": "... butterlp ...",
+    "description": "butterlp — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-15-20",
+      "csoundmanual-grain2",
+      "csoundmanual-oscbnk-advanced",
+      "csoundmanual-butterlp",
+      "csoundmanual-reverbsc"
+    ]
+  },
+  {
+    "name": "butterhp",
+    "category": "filter",
+    "syntax": "... butterhp ...",
+    "description": "butterhp — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-15-20",
+      "csoundmanual-loop-gt",
+      "csoundmanual-butterhp",
+      "csoundmanual-max-k",
+      "boulangerbook-terrain"
+    ]
+  },
+  {
+    "name": "butterbp",
+    "category": "filter",
+    "syntax": "... butterbp ...",
+    "description": "butterbp — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-6-8-bandpass-filter-nogui",
+      "csoundmanual-grain2",
+      "csoundmanual-butterbp",
+      "bianchinicipriani-4poles",
+      "bianchinicipriani-resfilt"
+    ]
+  },
+  {
+    "name": "butterbs",
+    "category": "filter",
+    "syntax": "... butterbs ...",
+    "description": "butterbs — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "tone",
+    "category": "filter",
+    "syntax": "... tone ...",
+    "description": "tone — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-spatnote"
+    ]
+  },
+  {
+    "name": "atone",
+    "category": "filter",
+    "syntax": "... atone ...",
+    "description": "atone — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-oboe",
+      "hornerbook-trombcup",
+      "hornerbook-horn"
+    ]
+  },
+  {
+    "name": "tonex",
+    "category": "filter",
+    "syntax": "... tonex ...",
+    "description": "tonex — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-1",
+      "zuccobook-cap-6-7-lowpass-filter-nogui",
+      "unknown-2",
+      "unknown-tonex"
+    ]
+  },
+  {
+    "name": "atonex",
+    "category": "filter",
+    "syntax": "... atonex ...",
+    "description": "atonex — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "reson",
+    "category": "filter",
+    "syntax": "... reson ...",
+    "description": "reson — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-multpro2",
+      "hornerbook-multpro1",
+      "hornerbook-reorder",
+      "hornerbook-filter",
+      "hornerbook-multnote"
+    ]
+  },
+  {
+    "name": "resonx",
+    "category": "filter",
+    "syntax": "... resonx ...",
+    "description": "resonx — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-resonx"
+    ]
+  },
+  {
+    "name": "areson",
+    "category": "filter",
+    "syntax": "... areson ...",
+    "description": "areson — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-multpro2",
+      "hornerbook-multpro1",
+      "hornerbook-reorder",
+      "hornerbook-filter",
+      "hornerbook-multnote"
+    ]
+  },
+  {
+    "name": "bqrez",
+    "category": "filter",
+    "syntax": "... bqrez ...",
+    "description": "bqrez — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-bqrez",
+      "flossmanual-05c02-atone-buthp-bqrez",
+      "flossmanual-05c05-filter-compar",
+      "unknown-05c02-atone-buthp-bqrez",
+      "unknown-05c05-filter-compar"
+    ]
+  },
+  {
+    "name": "svfilter",
+    "category": "filter",
+    "syntax": "... svfilter ...",
+    "description": "svfilter — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-svfilter",
+      "flossmanual-05c05-filter-compar",
+      "unknown-05c05-filter-compar",
+      "unknown-svfilter"
+    ]
+  },
+  {
+    "name": "statevar",
+    "category": "filter",
+    "syntax": "... statevar ...",
+    "description": "statevar — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-6-9-statevar-filter-nogui",
+      "zuccobook-cap-6-9-statevar-dissolvenze",
+      "csoundmanual-statevar",
+      "flossmanual-05c05-filter-compar",
+      "unknown-05c05-filter-compar"
+    ]
+  },
+  {
+    "name": "clfilt",
+    "category": "filter",
+    "syntax": "... clfilt ...",
+    "description": "clfilt — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "pareq",
+    "category": "filter",
+    "syntax": "... pareq ...",
+    "description": "pareq — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "eqfil",
+    "category": "filter",
+    "syntax": "... eqfil ...",
+    "description": "eqfil — filter opcode",
+    "parameters": [],
+    "seeAlso": [
+      "moogladder",
+      "lpf18",
+      "zdf_2pole",
+      "zdf_ladder"
+    ],
+    "domain": "effects",
+    "tags": [
+      "filter",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "reverbsc",
+    "category": "reverb",
+    "syntax": "... reverbsc ...",
+    "description": "reverbsc — reverb opcode",
+    "parameters": [],
+    "seeAlso": [
+      "reverb",
+      "reverb2",
+      "freeverb",
+      "nreverb"
+    ],
+    "domain": "effects",
+    "tags": [
+      "reverb",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-12-11-connect-alwayson",
+      "lazzarinicsound-10-4",
+      "csoundmanual-signalflowgraph",
+      "csoundmanual-leftbrace",
+      "csoundmanual-sterrain2"
+    ]
+  },
+  {
+    "name": "reverb",
+    "category": "reverb",
+    "syntax": "... reverb ...",
+    "description": "reverb — reverb opcode",
+    "parameters": [],
+    "seeAlso": [
+      "reverbsc",
+      "reverb2",
+      "freeverb",
+      "nreverb"
+    ],
+    "domain": "effects",
+    "tags": [
+      "reverb",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-spatnote",
+      "hornerbook-trombcup",
+      "hornerbook-pannote2"
+    ]
+  },
+  {
+    "name": "reverb2",
+    "category": "reverb",
+    "syntax": "... reverb2 ...",
+    "description": "reverb2 — reverb opcode",
+    "parameters": [],
+    "seeAlso": [
+      "reverbsc",
+      "reverb",
+      "freeverb",
+      "nreverb"
+    ],
+    "domain": "effects",
+    "tags": [
+      "reverb",
+      "effects"
+    ],
+    "exampleIDs": [
+      "bianchinicipriani-reverb2"
+    ]
+  },
+  {
+    "name": "freeverb",
+    "category": "reverb",
+    "syntax": "... freeverb ...",
+    "description": "freeverb — reverb opcode",
+    "parameters": [],
+    "seeAlso": [
+      "reverbsc",
+      "reverb",
+      "reverb2",
+      "nreverb"
+    ],
+    "domain": "effects",
+    "tags": [
+      "reverb",
+      "effects"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-15-20",
+      "csoundmanual-chnget",
+      "csoundmanual-chnmix",
+      "csoundmanual-chnclear",
+      "csoundmanual-freeverb"
+    ]
+  },
+  {
+    "name": "nreverb",
+    "category": "reverb",
+    "syntax": "... nreverb ...",
+    "description": "nreverb — reverb opcode",
+    "parameters": [],
+    "seeAlso": [
+      "reverbsc",
+      "reverb",
+      "reverb2",
+      "freeverb"
+    ],
+    "domain": "effects",
+    "tags": [
+      "reverb",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-nreverb",
+      "boulangerbook-140",
+      "boulangerbook-141",
+      "boulangerbook-143",
+      "boulangerbook-142"
+    ]
+  },
+  {
+    "name": "babo",
+    "category": "reverb",
+    "syntax": "... babo ...",
+    "description": "babo — reverb opcode",
+    "parameters": [],
+    "seeAlso": [
+      "reverbsc",
+      "reverb",
+      "reverb2",
+      "freeverb"
+    ],
+    "domain": "effects",
+    "tags": [
+      "reverb",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "delay",
+    "category": "delay",
+    "syntax": "... delay ...",
+    "description": "delay — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay1",
+      "delayr",
+      "delayw",
+      "deltap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-flngnote",
+      "hornerbook-multnote",
+      "hornerbook-chornote",
+      "hornerbook-chorus",
+      "hornerbook-flanging"
+    ]
+  },
+  {
+    "name": "delay1",
+    "category": "delay",
+    "syntax": "... delay1 ...",
+    "description": "delay1 — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delayr",
+      "delayw",
+      "deltap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "delayr",
+    "category": "delay",
+    "syntax": "... delayr ...",
+    "description": "delayr — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayw",
+      "deltap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-flngnote",
+      "hornerbook-spatnote",
+      "hornerbook-echonote",
+      "hornerbook-multnote",
+      "hornerbook-chornote"
+    ]
+  },
+  {
+    "name": "delayw",
+    "category": "delay",
+    "syntax": "... delayw ...",
+    "description": "delayw — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "deltap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-flngnote",
+      "hornerbook-spatnote",
+      "hornerbook-echonote",
+      "hornerbook-multnote",
+      "hornerbook-chornote"
+    ]
+  },
+  {
+    "name": "deltap",
+    "category": "delay",
+    "syntax": "... deltap ...",
+    "description": "deltap — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-16-1",
+      "csoundmanual-delayw",
+      "csoundmanual-delayr",
+      "csoundmanual-deltap",
+      "csoundmanual-metro2"
+    ]
+  },
+  {
+    "name": "deltapi",
+    "category": "delay",
+    "syntax": "... deltapi ...",
+    "description": "deltapi — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-flngnote",
+      "hornerbook-multnote",
+      "hornerbook-chornote",
+      "hornerbook-chorus",
+      "hornerbook-flanging"
+    ]
+  },
+  {
+    "name": "deltap3",
+    "category": "delay",
+    "syntax": "... deltap3 ...",
+    "description": "deltap3 — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-deltap3",
+      "flossmanual-05d06-flanger",
+      "unknown-05d06-flanger",
+      "unknown-phasemodulationsynthesismmmc",
+      "unknown-phasemodulationsynthesismmc"
+    ]
+  },
+  {
+    "name": "deltapx",
+    "category": "delay",
+    "syntax": "... deltapx ...",
+    "description": "deltapx — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "vdelay",
+    "category": "delay",
+    "syntax": "... vdelay ...",
+    "description": "vdelay — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-13-3-chorus",
+      "csoundmanual-osciln",
+      "csoundmanual-lfo-advanced",
+      "csoundmanual-vdelay",
+      "boulangerbook-136"
+    ]
+  },
+  {
+    "name": "vdelay3",
+    "category": "delay",
+    "syntax": "... vdelay3 ...",
+    "description": "vdelay3 — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-vdelay3",
+      "unknown-6",
+      "unknown-5"
+    ]
+  },
+  {
+    "name": "multitap",
+    "category": "delay",
+    "syntax": "... multitap ...",
+    "description": "multitap — delay opcode",
+    "parameters": [],
+    "seeAlso": [
+      "delay",
+      "delay1",
+      "delayr",
+      "delayw"
+    ],
+    "domain": "effects",
+    "tags": [
+      "delay",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-turnon"
+    ]
+  },
+  {
+    "name": "flanger",
+    "category": "modulation-effect",
+    "syntax": "... flanger ...",
+    "description": "flanger — modulation-effect opcode",
+    "parameters": [],
+    "seeAlso": [
+      "chorus",
+      "phaser1",
+      "phaser2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "modulation-effect",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-flngnote",
+      "hornerbook-multnote",
+      "hornerbook-flanging",
+      "zuccobook-cap-10-3-wguide1-wguide2-streson",
+      "zuccobook-cap-12-7-flanger"
+    ]
+  },
+  {
+    "name": "chorus",
+    "category": "modulation-effect",
+    "syntax": "... chorus ...",
+    "description": "chorus — modulation-effect opcode",
+    "parameters": [],
+    "seeAlso": [
+      "flanger",
+      "phaser1",
+      "phaser2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "modulation-effect",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-chornote",
+      "hornerbook-chorus",
+      "zuccobook-cap-13-3-chorus",
+      "boulangerbook-2903",
+      "boulangerbook-3035"
+    ]
+  },
+  {
+    "name": "phaser1",
+    "category": "modulation-effect",
+    "syntax": "... phaser1 ...",
+    "description": "phaser1 — modulation-effect opcode",
+    "parameters": [],
+    "seeAlso": [
+      "flanger",
+      "chorus",
+      "phaser2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "modulation-effect",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-phaser1",
+      "csoundmanual-turnon",
+      "unknown-phaser1",
+      "unknown-phaser2",
+      "unknown-multifx"
+    ]
+  },
+  {
+    "name": "phaser2",
+    "category": "modulation-effect",
+    "syntax": "... phaser2 ...",
+    "description": "phaser2 — modulation-effect opcode",
+    "parameters": [],
+    "seeAlso": [
+      "flanger",
+      "chorus",
+      "phaser1"
+    ],
+    "domain": "effects",
+    "tags": [
+      "modulation-effect",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-phaser2",
+      "unknown-5",
+      "unknown-phaser2"
+    ]
+  },
+  {
+    "name": "distort",
+    "category": "distortion",
+    "syntax": "... distort ...",
+    "description": "distort — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort1",
+      "clip",
+      "wrap",
+      "fold"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-7-9-distort",
+      "csoundmanual-polynomial",
+      "csoundmanual-distort",
+      "flossmanual-04e03-distort-1",
+      "flossmanual-04e04-distort-2"
+    ]
+  },
+  {
+    "name": "distort1",
+    "category": "distortion",
+    "syntax": "... distort1 ...",
+    "description": "distort1 — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "clip",
+      "wrap",
+      "fold"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-distort1",
+      "unknown-distort1",
+      "unknown-multifx"
+    ]
+  },
+  {
+    "name": "clip",
+    "category": "distortion",
+    "syntax": "... clip ...",
+    "description": "clip — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "distort1",
+      "wrap",
+      "fold"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-13-2-hipersaw-udo",
+      "zuccobook-cap-6-9-statevar-filter-nogui",
+      "zuccobook-cap-6-11-fofilter-nogui",
+      "zuccobook-cap-13-1-hipersaw",
+      "zuccobook-cap-9-5-partikkel"
+    ]
+  },
+  {
+    "name": "wrap",
+    "category": "distortion",
+    "syntax": "... wrap ...",
+    "description": "wrap — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "distort1",
+      "clip",
+      "fold"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-metro2",
+      "boulangerbook-1203",
+      "flossmanual-14c01-amplitude-tracking-first-principles",
+      "unknown-14c01-amplitude-tracking-first-principles",
+      "unknown-schedkwhengranulation"
+    ]
+  },
+  {
+    "name": "fold",
+    "category": "distortion",
+    "syntax": "... fold ...",
+    "description": "fold — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "distort1",
+      "clip",
+      "wrap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-fold",
+      "csoundmanual-turnon",
+      "unknown-fold",
+      "unknown-multifx"
+    ]
+  },
+  {
+    "name": "powershape",
+    "category": "distortion",
+    "syntax": "... powershape ...",
+    "description": "powershape — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "distort1",
+      "clip",
+      "wrap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-7-8-powershape",
+      "csoundmanual-powershape",
+      "flossmanual-04e02-powershape",
+      "unknown-04e02-powershape",
+      "unknown-powershape"
+    ]
+  },
+  {
+    "name": "tanh",
+    "category": "distortion",
+    "syntax": "... tanh ...",
+    "description": "tanh — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "distort1",
+      "clip",
+      "wrap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-k35",
+      "csoundmanual-tanh",
+      "csoundmanual-mvmfilter",
+      "flossmanual-04e03-distort-1",
+      "flossmanual-04e04-distort-2"
+    ]
+  },
+  {
+    "name": "chebyshevpoly",
+    "category": "distortion",
+    "syntax": "... chebyshevpoly ...",
+    "description": "chebyshevpoly — distortion opcode",
+    "parameters": [],
+    "seeAlso": [
+      "distort",
+      "distort1",
+      "clip",
+      "wrap"
+    ],
+    "domain": "effects",
+    "tags": [
+      "distortion",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-chebyshevpoly"
+    ]
+  },
+  {
+    "name": "compress",
+    "category": "dynamics",
+    "syntax": "... compress ...",
+    "description": "compress — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress2",
+      "dam",
+      "follow",
+      "follow2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "boulangerbook-3001",
+      "boulangerbook-3011",
+      "boulangerbook-3099",
+      "unknown-compress"
+    ]
+  },
+  {
+    "name": "compress2",
+    "category": "dynamics",
+    "syntax": "... compress2 ...",
+    "description": "compress2 — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "dam",
+      "follow",
+      "follow2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "dam",
+    "category": "dynamics",
+    "syntax": "... dam ...",
+    "description": "dam — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "compress2",
+      "follow",
+      "follow2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-signalflowgraph",
+      "csoundmanual-inleta",
+      "csoundmanual-alwayson",
+      "csoundmanual-connect",
+      "unknown-multifx"
+    ]
+  },
+  {
+    "name": "follow",
+    "category": "dynamics",
+    "syntax": "... follow ...",
+    "description": "follow — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "compress2",
+      "dam",
+      "follow2"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "boulangerbook-210",
+      "flossmanual-03f07-event-by-condition",
+      "unknown-03f07-event-by-condition",
+      "unknown-dynamictriggeredrecord",
+      "unknown-analoguevocoder"
+    ]
+  },
+  {
+    "name": "follow2",
+    "category": "dynamics",
+    "syntax": "... follow2 ...",
+    "description": "follow2 — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "compress2",
+      "dam",
+      "follow"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "unknown-dynamictriggeredrecord",
+      "unknown-analoguevocoder",
+      "unknown-multifx",
+      "unknown-trigger",
+      "unknown-pvsvoc"
+    ]
+  },
+  {
+    "name": "rms",
+    "category": "dynamics",
+    "syntax": "... rms ...",
+    "description": "rms — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "compress2",
+      "dam",
+      "follow"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-gain",
+      "bianchinicipriani-limit",
+      "boulangerbook-3001",
+      "boulangerbook-3014",
+      "boulangerbook-3010"
+    ]
+  },
+  {
+    "name": "balance",
+    "category": "dynamics",
+    "syntax": "... balance ...",
+    "description": "balance — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "compress2",
+      "dam",
+      "follow"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-spatnote"
+    ]
+  },
+  {
+    "name": "balance2",
+    "category": "dynamics",
+    "syntax": "... balance2 ...",
+    "description": "balance2 — dynamics opcode",
+    "parameters": [],
+    "seeAlso": [
+      "compress",
+      "compress2",
+      "dam",
+      "follow"
+    ],
+    "domain": "effects",
+    "tags": [
+      "dynamics",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-balance2"
+    ]
+  },
+  {
+    "name": "pan2",
+    "category": "spatialization",
+    "syntax": "... pan2 ...",
+    "description": "pan2 — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan",
+      "vbap4",
+      "vbap8",
+      "hrtfstat"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-12-11-connect-alwayson",
+      "zuccobook-cap-7-6-4phasemod",
+      "zuccobook-cap-3-24-200oscil",
+      "zuccobook-cap-3-10-controllare-il-suono-stereo",
+      "zuccobook-cap-10-4-mode"
+    ]
+  },
+  {
+    "name": "pan",
+    "category": "spatialization",
+    "syntax": "... pan ...",
+    "description": "pan — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "vbap4",
+      "vbap8",
+      "hrtfstat"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": [
+      "hornerbook-spatnote",
+      "hornerbook-pannote2",
+      "hornerbook-multpro2",
+      "hornerbook-spatial",
+      "hornerbook-multpro1"
+    ]
+  },
+  {
+    "name": "vbap4",
+    "category": "spatialization",
+    "syntax": "... vbap4 ...",
+    "description": "vbap4 — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap8",
+      "hrtfstat"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "vbap8",
+    "category": "spatialization",
+    "syntax": "... vbap8 ...",
+    "description": "vbap8 — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap4",
+      "hrtfstat"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "hrtfstat",
+    "category": "spatialization",
+    "syntax": "... hrtfstat ...",
+    "description": "hrtfstat — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap4",
+      "vbap8"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "hrtfmove",
+    "category": "spatialization",
+    "syntax": "... hrtfmove ...",
+    "description": "hrtfmove — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap4",
+      "vbap8"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "hrtfmove2",
+    "category": "spatialization",
+    "syntax": "... hrtfmove2 ...",
+    "description": "hrtfmove2 — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap4",
+      "vbap8"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": [
+      "flossmanual-05b04-hrtfmove",
+      "unknown-05b04-hrtfmove"
+    ]
+  },
+  {
+    "name": "bformenc1",
+    "category": "spatialization",
+    "syntax": "... bformenc1 ...",
+    "description": "bformenc1 — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap4",
+      "vbap8"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-bformenc1",
+      "flossmanual-05b09-ambi-orders",
+      "flossmanual-05b08-ambi-circle",
+      "unknown-05b09-ambi-orders",
+      "unknown-05b08-ambi-circle"
+    ]
+  },
+  {
+    "name": "bformdec1",
+    "category": "spatialization",
+    "syntax": "... bformdec1 ...",
+    "description": "bformdec1 — spatialization opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pan2",
+      "pan",
+      "vbap4",
+      "vbap8"
+    ],
+    "domain": "effects",
+    "tags": [
+      "spatialization",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-bformenc1",
+      "flossmanual-05b09-ambi-orders",
+      "flossmanual-05b08-ambi-circle",
+      "unknown-05b09-ambi-orders",
+      "unknown-05b08-ambi-circle"
+    ]
+  },
+  {
+    "name": "pconvolve",
+    "category": "convolution",
+    "syntax": "... pconvolve ...",
+    "description": "pconvolve — convolution opcode",
+    "parameters": [],
+    "seeAlso": [
+      "convolve",
+      "ftconv",
+      "dconv"
+    ],
+    "domain": "effects",
+    "tags": [
+      "convolution",
+      "effects"
+    ],
+    "exampleIDs": [
+      "flossmanual-05h01-pconvolve",
+      "unknown-05h01-pconvolve"
+    ]
+  },
+  {
+    "name": "convolve",
+    "category": "convolution",
+    "syntax": "... convolve ...",
+    "description": "convolve — convolution opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pconvolve",
+      "ftconv",
+      "dconv"
+    ],
+    "domain": "effects",
+    "tags": [
+      "convolution",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "ftconv",
+    "category": "convolution",
+    "syntax": "... ftconv ...",
+    "description": "ftconv — convolution opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pconvolve",
+      "convolve",
+      "dconv"
+    ],
+    "domain": "effects",
+    "tags": [
+      "convolution",
+      "effects"
+    ],
+    "exampleIDs": [
+      "csoundmanual-gen52",
+      "flossmanual-05h02-ftconv",
+      "unknown-05h02-ftconv"
+    ]
+  },
+  {
+    "name": "dconv",
+    "category": "convolution",
+    "syntax": "... dconv ...",
+    "description": "dconv — convolution opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pconvolve",
+      "convolve",
+      "ftconv"
+    ],
+    "domain": "effects",
+    "tags": [
+      "convolution",
+      "effects"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "pvsanal",
+    "category": "spectral",
+    "syntax": "... pvsanal ...",
+    "description": "pvsanal — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsynth",
+      "pvscross",
+      "pvsfilter",
+      "pvsmorph"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-cell",
+      "flossmanual-04h03-scantable-pvsmaska",
+      "flossmanual-05i04-pvscale",
+      "flossmanual-05i11-pvstrace-simple",
+      "flossmanual-05i01-pvsanal"
+    ]
+  },
+  {
+    "name": "pvsynth",
+    "category": "spectral",
+    "syntax": "... pvsynth ...",
+    "description": "pvsynth — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvscross",
+      "pvsfilter",
+      "pvsmorph"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-cell",
+      "flossmanual-03e07-pvs-to-from-array",
+      "flossmanual-04h03-scantable-pvsmaska",
+      "flossmanual-05i04-pvscale",
+      "flossmanual-05i06-phase-vocoder"
+    ]
+  },
+  {
+    "name": "pvscross",
+    "category": "spectral",
+    "syntax": "... pvscross ...",
+    "description": "pvscross — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvsfilter",
+      "pvsmorph"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-05i07-pvscross",
+      "unknown-05i07-pvscross",
+      "unknown-pvscross1",
+      "unknown-pvscross"
+    ]
+  },
+  {
+    "name": "pvsfilter",
+    "category": "spectral",
+    "syntax": "... pvsfilter ...",
+    "description": "pvsfilter — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsmorph"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-05i08-pvsfilter",
+      "unknown-05i08-pvsfilter",
+      "unknown-pvsfilter"
+    ]
+  },
+  {
+    "name": "pvsmorph",
+    "category": "spectral",
+    "syntax": "... pvsmorph ...",
+    "description": "pvsmorph — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-pvsmorph"
+    ]
+  },
+  {
+    "name": "pvsblur",
+    "category": "spectral",
+    "syntax": "... pvsblur ...",
+    "description": "pvsblur — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-05i09-pvsmooth-pvsblur",
+      "unknown-05i09-pvsmooth-pvsblur",
+      "unknown-pvsblur",
+      "unknown-pvswarp"
+    ]
+  },
+  {
+    "name": "pvswarp",
+    "category": "spectral",
+    "syntax": "... pvswarp ...",
+    "description": "pvswarp — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-pvswarp"
+    ]
+  },
+  {
+    "name": "pvshift",
+    "category": "spectral",
+    "syntax": "... pvshift ...",
+    "description": "pvshift — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-05i05-pvshift",
+      "unknown-05i05-pvshift",
+      "unknown-pvshift-pvscale"
+    ]
+  },
+  {
+    "name": "pvscale",
+    "category": "spectral",
+    "syntax": "... pvscale ...",
+    "description": "pvscale — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-05i04-pvscale",
+      "unknown-05i04-pvscale",
+      "unknown-multifx",
+      "unknown-pianophasedemo",
+      "unknown-pvswrite"
+    ]
+  },
+  {
+    "name": "pvsfreeze",
+    "category": "spectral",
+    "syntax": "... pvsfreeze ...",
+    "description": "pvsfreeze — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-pvsfreeze"
+    ]
+  },
+  {
+    "name": "pvsmaska",
+    "category": "spectral",
+    "syntax": "... pvsmaska ...",
+    "description": "pvsmaska — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-04h03-scantable-pvsmaska",
+      "unknown-04h03-scantable-pvsmaska"
+    ]
+  },
+  {
+    "name": "pvstencil",
+    "category": "spectral",
+    "syntax": "... pvstencil ...",
+    "description": "pvstencil — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "csoundmanual-cell",
+      "unknown-pvstencil"
+    ]
+  },
+  {
+    "name": "pvsadsyn",
+    "category": "spectral",
+    "syntax": "... pvsadsyn ...",
+    "description": "pvsadsyn — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "unknown-pvsadsyn"
+    ]
+  },
+  {
+    "name": "pvsbin",
+    "category": "spectral",
+    "syntax": "... pvsbin ...",
+    "description": "pvsbin — spectral opcode",
+    "parameters": [],
+    "seeAlso": [
+      "pvsanal",
+      "pvsynth",
+      "pvscross",
+      "pvsfilter"
+    ],
+    "domain": "synthesis",
+    "tags": [
+      "spectral",
+      "synthesis"
+    ],
+    "exampleIDs": [
+      "flossmanual-05i10-pvsbin",
+      "flossmanual-05i12-pvstrace-array",
+      "unknown-05i10-pvsbin",
+      "unknown-05i12-pvstrace-array"
+    ]
+  },
+  {
+    "name": "linen",
+    "category": "envelope",
+    "syntax": "... linen ...",
+    "description": "linen — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linenr",
+      "adsr",
+      "madsr",
+      "mxadsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "dodgebook-vibrato",
+      "dodgebook-526",
+      "dodgebook-329",
+      "dodgebook-411b",
+      "dodgebook-dubcar"
+    ]
+  },
+  {
+    "name": "linenr",
+    "category": "envelope",
+    "syntax": "... linenr ...",
+    "description": "linenr — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "adsr",
+      "madsr",
+      "mxadsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-vps",
+      "flossmanual-03a16-fractionalinstrnums",
+      "flossmanual-09a03-pdcs-midi",
+      "flossmanual-03f04-midi-triggered-events",
+      "flossmanual-05i09-pvsmooth-pvsblur"
+    ]
+  },
+  {
+    "name": "adsr",
+    "category": "envelope",
+    "syntax": "... adsr ...",
+    "description": "adsr — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "madsr",
+      "mxadsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-7-adsr",
+      "zuccobook-cap-13-2-hipersaw-udo",
+      "zuccobook-cap-7-6-4phasemod",
+      "zuccobook-cap-7-5-phase-modulation",
+      "zuccobook-cap-13-1-hipersaw"
+    ]
+  },
+  {
+    "name": "madsr",
+    "category": "envelope",
+    "syntax": "... madsr ...",
+    "description": "madsr — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "mxadsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-9-8-vocal-synthesis",
+      "lazzarinicsound-12-15",
+      "csoundmanual-signalflowgraph",
+      "csoundmanual-padsynth-gen",
+      "csoundmanual-mvmfilter"
+    ]
+  },
+  {
+    "name": "mxadsr",
+    "category": "envelope",
+    "syntax": "... mxadsr ...",
+    "description": "mxadsr — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-6-2-simple-additive-table-b",
+      "zuccobook-cap-6-2-simple-additive-table",
+      "zuccobook-cap-6-1-simple-additive",
+      "csoundmanual-adsr-group",
+      "unknown-2xmodulatorcarrierwithenvelopes"
+    ]
+  },
+  {
+    "name": "envlpx",
+    "category": "envelope",
+    "syntax": "... envlpx ...",
+    "description": "envlpx — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-7-4-fmsynth4mod-copia",
+      "csoundmanual-envlpx",
+      "bianchinicipriani-envlpx",
+      "boulangerbook-141",
+      "boulangerbook-1204"
+    ]
+  },
+  {
+    "name": "expon",
+    "category": "envelope",
+    "syntax": "... expon ...",
+    "description": "expon — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-line",
+      "csoundmanual-oscilikts",
+      "csoundmanual-biquada",
+      "csoundmanual-ephasor",
+      "csoundmanual-reinit"
+    ]
+  },
+  {
+    "name": "line",
+    "category": "envelope",
+    "syntax": "... line ...",
+    "description": "line — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "dodgebook-plkmath",
+      "dodgebook-karstr",
+      "dodgebook-wavedrum",
+      "zuccobook-cap-10-3-wguide1-wguide2-streson",
+      "zuccobook-cap-3-19-trigger-metronome"
+    ]
+  },
+  {
+    "name": "linseg",
+    "category": "envelope",
+    "syntax": "... linseg ...",
+    "description": "linseg — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-wt"
+    ]
+  },
+  {
+    "name": "expseg",
+    "category": "envelope",
+    "syntax": "... expseg ...",
+    "description": "expseg — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "hornerbook-glisnote",
+      "dodgebook-wavmodfm",
+      "lazzarinispectral-4-recursion",
+      "lazzarinispectral-5-recursion2",
+      "lazzarinicsound-16-4"
+    ]
+  },
+  {
+    "name": "transeg",
+    "category": "envelope",
+    "syntax": "... transeg ...",
+    "description": "transeg — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-15-20",
+      "csoundmanual-doppler",
+      "csoundmanual-sterrain",
+      "csoundmanual-timout",
+      "csoundmanual-chnget"
+    ]
+  },
+  {
+    "name": "cosseg",
+    "category": "envelope",
+    "syntax": "... cosseg ...",
+    "description": "cosseg — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-cosseg"
+    ]
+  },
+  {
+    "name": "loopseg",
+    "category": "envelope",
+    "syntax": "... loopseg ...",
+    "description": "loopseg — envelope opcode",
+    "parameters": [],
+    "seeAlso": [
+      "linen",
+      "linenr",
+      "adsr",
+      "madsr"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "envelope",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-4-loopseg",
+      "zuccobook-cap-3-6-bassline",
+      "csoundmanual-loopseg",
+      "flossmanual-05d05-multi-tap-delay",
+      "flossmanual-05e01-freeverb"
+    ]
+  },
+  {
+    "name": "lfo",
+    "category": "lfo",
+    "syntax": "... lfo ...",
+    "description": "lfo — lfo opcode",
+    "parameters": [],
+    "seeAlso": [
+      "phasor"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "lfo",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-9-8-vocal-synthesis",
+      "zuccobook-cap-6-11-fofilter-nogui",
+      "zuccobook-cap-12-7-flanger",
+      "zuccobook-cap-6-8-bandpass-filter-nogui",
+      "zuccobook-cap-3-8-vibrato"
+    ]
+  },
+  {
+    "name": "phasor",
+    "category": "lfo",
+    "syntax": "... phasor ...",
+    "description": "phasor — lfo opcode",
+    "parameters": [],
+    "seeAlso": [
+      "lfo"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "lfo",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "hornerbook-pate",
+      "hornerbook-rite",
+      "hornerbook-grace",
+      "zuccobook-cap-7-6-4phasemod",
+      "zuccobook-cap-7-5-phase-modulation"
+    ]
+  },
+  {
+    "name": "jspline",
+    "category": "random-control",
+    "syntax": "... jspline ...",
+    "description": "jspline — random-control opcode",
+    "parameters": [],
+    "seeAlso": [
+      "rspline",
+      "jitter",
+      "jitter2",
+      "randh"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "random-control",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-8-vibrato",
+      "csoundmanual-jspline",
+      "csoundmanual-bob",
+      "unknown-7",
+      "unknown-6"
+    ]
+  },
+  {
+    "name": "rspline",
+    "category": "random-control",
+    "syntax": "... rspline ...",
+    "description": "rspline — random-control opcode",
+    "parameters": [],
+    "seeAlso": [
+      "jspline",
+      "jitter",
+      "jitter2",
+      "randh"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "random-control",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-loopxseg",
+      "csoundmanual-rspline",
+      "csoundmanual-loopsegp",
+      "flossmanual-01d12-humanising",
+      "flossmanual-04g11-barmodel"
+    ]
+  },
+  {
+    "name": "jitter",
+    "category": "random-control",
+    "syntax": "... jitter ...",
+    "description": "jitter — random-control opcode",
+    "parameters": [],
+    "seeAlso": [
+      "jspline",
+      "rspline",
+      "jitter2",
+      "randh"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "random-control",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-9-8-vocal-synthesis",
+      "zuccobook-cap-3-8-vibrato",
+      "csoundmanual-jitter",
+      "csoundmanual-zkmod",
+      "csoundmanual-bob"
+    ]
+  },
+  {
+    "name": "jitter2",
+    "category": "random-control",
+    "syntax": "... jitter2 ...",
+    "description": "jitter2 — random-control opcode",
+    "parameters": [],
+    "seeAlso": [
+      "jspline",
+      "rspline",
+      "jitter",
+      "randh"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "random-control",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-8-vibrato",
+      "csoundmanual-jitter2",
+      "unknown-humanizing"
+    ]
+  },
+  {
+    "name": "randh",
+    "category": "random-control",
+    "syntax": "... randh ...",
+    "description": "randh — random-control opcode",
+    "parameters": [],
+    "seeAlso": [
+      "jspline",
+      "rspline",
+      "jitter",
+      "jitter2"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "random-control",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "dodgebook-p100",
+      "lazzarinicsound-15-5",
+      "lazzarinicsound-15-20",
+      "lazzarinicsound-15-6",
+      "csoundmanual-randh"
+    ]
+  },
+  {
+    "name": "randi",
+    "category": "random-control",
+    "syntax": "... randi ...",
+    "description": "randi — random-control opcode",
+    "parameters": [],
+    "seeAlso": [
+      "jspline",
+      "rspline",
+      "jitter",
+      "jitter2"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "random-control",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "dodgebook-vibrato",
+      "dodgebook-morl2",
+      "dodgebook-326b",
+      "dodgebook-morl1",
+      "dodgebook-325"
+    ]
+  },
+  {
+    "name": "port",
+    "category": "smoothing",
+    "syntax": "... port ...",
+    "description": "port — smoothing opcode",
+    "parameters": [],
+    "seeAlso": [
+      "portk",
+      "tonek",
+      "atonek"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "smoothing",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "lazzarinispectral-resonans",
+      "lazzarinicsound-10-4",
+      "csoundmanual-loopxseg",
+      "csoundmanual-active-scale",
+      "csoundmanual-grain2"
+    ]
+  },
+  {
+    "name": "portk",
+    "category": "smoothing",
+    "syntax": "... portk ...",
+    "description": "portk — smoothing opcode",
+    "parameters": [],
+    "seeAlso": [
+      "port",
+      "tonek",
+      "atonek"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "smoothing",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "lazzarinispectral-resonans",
+      "lazzarinicsound-12-3",
+      "csoundmanual-portk",
+      "flossmanual-07c06-recordingcontroller",
+      "flossmanual-07c0-smoothing"
+    ]
+  },
+  {
+    "name": "tonek",
+    "category": "smoothing",
+    "syntax": "... tonek ...",
+    "description": "tonek — smoothing opcode",
+    "parameters": [],
+    "seeAlso": [
+      "port",
+      "portk",
+      "atonek"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "smoothing",
+      "modulation"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "atonek",
+    "category": "smoothing",
+    "syntax": "... atonek ...",
+    "description": "atonek — smoothing opcode",
+    "parameters": [],
+    "seeAlso": [
+      "port",
+      "portk",
+      "tonek"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "smoothing",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-atonek"
+    ]
+  },
+  {
+    "name": "schedule",
+    "category": "scheduling",
+    "syntax": "... schedule ...",
+    "description": "schedule — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedkwhen",
+      "event",
+      "metro",
+      "trigger"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "lazzarinispectral-2-bell-risset",
+      "lazzarinispectral-3-barphone",
+      "lazzarinispectral-2-bell",
+      "lazzarinispectral-4-recursion",
+      "lazzarinispectral-5-recursion2"
+    ]
+  },
+  {
+    "name": "schedkwhen",
+    "category": "scheduling",
+    "syntax": "... schedkwhen ...",
+    "description": "schedkwhen — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "event",
+      "metro",
+      "trigger"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-19-trigger-metronome",
+      "zuccobook-cap-3-20-generative1",
+      "csoundmanual-schedkwhen",
+      "csoundmanual-trigseq",
+      "csoundmanual-timedseq"
+    ]
+  },
+  {
+    "name": "event",
+    "category": "scheduling",
+    "syntax": "... event ...",
+    "description": "event — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "metro",
+      "trigger"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "metro",
+    "category": "scheduling",
+    "syntax": "... metro ...",
+    "description": "metro — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "event",
+      "trigger"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-3-19-trigger-metronome",
+      "zuccobook-cap-3-20-generative1",
+      "zuccobook-cap-3-21-generative2",
+      "lazzarinicsound-10-4",
+      "csoundmanual-trigseq"
+    ]
+  },
+  {
+    "name": "trigger",
+    "category": "scheduling",
+    "syntax": "... trigger ...",
+    "description": "trigger — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "event",
+      "metro"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-schedkwhen",
+      "csoundmanual-loopxseg",
+      "csoundmanual-looptseg",
+      "csoundmanual-genfarey-2",
+      "csoundmanual-tlineto"
+    ]
+  },
+  {
+    "name": "changed",
+    "category": "scheduling",
+    "syntax": "... changed ...",
+    "description": "changed — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "event",
+      "metro"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "lazzarinispectral-resonans",
+      "flossmanual-07c02-pchbend-aftouch",
+      "flossmanual-03e07-pvs-to-from-array",
+      "flossmanual-07c01-ctrl7-print",
+      "flossmanual-03a03-perf-pass-incr-listen"
+    ]
+  },
+  {
+    "name": "changed2",
+    "category": "scheduling",
+    "syntax": "... changed2 ...",
+    "description": "changed2 — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "event",
+      "metro"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "turnoff",
+    "category": "scheduling",
+    "syntax": "... turnoff ...",
+    "description": "turnoff — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "event",
+      "metro"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-crossfm",
+      "csoundmanual-k35",
+      "csoundmanual-ihold",
+      "csoundmanual-tableiw",
+      "csoundmanual-turnoff"
+    ]
+  },
+  {
+    "name": "turnoff2",
+    "category": "scheduling",
+    "syntax": "... turnoff2 ...",
+    "description": "turnoff2 — scheduling opcode",
+    "parameters": [],
+    "seeAlso": [
+      "schedule",
+      "schedkwhen",
+      "event",
+      "metro"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "scheduling",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-turnoff2",
+      "unknown-sensekey",
+      "unknown-mousechord-synth",
+      "unknown-mousebass-synth",
+      "unknown-mousechord-file"
+    ]
+  },
+  {
+    "name": "cpsmidi",
+    "category": "midi",
+    "syntax": "... cpsmidi ...",
+    "description": "cpsmidi — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "ampmidi",
+      "notnum",
+      "veloc",
+      "ctrl7"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "flossmanual-05a08-linsegr",
+      "flossmanual-04a06-play-it-with-midi",
+      "flossmanual-09a03-pdcs-midi",
+      "flossmanual-07c0-smoothing",
+      "flossmanual-03f04-midi-triggered-events"
+    ]
+  },
+  {
+    "name": "ampmidi",
+    "category": "midi",
+    "syntax": "... ampmidi ...",
+    "description": "ampmidi — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "notnum",
+      "veloc",
+      "ctrl7"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "flossmanual-07d01-readmidifile",
+      "flossmanual-04a06-play-it-with-midi",
+      "flossmanual-09a03-pdcs-midi",
+      "flossmanual-07c0-smoothing",
+      "flossmanual-03f04-midi-triggered-events"
+    ]
+  },
+  {
+    "name": "notnum",
+    "category": "midi",
+    "syntax": "... notnum ...",
+    "description": "notnum — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "ampmidi",
+      "veloc",
+      "ctrl7"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-gen51",
+      "flossmanual-07c02-pchbend-aftouch",
+      "flossmanual-07d01-readmidifile",
+      "flossmanual-07b03-miditriggerchain",
+      "flossmanual-04b01-subtractive-midi"
+    ]
+  },
+  {
+    "name": "veloc",
+    "category": "midi",
+    "syntax": "... veloc ...",
+    "description": "veloc — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "ampmidi",
+      "notnum",
+      "ctrl7"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "boulangerbook-1205",
+      "flossmanual-07d02-miditoscore",
+      "unknown-07d02-miditoscore",
+      "unknown-pluck",
+      "unknown-cpstmid"
+    ]
+  },
+  {
+    "name": "ctrl7",
+    "category": "midi",
+    "syntax": "... ctrl7 ...",
+    "description": "ctrl7 — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "ampmidi",
+      "notnum",
+      "veloc"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "csoundmanual-gen51",
+      "flossmanual-07c01-ctrl7-print",
+      "flossmanual-07c0-smoothing",
+      "flossmanual-02c02-midi-ctl-in",
+      "flossmanual-04b01-subtractive-midi"
+    ]
+  },
+  {
+    "name": "ctrl14",
+    "category": "midi",
+    "syntax": "... ctrl14 ...",
+    "description": "ctrl14 — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "ampmidi",
+      "notnum",
+      "veloc"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "ctrl21",
+    "category": "midi",
+    "syntax": "... ctrl21 ...",
+    "description": "ctrl21 — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "ampmidi",
+      "notnum",
+      "veloc"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "massign",
+    "category": "midi",
+    "syntax": "... massign ...",
+    "description": "massign — midi opcode",
+    "parameters": [],
+    "seeAlso": [
+      "cpsmidi",
+      "ampmidi",
+      "notnum",
+      "veloc"
+    ],
+    "domain": "modulation",
+    "tags": [
+      "midi",
+      "modulation"
+    ],
+    "exampleIDs": [
+      "flossmanual-03f13-compileorc",
+      "flossmanual-04a06-play-it-with-midi",
+      "flossmanual-07b03-miditriggerchain",
+      "flossmanual-07a01-midiin-print",
+      "flossmanual-03f04-midi-triggered-events"
+    ]
+  },
+  {
+    "name": "ftgen",
+    "category": "table",
+    "syntax": "... ftgen ...",
+    "description": "ftgen — table opcode",
+    "parameters": [],
+    "seeAlso": [
+      "table",
+      "tablei",
+      "tablew",
+      "tablexkt"
+    ],
+    "domain": "general",
+    "tags": [
+      "table",
+      "general"
+    ],
+    "exampleIDs": [
+      "zuccobook-cap-13-2-hipersaw-udo",
+      "zuccobook-cap-3-23-melodia-infinita",
+      "zuccobook-cap-3-20-generative1",
+      "zuccobook-cap-9-5-partikkel",
+      "zuccobook-cap-7-7-waveshape"
+    ]
+  },
+  {
+    "name": "table",
+    "category": "table",
+    "syntax": "... table ...",
+    "description": "table — table opcode",
+    "parameters": [],
+    "seeAlso": [
+      "ftgen",
+      "tablei",
+      "tablew",
+      "tablexkt"
+    ],
+    "domain": "general",
+    "tags": [
+      "table",
+      "general"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-spatnote"
+    ]
+  },
+  {
+    "name": "tablei",
+    "category": "table",
+    "syntax": "... tablei ...",
+    "description": "tablei — table opcode",
+    "parameters": [],
+    "seeAlso": [
+      "ftgen",
+      "table",
+      "tablew",
+      "tablexkt"
+    ],
+    "domain": "general",
+    "tags": [
+      "table",
+      "general"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-spatnote"
+    ]
+  },
+  {
+    "name": "tablew",
+    "category": "table",
+    "syntax": "... tablew ...",
+    "description": "tablew — table opcode",
+    "parameters": [],
+    "seeAlso": [
+      "ftgen",
+      "table",
+      "tablei",
+      "tablexkt"
+    ],
+    "domain": "general",
+    "tags": [
+      "table",
+      "general"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "tablexkt",
+    "category": "table",
+    "syntax": "... tablexkt ...",
+    "description": "tablexkt — table opcode",
+    "parameters": [],
+    "seeAlso": [
+      "ftgen",
+      "table",
+      "tablei",
+      "tablew"
+    ],
+    "domain": "general",
+    "tags": [
+      "table",
+      "general"
+    ],
+    "exampleIDs": []
+  },
+  {
+    "name": "chnget",
+    "category": "channel-io",
+    "syntax": "... chnget ...",
+    "description": "chnget — channel-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "chnset"
+    ],
+    "domain": "general",
+    "tags": [
+      "channel-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-15-20",
+      "lazzarinicsound-10-4",
+      "csoundmanual-modmatrix",
+      "csoundmanual-chnget",
+      "csoundmanual-chnmix"
+    ]
+  },
+  {
+    "name": "chnset",
+    "category": "channel-io",
+    "syntax": "... chnset ...",
+    "description": "chnset — channel-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "chnget"
+    ],
+    "domain": "general",
+    "tags": [
+      "channel-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "lazzarinicsound-15-20",
+      "csoundmanual-modmatrix",
+      "csoundmanual-chnget",
+      "csoundmanual-chnmix",
+      "csoundmanual-chnclear"
+    ]
+  },
+  {
+    "name": "outch",
+    "category": "audio-io",
+    "syntax": "... outch ...",
+    "description": "outch — audio-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "outs",
+      "out",
+      "inch",
+      "in"
+    ],
+    "domain": "general",
+    "tags": [
+      "audio-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "csoundmanual-outch",
+      "csoundmanual-select",
+      "csoundmanual-partikkel-panlaws",
+      "csoundmanual-sc-lag",
+      "csoundmanual-portk"
+    ]
+  },
+  {
+    "name": "outs",
+    "category": "audio-io",
+    "syntax": "... outs ...",
+    "description": "outs — audio-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "outch",
+      "out",
+      "inch",
+      "in"
+    ],
+    "domain": "general",
+    "tags": [
+      "audio-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "hornerbook-spatnote",
+      "hornerbook-pannote2",
+      "hornerbook-multpro2",
+      "hornerbook-spatial",
+      "hornerbook-multpro1"
+    ]
+  },
+  {
+    "name": "out",
+    "category": "audio-io",
+    "syntax": "... out ...",
+    "description": "out — audio-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "outch",
+      "outs",
+      "inch",
+      "in"
+    ],
+    "domain": "general",
+    "tags": [
+      "audio-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-wt"
+    ]
+  },
+  {
+    "name": "inch",
+    "category": "audio-io",
+    "syntax": "... inch ...",
+    "description": "inch — audio-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "outch",
+      "outs",
+      "out",
+      "in"
+    ],
+    "domain": "general",
+    "tags": [
+      "audio-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "flossmanual-03d07-record-audio-to-table",
+      "flossmanual-06b04-bufrecplay-udo",
+      "flossmanual-03g03-udo-more-flex",
+      "flossmanual-03d08-recplay-ak-signals",
+      "flossmanual-09a02-pdcs-live-in"
+    ]
+  },
+  {
+    "name": "in",
+    "category": "audio-io",
+    "syntax": "... in ...",
+    "description": "in — audio-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "outch",
+      "outs",
+      "out",
+      "inch"
+    ],
+    "domain": "general",
+    "tags": [
+      "audio-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "hornerbook-comb2",
+      "hornerbook-comb3",
+      "hornerbook-flngnote",
+      "hornerbook-oboe",
+      "hornerbook-wt"
+    ]
+  },
+  {
+    "name": "ins",
+    "category": "audio-io",
+    "syntax": "... ins ...",
+    "description": "ins — audio-io opcode",
+    "parameters": [],
+    "seeAlso": [
+      "outch",
+      "outs",
+      "out",
+      "inch"
+    ],
+    "domain": "general",
+    "tags": [
+      "audio-io",
+      "general"
+    ],
+    "exampleIDs": [
+      "unknown-bandpass",
+      "unknown-phaser1",
+      "unknown-phaser2",
+      "unknown-multifx",
+      "unknown-waveset"
+    ]
+  }
+]

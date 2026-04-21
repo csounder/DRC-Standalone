@@ -1,0 +1,15 @@
+{
+  "version": "0c30c744399a6564",
+  "createdAt": 1773052881385,
+  "mode": "hybrid",
+  "chunkCount": 2559,
+  "sourceHashes": {
+    "syntax-rules.md": "d20314b8d955b731",
+    "csound7-llms-reference.md": "0d8bb81862472524",
+    "lazzarini-web.md": "ad4da79db057897f",
+    "patterns.md": "e15655375276ae91",
+    "opcodes.md": "0789db9dd30f7053",
+    "antipatterns.md": "d36a6ec2ba6a59aa",
+    "csound_book.txt": "edd33309f2836ae1"
+  }
+}
