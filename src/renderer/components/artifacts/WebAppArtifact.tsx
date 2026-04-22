@@ -13,7 +13,8 @@ export default function WebAppPreview({ artifact }: Props) {
       <iframe
         srcDoc={srcDoc}
         style={styles.iframe}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+        allow="autoplay; microphone; clipboard-write"
         title={artifact.title}
       />
     </div>

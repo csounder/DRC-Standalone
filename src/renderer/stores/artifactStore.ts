@@ -111,6 +111,7 @@ interface ArtifactState {
 
   addArtifact: (input: { type: ArtifactType; title: string; content: string }) => Artifact
   updatePrimary: (id: string, content: string) => Artifact
+  updateInPlace: (id: string, content: string) => void
   setActive: (id: string | null) => void
   setActiveFile: (id: string, fileIndex: number) => void
   openPanel: () => void
@@ -170,6 +171,15 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
     }))
     return artifact
   },
+
+  updateInPlace: (id, newContent) => set((s) => ({
+    artifacts: s.artifacts.map((a) => {
+      if (a.id !== id) return a
+      const files = splitIntoFiles(a.type, newContent)
+      const activeFileIndex = a.activeFileIndex < files.length ? a.activeFileIndex : 0
+      return { ...a, files, activeFileIndex }
+    }),
+  })),
 
   setActive: (id) => set({ activeArtifactId: id, panelOpen: id !== null }),
 

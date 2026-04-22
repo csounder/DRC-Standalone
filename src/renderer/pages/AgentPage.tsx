@@ -6,52 +6,13 @@ import ArtifactPanel from '../components/artifacts/ArtifactPanel'
 import ArtifactCard from '../components/chat/ArtifactCard'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
+import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
+import { buildConvertPrompt, type ConvertTarget } from '../prompts/convert'
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
   'csound-sine': { label: 'Sine', color: '#f0b27a' },
   sketch: { label: 'Sketch', color: '#c5a3d9' },
-}
-
-import type { ArtifactType } from '../stores/artifactStore'
-
-// Detect artifact type and extract content from LLM response
-function detectArtifact(content: string): { type: ArtifactType; code: string } | null {
-  // Web App: full HTML document
-  const htmlMatch = content.match(/<!DOCTYPE html>[\s\S]*?<\/html>/i)
-    || content.match(/```html\s*\n(<!DOCTYPE html>[\s\S]*?<\/html>)\s*\n```/i)
-  if (htmlMatch) return { type: 'webapp', code: htmlMatch[1] || htmlMatch[0] }
-
-  // VST: CSD with Cabbage section
-  const cabMatch = content.match(/<Cabbage>[\s\S]*?<\/Cabbage>[\s\S]*?<CsoundSynthesizer>[\s\S]*?<\/CsoundSynthesizer>/i)
-    || content.match(/<CsoundSynthesizer>[\s\S]*?<Cabbage>[\s\S]*?<\/Cabbage>[\s\S]*?<\/CsoundSynthesizer>/i)
-  if (cabMatch) return { type: 'vst', code: cabMatch[0] }
-
-  // CSD: plain Csound
-  const csdMatch = content.match(/<CsoundSynthesizer>[\s\S]*?<\/CsoundSynthesizer>/i)
-  if (csdMatch) return { type: 'csd', code: csdMatch[0] }
-
-  return null
-}
-
-function stripArtifactCode(content: string): string {
-  return content
-    .replace(/```(?:html|csound|csd)?\s*\n?<!DOCTYPE html>[\s\S]*?<\/html>\s*\n?```/gi, '')
-    .replace(/```(?:csound|csd)?\s*\n?<CsoundSynthesizer>[\s\S]*?<\/CsoundSynthesizer>\s*\n?```/gi, '')
-    .replace(/<!DOCTYPE html>[\s\S]*?<\/html>/gi, '')
-    .replace(/<Cabbage>[\s\S]*?<\/Cabbage>[\s\S]*?<CsoundSynthesizer>[\s\S]*?<\/CsoundSynthesizer>/gi, '')
-    .replace(/<CsoundSynthesizer>[\s\S]*?<\/CsoundSynthesizer>/gi, '')
-    .trim()
-}
-
-function deriveTitle(code: string, type: ArtifactType, userPrompt: string): string {
-  if (type === 'webapp') {
-    const titleMatch = code.match(/<title>(.*?)<\/title>/i)
-    if (titleMatch) return titleMatch[1].replace(/\s*[—\-|].*/,'').trim()
-  }
-  const commentMatch = code.match(/;\s*(.{3,40})\n/)
-  if (commentMatch) return commentMatch[1].trim()
-  return userPrompt.split(/\s+/).slice(0, 4).join(' ') || 'Untitled'
 }
 
 export default function AgentPage() {
@@ -61,7 +22,7 @@ export default function AgentPage() {
   const [providersAvailable, setProvidersAvailable] = useState<string[] | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID } = useSessionStore()
-  const { artifacts, panelOpen, addArtifact, setActive } = useArtifactStore()
+  const { artifacts, panelOpen, addArtifact, updateInPlace, setActive } = useArtifactStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
 
   useEffect(() => {
@@ -77,42 +38,48 @@ export default function AgentPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Auto-detect artifacts in new assistant messages
+  // Live artifact detection — runs on every content change (including during streaming).
+  // First detection creates the artifact; subsequent updates mutate it in place.
+  // When streaming completes and the artifact is a fresh CSD, autoplay it once.
+  const autoPlayedRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     const last = messages[messages.length - 1]
-    if (!last || last.role !== 'assistant' || isStreaming) return
-    if (msgArtifactMap.has(last.id)) return
+    if (!last || last.role !== 'assistant') return
 
-    const detected = detectArtifact(last.content)
+    const detected = detect(last.content)
     if (!detected) return
 
-    const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
-    const artifact = addArtifact({ type: detected.type, title, content: detected.code })
+    const existingId = msgArtifactMap.get(last.id)
+    if (!existingId) {
+      const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
+      const artifact = addArtifact({ type: detected.type, title, content: detected.code })
+      setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
+      return
+    }
 
-    setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
+    updateInPlace(existingId, detected.code)
 
-    // Auto-play CSD artifacts
-    if (detected.type === 'csd') {
+    if (!isStreaming && detected.complete && detected.type === 'csd' && !autoPlayedRef.current.has(last.id)) {
+      autoPlayedRef.current.add(last.id)
       autoPlay(detected.code)
     }
   }, [messages, isStreaming])
 
   // Send a conversion prompt to the LLM
-  const requestConversion = useCallback(async (targetType: 'webapp' | 'vst' | 'csd') => {
+  const requestConversion = useCallback(async (targetType: ConvertTarget) => {
     const active = useArtifactStore.getState().getActive()
     if (!active) return
-    const sourceCode = primaryContent(active)
 
-    const prompt =
-      targetType === 'webapp'
-        ? `Convert this into a complete web app. Output a full <!DOCTYPE html> document with dark theme (#111110 bg), interactive knobs for all k-rate parameters, a play/stop button, and waveform visualization. Use @csound/browser from CDN. Embed this source:\n\n${sourceCode}`
-        : targetType === 'vst'
-        ? `Convert this into a Cabbage VST/AU plugin. Add a <Cabbage> section before <CsoundSynthesizer> with auto-generated rslider widgets for all k-rate parameters, a keyboard widget if it uses p4, and appropriate groupbox layout. Here's the source:\n\n${sourceCode}`
-        : `Extract just the <CsoundSynthesizer>…</CsoundSynthesizer> from this project as a standalone CSD instrument — no Cabbage section, no HTML shell. Here's the source:\n\n${sourceCode}`
+    const prompt = buildConvertPrompt(targetType, primaryContent(active))
+    const shortLabel =
+      targetType === 'webapp' ? 'Convert to Web App' :
+      targetType === 'vst' ? 'Convert to VST Plugin' :
+      'Extract standalone CSD'
 
     setInput('')
-    addMessage({ id: `msg_${Date.now()}`, role: 'user', content: prompt, timestamp: Date.now() })
-    setLastUserPrompt(prompt)
+    // Show a compact user-visible message, not the full template
+    addMessage({ id: `msg_${Date.now()}`, role: 'user', content: shortLabel, timestamp: Date.now() })
+    setLastUserPrompt(shortLabel)
     setStreaming(true)
 
     try {
@@ -187,8 +154,7 @@ export default function AgentPage() {
   }
 
   const renderMessage = (msg: Message) => {
-    const detected = msg.role === 'assistant' ? detectArtifact(msg.content) : null
-    const text = detected ? stripArtifactCode(msg.content) : msg.content
+    const text = msg.role === 'assistant' ? stripArtifact(msg.content) : msg.content
     const artifactId = msgArtifactMap.get(msg.id)
     const artifact = artifactId ? artifacts.find((a) => a.id === artifactId) : null
 
