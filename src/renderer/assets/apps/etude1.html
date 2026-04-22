@@ -1,0 +1,4003 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Etude#1 by Dr.C</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Courier New", monospace;
+        background: #000;
+        color: #fff;
+        overflow: hidden;
+      }
+
+      #three-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        background-color: #000000;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+
+      #three-container canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #controls {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 10;
+        background: rgba(10, 10, 30, 0.85);
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        max-height: 90vh;
+        max-width: 280px;
+        overflow-y: auto;
+      }
+
+      #status {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 10;
+        background: rgba(10, 10, 30, 0.8);
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 12px;
+        max-width: 300px;
+      }
+
+      #csdOutput {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 10;
+        background: rgba(10, 10, 30, 0.95);
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        font-family: "Courier New", monospace;
+        font-size: 11px;
+        color: #00ff88;
+        width: 500px;
+        height: 400px;
+        resize: both;
+        overflow: auto;
+        display: none;
+      }
+
+      #csdOutput.visible {
+        display: block;
+      }
+
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        margin: 5px 5px 12px 5px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      }
+
+      button:disabled {
+        background: #444;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+      }
+
+      h1 {
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: #667eea;
+      }
+
+      h2 {
+        font-size: 13px;
+        margin: 12px 0 8px 0;
+        color: #8899ff;
+      }
+
+      .info {
+        font-size: 10px;
+        color: #aaa;
+        margin-bottom: 10px;
+      }
+
+      .slider-group {
+        margin-bottom: 8px;
+      }
+
+      .slider-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3px;
+        font-size: 11px;
+      }
+
+      .layer-name {
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .color-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        box-shadow: 0 0 6px currentColor;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.8;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+
+      .layer-volume {
+        color: #667eea;
+        font-size: 10px;
+      }
+
+      .layer-controls {
+        display: flex;
+        gap: 5px;
+        margin-top: 3px;
+      }
+
+      .layer-btn {
+        background: rgba(102, 126, 234, 0.3);
+        color: white;
+        border: 1px solid rgba(102, 126, 234, 0.5);
+        padding: 3px 8px;
+        margin: 0;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 10px;
+        transition: all 0.2s ease;
+      }
+
+      .layer-btn:hover {
+        background: rgba(102, 126, 234, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .layer-btn.active {
+        background: #667eea;
+        border-color: #667eea;
+      }
+
+      .shape-btn {
+        background: rgba(102, 126, 234, 0.3);
+        color: white;
+        border: 1px solid rgba(102, 126, 234, 0.5);
+        padding: 5px 10px;
+        margin: 3px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s ease;
+        display: inline-block;
+      }
+
+      .shape-btn:hover {
+        background: rgba(102, 126, 234, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .shape-btn.active {
+        background: #667eea;
+        border-color: #667eea;
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+      }
+
+      .skybox-btn {
+        background: rgba(102, 126, 234, 0.3);
+        color: white;
+        border: 1px solid rgba(102, 126, 234, 0.5);
+        padding: 5px 10px;
+        margin: 0;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s ease;
+        flex: 1 1 auto;
+        min-width: 80px;
+      }
+
+      .skybox-btn:hover {
+        background: rgba(102, 126, 234, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .skybox-btn.active {
+        background: #667eea;
+        border-color: #667eea;
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 4px;
+        background: rgba(102, 126, 234, 0.3);
+        outline: none;
+        border-radius: 2px;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        background: #667eea;
+        cursor: pointer;
+        border-radius: 50%;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        background: #667eea;
+        cursor: pointer;
+        border-radius: 50%;
+        border: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="three-container"></div>
+
+    <div id="controls">
+      <h1>Etude#1 by Dr.C</h1>
+      <button id="startBtn">▶ Start</button>
+      <button id="stopBtn" disabled>⏹ Stop</button>
+      <button id="toggleSlidersBtn">⚙️ Hide Sliders</button>
+      <button id="hideAllBtn">👁️ Hide All (TAB)</button>
+
+      <h2 style="margin-top: 20px">CSD Recording</h2>
+      <button id="startCsdBtn">⏺ Start CSD Recording</button>
+      <button id="toggleConsoleBtn" style="width: 100%">👁️ Show Console</button>
+      <button id="downloadCsdBtn" disabled style="width: 100%">
+        💾 Download .CSD File
+      </button>
+
+      <div class="info">Generative audio-visual composition in B Phrygian</div>
+
+      <h2>Global Mix Levels</h2>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span class="layer-name">💧 Dry Level</span>
+          <span class="layer-volume" id="vol-dry">100%</span>
+        </div>
+        <input type="range" id="slider-dry" min="0" max="100" value="100" />
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span class="layer-name">🌊 Effect Level</span>
+          <span class="layer-volume" id="vol-effect">100%</span>
+        </div>
+        <input type="range" id="slider-effect" min="0" max="100" value="100" />
+      </div>
+
+      <div id="sliders-section">
+        <h2>Background</h2>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name">Background Image</span>
+          </div>
+          <select
+            id="background-select"
+            style="
+              width: 100%;
+              padding: 8px;
+              background: #1a1a1a;
+              color: white;
+              border: 1px solid #444;
+              border-radius: 4px;
+            "
+          >
+            <option value="none">None (Black)</option>
+
+            <optgroup label="🌌 Deep Space">
+              <option value="nebula2" selected>Nebula - Orion</option>
+              <option value="milkyway">Milky Way</option>
+              <option value="galaxy1">Galaxy - Spiral</option>
+              <option value="jupiter">Nebula - Colorful</option>
+              <option value="deepfield1">Deep Field - Hubble</option>
+              <option value="deepfield2">Nebula - Beautiful</option>
+            </optgroup>
+
+            <optgroup label="🌅 Sunsets & Sunrises">
+              <option value="sunset2">Sunset - On Lake</option>
+              <option value="sunset3">Sunset - Desert Sky</option>
+              <option value="sunrise2">Sunrise - Mountain Peak</option>
+              <option value="sunrise4">Sunrise - Over Beach</option>
+            </optgroup>
+
+            <optgroup label="☁️ Clouds & Atmosphere">
+              <option value="clouds1">Clouds - Storm Brewing</option>
+              <option value="clouds2">Clouds - Fluffy White</option>
+              <option value="clouds3">Clouds - Dark and Stormy</option>
+              <option value="clouds4">Clouds - Stratosphere</option>
+              <option value="clouds5">Clouds - Above the World</option>
+              <option value="sky1">Sky - Blue Gradient</option>
+              <option value="sky2">Clouds - Above the Clouds</option>
+            </optgroup>
+
+            <optgroup label="🌙 Lunar Surface">
+              <option value="moon1">Moon - Craters</option>
+              <option value="moon3">Moon - Full Moon</option>
+            </optgroup>
+
+            <optgroup label="🪐 Planets">
+              <option value="mars2">Jupiter - Great Red Spot</option>
+              <option value="mars1">Saturn - Rings</option>
+              <option value="saturn">Uranus - Ice Giant</option>
+              <option value="earth">Earth - From Space</option>
+            </optgroup>
+
+            <optgroup label="🏜️ Earth Landscapes">
+              <option value="desert2">Desert - Sahara Dunes</option>
+              <option value="mountain1">Mountain - Snow Peaks</option>
+              <option value="moon2">Mountain - Mount Fuji</option>
+              <option value="moon4">Mountain - Stream</option>
+              <option value="sunset1">Mountain - Clouds Vista</option>
+              <option value="sunrise3">Mountain - Lake Cabin</option>
+              <option value="galaxy2">Moonrise - Mountain Range</option>
+              <option value="ocean1">Ocean - Deep Blue</option>
+              <option value="desert3">Ocean - Reef From Above</option>
+              <option value="aurora">Aurora - Northern Lights</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="slider-group">
+          <label
+            ><input type="checkbox" id="random-bg-enabled" /> Random Background
+            Changes</label
+          >
+        </div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name">Background Change Interval</span>
+            <span class="layer-volume" id="bg-interval-val">30s</span>
+          </div>
+          <input type="range" id="bg-interval" min="5" max="120" value="30" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name">Rotation Speed</span>
+            <span class="layer-volume" id="rotation-speed-val">50%</span>
+          </div>
+          <input
+            type="range"
+            id="rotation-speed"
+            min="0"
+            max="100"
+            value="50"
+          />
+        </div>
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name">Particle Count</span>
+            <span class="layer-volume" id="particle-count-val">1100</span>
+          </div>
+          <input
+            type="range"
+            id="particle-count"
+            min="3"
+            max="3333"
+            value="1100"
+            step="3"
+          />
+        </div>
+
+        <h2>Particle Shape</h2>
+        <div class="slider-group">
+          <button class="shape-btn" data-shape="sphere">● Sphere</button>
+          <button class="shape-btn" data-shape="cube">■ Cube</button>
+          <button class="shape-btn" data-shape="tetrahedron">▲ Tetra</button>
+          <button class="shape-btn" data-shape="octahedron">◆ Octa</button>
+          <button class="shape-btn" data-shape="torus">◯ Torus</button>
+          <button class="shape-btn" data-shape="cone">▼ Cone</button>
+        </div>
+
+        <h2>Layer Volumes</h2>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(18, 60%, 58%)"
+              ></span>
+              FM Synth</span
+            >
+            <span class="layer-volume" id="vol-fm">100%</span>
+          </div>
+          <input type="range" id="slider-fm" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="fm" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="fm" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(43, 65%, 55%)"
+              ></span>
+              Marimba</span
+            >
+            <span class="layer-volume" id="vol-marimba">100%</span>
+          </div>
+          <input
+            type="range"
+            id="slider-marimba"
+            min="0"
+            max="100"
+            value="50"
+          />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="marimba" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="marimba" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(54, 60%, 58%)"
+              ></span>
+              Drone</span
+            >
+            <span class="layer-volume" id="vol-drone">100%</span>
+          </div>
+          <input type="range" id="slider-drone" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="drone" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="drone" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(198, 50%, 68%)"
+              ></span>
+              Noise Swell</span
+            >
+            <span class="layer-volume" id="vol-noise">50%</span>
+          </div>
+          <input type="range" id="slider-noise" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="noise" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="noise" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(270, 60%, 48%)"
+              ></span>
+              Low Rumble</span
+            >
+            <span class="layer-volume" id="vol-rumble">50%</span>
+          </div>
+          <input type="range" id="slider-rumble" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="rumble" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="rumble" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(324, 55%, 72%)"
+              ></span>
+              Shimmer Bell</span
+            >
+            <span class="layer-volume" id="vol-bellchord">100%</span>
+          </div>
+          <input
+            type="range"
+            id="slider-bellchord"
+            min="0"
+            max="100"
+            value="50"
+          />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="bellchord" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="bellchord" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(234, 60%, 62%)"
+              ></span>
+              PWM Chord</span
+            >
+            <span class="layer-volume" id="vol-pwm">50%</span>
+          </div>
+          <input type="range" id="slider-pwm" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="pwm" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="pwm" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(281, 52%, 52%)"
+              ></span>
+              Low Thunder</span
+            >
+            <span class="layer-volume" id="vol-thunder">50%</span>
+          </div>
+          <input
+            type="range"
+            id="slider-thunder"
+            min="0"
+            max="100"
+            value="50"
+          />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="thunder" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="thunder" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(126, 60%, 68%)"
+              ></span>
+              Flute</span
+            >
+            <span class="layer-volume" id="vol-flute">50%</span>
+          </div>
+          <input type="range" id="slider-flute" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="flute" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="flute" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(180, 42%, 68%)"
+              ></span>
+              Cello</span
+            >
+            <span class="layer-volume" id="vol-cello">100%</span>
+          </div>
+          <input type="range" id="slider-cello" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="cello" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="cello" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(90, 70%, 62%)"
+              ></span>
+              Cricket</span
+            >
+            <span class="layer-volume" id="vol-cricket">100%</span>
+          </div>
+          <input
+            type="range"
+            id="slider-cricket"
+            min="0"
+            max="100"
+            value="50"
+          />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="cricket" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="cricket" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(209, 65%, 70%)"
+              ></span>
+              Bird</span
+            >
+            <span class="layer-volume" id="vol-bird">100%</span>
+          </div>
+          <input type="range" id="slider-bird" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="bird" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="bird" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(187, 80%, 75%)"
+              ></span>
+              Water Drips</span
+            >
+            <span class="layer-volume" id="vol-water">100%</span>
+          </div>
+          <input type="range" id="slider-water" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="water" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="water" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span class="layer-name"
+              ><span
+                class="color-indicator"
+                style="background: hsl(29, 90%, 60%)"
+              ></span>
+              Crackling Fire</span
+            >
+            <span class="layer-volume" id="vol-fire">100%</span>
+          </div>
+          <input type="range" id="slider-fire" min="0" max="100" value="50" />
+          <div class="layer-controls">
+            <button class="layer-btn" data-layer="fire" data-action="mute">
+              M
+            </button>
+            <button class="layer-btn" data-layer="fire" data-action="solo">
+              S
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="status">
+      <strong>Status:</strong> <span id="statusText">Ready</span><br />
+      <strong>Time:</strong> <span id="timeText">0:00</span>
+    </div>
+
+    <textarea id="csdOutput" readonly></textarea>
+
+    <script type="text/javascript">
+      // Three.js setup
+      let scene,
+        camera,
+        renderer,
+        particleGroup,
+        particleMeshes = [];
+      let enable3DBackground = true;
+      let rotationSpeed = 0.5;
+      let particleCount = 1100; // 100 particles per layer (11 layers) for dense swarms
+      let currentShape = "sphere"; // Current particle shape
+      let skyboxSphere = null;
+      let skyboxEnabled = true;
+      let currentSkybox = "nebula";
+      let masterFadeIn = 0.0; // Fade in from 0 to 1 over 8 seconds
+      let fadeStartTime = null;
+
+      // Procedural skybox configurations (no external textures needed)
+      const skyboxConfigs = {
+        nebula: {
+          colors: [
+            { pos: 0, color: "#0a0015" },
+            { pos: 0.3, color: "#1a0530" },
+            { pos: 0.6, color: "#4a1560" },
+            { pos: 1, color: "#8b3a9c" },
+          ],
+          stars: 800,
+        },
+        galaxy: {
+          colors: [
+            { pos: 0, color: "#000510" },
+            { pos: 0.4, color: "#0a1540" },
+            { pos: 0.7, color: "#1a3080" },
+            { pos: 1, color: "#2050c0" },
+          ],
+          stars: 1200,
+        },
+        stars: {
+          colors: [
+            { pos: 0, color: "#000000" },
+            { pos: 0.5, color: "#050510" },
+            { pos: 1, color: "#0a0a20" },
+          ],
+          stars: 2000,
+        },
+        sunset: {
+          colors: [
+            { pos: 0, color: "#0a1540" },
+            { pos: 0.3, color: "#ff6b35" },
+            { pos: 0.6, color: "#ffa040" },
+            { pos: 1, color: "#ffd080" },
+          ],
+          stars: 100,
+        },
+        clouds: {
+          colors: [
+            { pos: 0, color: "#4080c0" },
+            { pos: 0.4, color: "#80b0e0" },
+            { pos: 0.7, color: "#c0d8f0" },
+            { pos: 1, color: "#e0f0ff" },
+          ],
+          stars: 50,
+        },
+        mars: {
+          colors: [
+            { pos: 0, color: "#1a0a05" },
+            { pos: 0.4, color: "#4a2010" },
+            { pos: 0.7, color: "#8a4020" },
+            { pos: 1, color: "#c86030" },
+          ],
+          stars: 300,
+        },
+        jupiter: {
+          colors: [
+            { pos: 0, color: "#2a1810" },
+            { pos: 0.3, color: "#6a4830" },
+            { pos: 0.6, color: "#aa7850" },
+            { pos: 1, color: "#d0a870" },
+          ],
+          stars: 200,
+        },
+        saturn: {
+          colors: [
+            { pos: 0, color: "#1a1510" },
+            { pos: 0.4, color: "#4a3820" },
+            { pos: 0.7, color: "#8a7050" },
+            { pos: 1, color: "#c0a880" },
+          ],
+          stars: 250,
+        },
+        "deep-space": {
+          colors: [
+            { pos: 0, color: "#000000" },
+            { pos: 0.3, color: "#0a0510" },
+            { pos: 0.7, color: "#1a1030" },
+            { pos: 1, color: "#2a2050" },
+          ],
+          stars: 1500,
+        },
+      };
+
+      // Define layers array first (needed by particles and audio)
+      const layers = [
+        "fm",
+        "drone",
+        "noise",
+        "rumble",
+        "bellchord",
+        "pwm",
+        "thunder",
+        "flute",
+        "cello",
+        "cricket",
+        "bird",
+        "water",
+        "fire",
+        "marimba",
+      ];
+
+      // Audio-reactive particle data
+      const layerColors = {
+        fm: { h: 0.05, s: 0.8, l: 0.65 }, // Orange-red
+        drone: { h: 0.15, s: 0.75, l: 0.6 }, // Gold
+        noise: { h: 0.55, s: 0.6, l: 0.7 }, // Cyan
+        rumble: { h: 0.75, s: 0.7, l: 0.5 }, // Deep purple
+        bellchord: { h: 0.9, s: 0.65, l: 0.75 }, // Pink
+        pwm: { h: 0.65, s: 0.7, l: 0.65 }, // Blue
+        thunder: { h: 0.78, s: 0.6, l: 0.55 }, // Purple
+        flute: { h: 0.35, s: 0.7, l: 0.7 }, // Green-yellow
+        cello: { h: 0.5, s: 0.5, l: 0.7 }, // Mint
+        cricket: { h: 0.25, s: 0.8, l: 0.65 }, // Yellow-green
+        bird: { h: 0.58, s: 0.75, l: 0.72 }, // Turquoise
+        water: { h: 0.52, s: 0.8, l: 0.75 }, // Light cyan
+        fire: { h: 0.08, s: 0.9, l: 0.6 }, // Orange-red
+        marimba: { h: 0.12, s: 0.65, l: 0.55 }, // Warm brown
+      };
+
+      const layerAudioLevels = {
+        fm: 0,
+        drone: 0,
+        noise: 0,
+        rumble: 0,
+        bellchord: 0,
+        pwm: 0,
+        thunder: 0,
+        flute: 0,
+        cello: 0,
+        cricket: 0,
+        bird: 0,
+        water: 0,
+        fire: 0,
+        marimba: 0,
+      };
+
+      function initThreeJS() {
+        const container = document.getElementById("three-container");
+
+        scene = new THREE.Scene();
+        scene.background = null; // Allow CSS background to show through
+        scene.fog = new THREE.Fog(0x050510, 400, 2000);
+
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          2500,
+        );
+        camera.position.z = 300;
+
+        renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true,
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Add ambient light
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.3);
+        scene.add(ambientLight);
+
+        // Add multiple colored point lights that move
+        const light1 = new THREE.PointLight(0x6699ff, 1.5, 800);
+        light1.position.set(200, 200, 200);
+        light1.castShadow = true;
+        scene.add(light1);
+
+        const light2 = new THREE.PointLight(0xff66aa, 1.2, 800);
+        light2.position.set(-200, -200, 200);
+        light2.castShadow = true;
+        scene.add(light2);
+
+        const light3 = new THREE.PointLight(0x66ffaa, 1.0, 800);
+        light3.position.set(0, 300, -200);
+        light3.castShadow = true;
+        scene.add(light3);
+
+        // createSkybox(); // Disabled - using CSS background images instead
+        createParticles();
+
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function createSkybox() {
+        // Remove existing skybox if present
+        if (skyboxSphere) {
+          scene.remove(skyboxSphere);
+          skyboxSphere.geometry.dispose();
+          if (skyboxSphere.material.dispose) skyboxSphere.material.dispose();
+        }
+
+        // Create large sphere for skybox with high-resolution canvas texture
+        const geometry = new THREE.SphereGeometry(1500, 128, 64);
+        const canvasTexture = createSkyboxCanvas(currentSkybox);
+        const material = new THREE.MeshBasicMaterial({
+          map: canvasTexture,
+          side: THREE.BackSide,
+          transparent: true,
+          opacity: skyboxEnabled ? 1.0 : 0,
+          depthWrite: false,
+        });
+
+        skyboxSphere = new THREE.Mesh(geometry, material);
+        skyboxSphere.renderOrder = -1;
+        scene.add(skyboxSphere);
+        console.log(`Skybox created: ${currentSkybox}`);
+      }
+
+      // URLs for photo-based skyboxes (high-quality space images)
+      const photoSkyboxURLs = {
+        "milkyway-photo":
+          "https://upload.wikimedia.org/wikipedia/commons/4/4e/Milky_Way_IR_Spitzer.jpg",
+        "nebula-photo":
+          "https://upload.wikimedia.org/wikipedia/commons/e/e3/Crab_Nebula.jpg",
+        "starfield-photo":
+          "https://upload.wikimedia.org/wikipedia/commons/9/98/Hubble_ultra_deep_field.jpg",
+      };
+
+      function loadSkyboxTexture(skyboxName) {
+        if (!skyboxSphere) return;
+
+        // Check if this is a photo-based skybox
+        if (photoSkyboxURLs[skyboxName]) {
+          loadPhotoSkybox(skyboxName);
+        } else {
+          // Create procedural canvas texture
+          const canvasTexture = createSkyboxCanvas(skyboxName);
+          if (skyboxSphere.material.map) {
+            skyboxSphere.material.map.dispose();
+          }
+          skyboxSphere.material.map = canvasTexture;
+          skyboxSphere.material.needsUpdate = true;
+          currentSkybox = skyboxName;
+          console.log(`Skybox switched to: ${skyboxName}`);
+        }
+      }
+
+      function loadPhotoSkybox(skyboxName) {
+        const imageURL = photoSkyboxURLs[skyboxName];
+        console.log(`Loading photo skybox: ${skyboxName} from ${imageURL}`);
+
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.setCrossOrigin("anonymous");
+
+        textureLoader.load(
+          imageURL,
+          (texture) => {
+            // Configure texture for best quality
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.format = THREE.RGBFormat;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+
+            // Dispose old texture
+            if (skyboxSphere.material.map) {
+              skyboxSphere.material.map.dispose();
+            }
+
+            // Apply new texture
+            skyboxSphere.material.map = texture;
+            skyboxSphere.material.needsUpdate = true;
+            currentSkybox = skyboxName;
+            console.log(`✓ Photo skybox loaded: ${skyboxName}`);
+          },
+          (progress) => {
+            if (progress.total > 0) {
+              console.log(
+                `Loading ${skyboxName}: ${((progress.loaded / progress.total) * 100).toFixed(0)}%`,
+              );
+            }
+          },
+          (error) => {
+            console.error(`Failed to load photo skybox ${skyboxName}:`, error);
+            console.log("Falling back to procedural skybox...");
+            // Fallback to procedural
+            const canvasTexture = createSkyboxCanvas("nebula");
+            if (skyboxSphere.material.map) {
+              skyboxSphere.material.map.dispose();
+            }
+            skyboxSphere.material.map = canvasTexture;
+            skyboxSphere.material.needsUpdate = true;
+          },
+        );
+      }
+
+      function createSkyboxCanvas(skyboxName) {
+        // Create high-resolution canvas (4K)
+        const canvas = document.createElement("canvas");
+        canvas.width = 4096;
+        canvas.height = 2048;
+        const ctx = canvas.getContext("2d", { alpha: false });
+
+        // Anti-aliasing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Sky configs with vivid colors
+        const configs = {
+          nebula: {
+            gradient: [
+              { pos: 0, color: "#1a0530" },
+              { pos: 0.3, color: "#6a1580" },
+              { pos: 0.6, color: "#d020a0" },
+              { pos: 1, color: "#ff4090" },
+            ],
+            stars: 3000,
+            starSize: 3,
+            glow: true,
+          },
+          galaxy: {
+            gradient: [
+              { pos: 0, color: "#000520" },
+              { pos: 0.4, color: "#1040a0" },
+              { pos: 0.7, color: "#3080ff" },
+              { pos: 1, color: "#60b0ff" },
+            ],
+            stars: 4000,
+            starSize: 2.5,
+            glow: true,
+          },
+          stars: {
+            gradient: [
+              { pos: 0, color: "#000000" },
+              { pos: 0.5, color: "#0a0a20" },
+              { pos: 1, color: "#151540" },
+            ],
+            stars: 6000,
+            starSize: 2,
+            glow: true,
+          },
+          sunset: {
+            gradient: [
+              { pos: 0, color: "#0a1540" },
+              { pos: 0.2, color: "#ff3010" },
+              { pos: 0.4, color: "#ff6020" },
+              { pos: 0.6, color: "#ffa030" },
+              { pos: 0.8, color: "#ffd060" },
+              { pos: 1, color: "#ffe090" },
+            ],
+            stars: 500,
+            starSize: 2,
+            glow: false,
+          },
+          clouds: {
+            gradient: [
+              { pos: 0, color: "#4080d0" },
+              { pos: 0.5, color: "#80b0f0" },
+              { pos: 1, color: "#d0e8ff" },
+            ],
+            stars: 100,
+            starSize: 1.5,
+            glow: false,
+          },
+          mars: {
+            gradient: [
+              { pos: 0, color: "#2a0a05" },
+              { pos: 0.4, color: "#8a3010" },
+              { pos: 0.7, color: "#d05020" },
+              { pos: 1, color: "#ff8040" },
+            ],
+            stars: 1000,
+            starSize: 2,
+            glow: false,
+          },
+          jupiter: {
+            gradient: [
+              { pos: 0, color: "#3a2510" },
+              { pos: 0.3, color: "#8a5830" },
+              { pos: 0.6, color: "#d09050" },
+              { pos: 1, color: "#ffcc80" },
+            ],
+            stars: 800,
+            starSize: 2,
+            glow: false,
+          },
+          saturn: {
+            gradient: [
+              { pos: 0, color: "#4a3820" },
+              { pos: 0.4, color: "#9a7850" },
+              { pos: 0.7, color: "#d0b080" },
+              { pos: 1, color: "#f0d8a0" },
+            ],
+            stars: 900,
+            starSize: 2,
+            glow: false,
+          },
+          "deep-space": {
+            gradient: [
+              { pos: 0, color: "#000000" },
+              { pos: 0.3, color: "#0a0520" },
+              { pos: 0.7, color: "#1a1050" },
+              { pos: 1, color: "#2a2080" },
+            ],
+            stars: 5000,
+            starSize: 2.5,
+            glow: true,
+          },
+        };
+
+        const config = configs[skyboxName] || configs.nebula;
+
+        // Draw gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        config.gradient.forEach((stop) => {
+          gradient.addColorStop(stop.pos, stop.color);
+        });
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+
+        // Add atmospheric bands for planets
+        if (["jupiter", "saturn", "mars"].includes(skyboxName)) {
+          ctx.globalAlpha = 0.3;
+          for (let i = 0; i < 20; i++) {
+            const y = (h / 20) * i;
+            const brightness = Math.sin(i * 0.5) * 50;
+            ctx.fillStyle = `rgba(255, 255, 255, ${brightness / 255})`;
+            ctx.fillRect(0, y, w, h / 20);
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        // Draw vivid stars with glow
+        for (let i = 0; i < config.stars; i++) {
+          const x = Math.random() * w;
+          const y = Math.random() * h;
+          const size = Math.random() * config.starSize + 0.5;
+          const brightness = Math.random() * 0.7 + 0.3;
+
+          // Star color variety
+          const temp = Math.random();
+          let starColor;
+          if (temp > 0.7)
+            starColor = `rgba(150, 180, 255, ${brightness})`; // Blue
+          else if (temp > 0.4)
+            starColor = `rgba(255, 255, 255, ${brightness})`; // White
+          else starColor = `rgba(255, 220, 180, ${brightness})`; // Yellow
+
+          // Glow effect
+          if (config.glow && Math.random() > 0.9) {
+            const glowGradient = ctx.createRadialGradient(
+              x,
+              y,
+              0,
+              x,
+              y,
+              size * 6,
+            );
+            glowGradient.addColorStop(0, starColor);
+            glowGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+            ctx.fillStyle = glowGradient;
+            ctx.fillRect(x - size * 6, y - size * 6, size * 12, size * 12);
+          }
+
+          // Star core
+          ctx.fillStyle = starColor;
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Create texture
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      function createSkyboxShader(skyboxName) {
+        // Shared noise functions for all shaders
+        const noiseFunc = `
+                float hash(vec3 p) {
+                  p = fract(p * 0.3183099 + 0.1);
+                  p *= 17.0;
+                  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+                }
+
+                float noise(vec3 x) {
+                  vec3 i = floor(x);
+                  vec3 f = fract(x);
+                  f = f * f * (3.0 - 2.0 * f);
+                  return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                                mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                            mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                                mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+                }
+
+                float fbm(vec3 p) {
+                  float value = 0.0;
+                  float amplitude = 0.5;
+                  for (int i = 0; i < 6; i++) {
+                    value += amplitude * noise(p);
+                    p *= 2.0;
+                    amplitude *= 0.5;
+                  }
+                  return value;
+                }
+
+                vec3 stars(vec3 p, float density, float brightness) {
+                  float starField = pow(hash(floor(p * density)), 24.0) * brightness;
+                  vec3 starColor = mix(vec3(1.0), vec3(0.6, 0.8, 1.0), hash(floor(p * density + 1.0)));
+                  return starField * starColor;
+                }
+              `;
+
+        const shaders = {
+          nebula: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: 1.0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = normalize(position);
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+
+                    float hash(vec2 p) {
+                      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+                    }
+
+                    void main() {
+                      vec3 p = vPosition;
+
+                      // Vivid nebula gradient
+                      float height = p.y * 0.5 + 0.5;
+                      vec3 color1 = vec3(0.1, 0.05, 0.2); // Dark purple
+                      vec3 color2 = vec3(0.8, 0.1, 0.6); // Bright magenta
+                      vec3 color3 = vec3(0.4, 0.2, 0.9); // Blue-purple
+                      vec3 color4 = vec3(1.0, 0.3, 0.5); // Pink
+
+                      // Create swirling pattern
+                      float angle = atan(p.x, p.z) + time * 0.1;
+                      float swirl = sin(angle * 3.0 + height * 5.0 + time * 0.2) * 0.5 + 0.5;
+
+                      vec3 skyColor = mix(color1, color2, height);
+                      skyColor = mix(skyColor, color3, swirl);
+                      skyColor = mix(skyColor, color4, sin(time * 0.3 + height * 10.0) * 0.3 + 0.3);
+
+                      // Add bright stars
+                      vec2 st = vec2(atan(p.x, p.z), acos(p.y));
+                      vec2 grid = floor(st * 100.0);
+                      float starThreshold = hash(grid);
+                      if (starThreshold > 0.99) {
+                        float starBrightness = (starThreshold - 0.99) * 100.0;
+                        skyColor += vec3(1.0) * starBrightness * 3.0;
+                      }
+
+                      // Add glow
+                      skyColor *= 1.5;
+
+                      gl_FragColor = vec4(skyColor, opacity);
+                    }
+                  `,
+          },
+          galaxy: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Spiral galaxy effect
+                      float angle = atan(p.x, p.z);
+                      float radius = length(p.xz);
+                      float spiral = sin(angle * 3.0 - radius * 10.0 + time * 0.1);
+
+                      float n1 = fbm(p * 3.0 + vec3(time * 0.02, 0.0, 0.0));
+                      float n2 = fbm(p * 6.0);
+
+                      // Galaxy colors
+                      vec3 color1 = vec3(0.05, 0.1, 0.4); // Deep blue
+                      vec3 color2 = vec3(0.2, 0.4, 0.9); // Bright blue
+                      vec3 color3 = vec3(0.8, 0.9, 1.0); // White-blue
+
+                      vec3 galaxy = mix(color1, color2, n1);
+                      galaxy = mix(galaxy, color3, spiral * n2 * 0.5);
+
+                      // Multi-layer stars
+                      vec3 starField = stars(p, 600.0, 2.0);
+                      starField += stars(p, 1500.0, 1.2);
+                      starField += stars(p, 3000.0, 0.6);
+
+                      vec3 finalColor = galaxy * 1.8 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          stars: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Deep space background
+                      float n = noise(p * 3.0);
+                      vec3 bg = vec3(0.02, 0.03, 0.08) * (1.0 + n * 0.5);
+
+                      // Dense star clusters with multiple layers
+                      vec3 starField = stars(p, 500.0, 3.0);
+                      starField += stars(p, 1000.0, 2.0);
+                      starField += stars(p, 2000.0, 1.5);
+                      starField += stars(p, 4000.0, 1.0);
+
+                      // Add twinkling
+                      float twinkle = sin(time * 2.0 + hash(floor(p * 1000.0)) * 100.0) * 0.3 + 0.7;
+                      starField *= twinkle;
+
+                      vec3 finalColor = bg + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          sunset: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Sunset gradient based on vertical position
+                      float horizon = p.y;
+
+                      vec3 color1 = vec3(0.02, 0.05, 0.15); // Night blue
+                      vec3 color2 = vec3(1.0, 0.3, 0.1); // Deep orange
+                      vec3 color3 = vec3(1.0, 0.6, 0.2); // Orange
+                      vec3 color4 = vec3(1.0, 0.8, 0.4); // Yellow
+                      vec3 color5 = vec3(0.4, 0.6, 0.9); // Sky blue
+
+                      vec3 sky = color1;
+                      sky = mix(sky, color2, smoothstep(-0.4, -0.2, horizon));
+                      sky = mix(sky, color3, smoothstep(-0.2, 0.0, horizon));
+                      sky = mix(sky, color4, smoothstep(0.0, 0.2, horizon));
+                      sky = mix(sky, color5, smoothstep(0.3, 0.6, horizon));
+
+                      // Clouds with depth
+                      float n1 = fbm(p * 4.0 + vec3(time * 0.01, 0.0, 0.0));
+                      float n2 = fbm(p * 8.0 - vec3(time * 0.02, 0.0, 0.0));
+                      float clouds = smoothstep(0.4, 0.7, n1) * smoothstep(0.3, 0.6, n2);
+
+                      vec3 cloudColor = mix(vec3(0.8, 0.4, 0.2), vec3(1.0, 0.9, 0.7), n2);
+                      sky = mix(sky, cloudColor, clouds * 0.8);
+
+                      // Subtle stars in darker areas
+                      vec3 starField = stars(p, 400.0, 0.5) * smoothstep(0.0, -0.3, horizon);
+
+                      vec3 finalColor = sky * 1.3 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          clouds: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Sky gradient
+                      float horizon = p.y;
+                      vec3 skyTop = vec3(0.3, 0.5, 0.9);
+                      vec3 skyHorizon = vec3(0.6, 0.8, 1.0);
+                      vec3 sky = mix(skyHorizon, skyTop, smoothstep(-0.2, 0.5, horizon));
+
+                      // Volumetric clouds
+                      float n1 = fbm(p * 3.0 + vec3(time * 0.02, 0.0, time * 0.01));
+                      float n2 = fbm(p * 6.0 + vec3(time * 0.01, 0.0, 0.0));
+                      float n3 = fbm(p * 12.0);
+
+                      float cloudDensity = smoothstep(0.3, 0.7, n1) * smoothstep(0.4, 0.6, n2);
+
+                      // Cloud shading for 3D effect
+                      vec3 cloudBase = vec3(0.9, 0.95, 1.0);
+                      vec3 cloudShadow = vec3(0.5, 0.6, 0.7);
+                      vec3 cloudColor = mix(cloudShadow, cloudBase, n3);
+
+                      sky = mix(sky, cloudColor, cloudDensity * 0.9);
+
+                      // Sun glow
+                      vec3 sunDir = normalize(vec3(0.5, 0.3, -0.8));
+                      float sunGlow = pow(max(dot(p, sunDir), 0.0), 8.0);
+                      sky += vec3(1.0, 0.9, 0.7) * sunGlow * 0.5;
+
+                      vec3 finalColor = sky * 1.2;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          mars: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Mars atmosphere
+                      float horizon = p.y;
+                      vec3 color1 = vec3(0.1, 0.05, 0.03); // Dark mars
+                      vec3 color2 = vec3(0.6, 0.2, 0.1); // Red-brown
+                      vec3 color3 = vec3(0.9, 0.4, 0.2); // Orange-red
+                      vec3 color4 = vec3(0.95, 0.7, 0.5); // Dusty pink
+
+                      vec3 sky = mix(color1, color2, smoothstep(-0.3, 0.0, horizon));
+                      sky = mix(sky, color3, smoothstep(0.0, 0.3, horizon));
+                      sky = mix(sky, color4, smoothstep(0.3, 0.6, horizon));
+
+                      // Dust storms
+                      float dust1 = fbm(p * 5.0 + vec3(time * 0.03, 0.0, 0.0));
+                      float dust2 = fbm(p * 10.0 + vec3(time * 0.02, time * 0.01, 0.0));
+                      float dustStorm = dust1 * dust2;
+
+                      vec3 dustColor = vec3(0.7, 0.3, 0.15);
+                      sky = mix(sky, dustColor, dustStorm * 0.4);
+
+                      // Sparse stars
+                      vec3 starField = stars(p, 800.0, 0.8) * smoothstep(0.2, -0.2, horizon);
+
+                      vec3 finalColor = sky * 1.4 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          jupiter: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Jovian atmosphere with bands
+                      float bands = sin(p.y * 20.0 + fbm(p * 3.0) * 2.0);
+                      float turbulence = fbm(p * 6.0 + vec3(time * 0.02, 0.0, 0.0));
+
+                      vec3 color1 = vec3(0.3, 0.2, 0.15); // Dark brown
+                      vec3 color2 = vec3(0.7, 0.5, 0.35); // Tan
+                      vec3 color3 = vec3(0.9, 0.7, 0.5); // Light tan
+                      vec3 color4 = vec3(0.95, 0.85, 0.7); // Cream
+
+                      vec3 atmosphere = mix(color1, color2, smoothstep(-1.0, 0.0, bands));
+                      atmosphere = mix(atmosphere, color3, smoothstep(0.0, 0.5, bands));
+                      atmosphere = mix(atmosphere, color4, turbulence * 0.6);
+
+                      // Great Red Spot effect
+                      vec2 spotPos = vec2(p.x * 3.0, p.y * 2.0);
+                      float spot = smoothstep(0.8, 0.3, length(spotPos - vec2(0.5, 0.0)));
+                      vec3 spotColor = vec3(0.9, 0.4, 0.3);
+                      atmosphere = mix(atmosphere, spotColor, spot * 0.7);
+
+                      // Stars
+                      vec3 starField = stars(p, 600.0, 0.6);
+
+                      vec3 finalColor = atmosphere * 1.5 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          saturn: {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Saturn's pale atmosphere
+                      float horizon = p.y;
+                      float bands = sin(p.y * 15.0 + fbm(p * 2.0) * 1.5);
+
+                      vec3 color1 = vec3(0.4, 0.35, 0.25); // Pale brown
+                      vec3 color2 = vec3(0.7, 0.6, 0.45); // Tan
+                      vec3 color3 = vec3(0.9, 0.8, 0.6); // Cream
+                      vec3 color4 = vec3(0.95, 0.9, 0.8); // Pale cream
+
+                      vec3 atmosphere = mix(color1, color2, smoothstep(-0.5, 0.0, bands));
+                      atmosphere = mix(atmosphere, color3, smoothstep(0.0, 0.5, bands));
+
+                      float turbulence = fbm(p * 5.0 + vec3(time * 0.01, 0.0, 0.0));
+                      atmosphere = mix(atmosphere, color4, turbulence * 0.5);
+
+                      // Ring shadow effect
+                      float ringShadow = smoothstep(0.2, 0.1, abs(horizon)) * 0.4;
+                      atmosphere *= (1.0 - ringShadow);
+
+                      // Stars
+                      vec3 starField = stars(p, 700.0, 0.7);
+
+                      vec3 finalColor = atmosphere * 1.4 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+          "deep-space": {
+            uniforms: {
+              time: { value: 0 },
+              opacity: { value: skyboxEnabled ? 1.0 : 0 },
+            },
+            vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
+            fragmentShader: `
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
+
+                    void main() {
+                      vec3 p = normalize(vPosition);
+
+                      // Deep space with cosmic microwave background
+                      float n = fbm(p * 1.5);
+                      vec3 bg = vec3(0.05, 0.02, 0.1) * (1.0 + n * 0.3);
+
+                      // Distant nebulae
+                      float nebula1 = fbm(p * 3.0 + vec3(time * 0.01, 0.0, 0.0));
+                      float nebula2 = fbm(p * 5.0 - vec3(0.0, time * 0.02, 0.0));
+                      vec3 nebulaColor = vec3(0.3, 0.15, 0.4) * nebula1 * nebula2 * 0.8;
+
+                      // Ultra-dense star field with multiple layers
+                      vec3 starField = stars(p, 400.0, 4.0);
+                      starField += stars(p, 800.0, 3.0);
+                      starField += stars(p, 1600.0, 2.0);
+                      starField += stars(p, 3200.0, 1.5);
+                      starField += stars(p, 6400.0, 1.0);
+
+                      // Color variation for stars
+                      vec3 starTint = mix(vec3(1.0), vec3(0.8, 0.9, 1.0), hash(p * 100.0));
+                      starField *= starTint;
+
+                      vec3 finalColor = bg + nebulaColor + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
+          },
+        };
+
+        const config = shaders[skyboxName];
+        if (!config) {
+          console.error(`No shader config for: ${skyboxName}`);
+          return new THREE.MeshBasicMaterial({
+            color: 0xff00ff,
+            side: THREE.BackSide,
+          });
+        }
+
+        const material = new THREE.ShaderMaterial({
+          uniforms: config.uniforms,
+          vertexShader: config.vertexShader,
+          fragmentShader: config.fragmentShader,
+          side: THREE.BackSide,
+          transparent: true,
+          depthWrite: false,
+        });
+
+        console.log(`ShaderMaterial created for: ${skyboxName}`);
+        return material;
+      }
+
+      function setSkyboxVisibility(visible) {
+        if (skyboxSphere) {
+          skyboxSphere.material.opacity = visible ? 1.0 : 0;
+          skyboxSphere.material.needsUpdate = true;
+          skyboxEnabled = visible;
+        }
+      }
+
+      function createParticles() {
+        // Clean up old particles
+        if (particleGroup) {
+          particleMeshes.forEach((mesh) => {
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            mesh.material.dispose();
+          });
+          particleMeshes = [];
+        }
+
+        particleGroup = new THREE.Group();
+        const particlesPerLayer = Math.floor(particleCount / layers.length);
+
+        for (let i = 0; i < particleCount; i++) {
+          // Determine which layer this particle belongs to
+          const layerIndex = Math.floor(i / particlesPerLayer);
+          const layer = layers[Math.min(layerIndex, layers.length - 1)];
+
+          // Distribute particles in flowing clusters per layer
+          const layerAngleOffset = (layerIndex / layers.length) * Math.PI * 2;
+          const angle = Math.random() * Math.PI * 0.5 + layerAngleOffset;
+          const radius = Math.random() * 400 + 200;
+          const height = (Math.random() - 0.5) * 400;
+
+          const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 150;
+          const y = height;
+          const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 150;
+
+          // Assign color based on layer
+          const layerColor = layerColors[layer];
+          const color = new THREE.Color();
+          color.setHSL(
+            layerColor.h + (Math.random() - 0.5) * 0.08,
+            layerColor.s + (Math.random() - 0.5) * 0.15,
+            layerColor.l + (Math.random() - 0.5) * 0.12,
+          );
+
+          // Varying sizes for depth - smaller particles for dense swarms
+          const size = Math.random() * 2 + 1;
+
+          // Create geometry based on currentShape
+          let geometry;
+          switch (currentShape) {
+            case "sphere":
+              geometry = new THREE.SphereGeometry(size, 16, 16);
+              break;
+            case "cube":
+              geometry = new THREE.BoxGeometry(
+                size * 1.5,
+                size * 1.5,
+                size * 1.5,
+              );
+              break;
+            case "tetrahedron":
+              geometry = new THREE.TetrahedronGeometry(size * 1.2);
+              break;
+            case "octahedron":
+              geometry = new THREE.OctahedronGeometry(size * 1.2);
+              break;
+            case "torus":
+              geometry = new THREE.TorusGeometry(size * 0.8, size * 0.3, 8, 12);
+              break;
+            case "cone":
+              geometry = new THREE.ConeGeometry(size, size * 2, 12);
+              break;
+            default:
+              geometry = new THREE.SphereGeometry(size, 16, 16);
+          }
+
+          // Create glossy material with emissive glow
+          const material = new THREE.MeshPhongMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.4,
+            shininess: 100,
+            specular: 0xffffff,
+            transparent: true,
+            opacity: 0.85,
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(x, y, z);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          // Store custom data
+          mesh.userData = {
+            layerIndex: layerIndex,
+            layer: layer,
+            velocity: new THREE.Vector3(
+              (Math.random() - 0.5) * 0.3,
+              (Math.random() - 0.5) * 0.2,
+              (Math.random() - 0.5) * 0.3,
+            ),
+            baseSize: size,
+            baseColor: color.clone(),
+          };
+
+          scene.add(mesh);
+          particleMeshes.push(mesh);
+        }
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      // Read RMS levels from Csound (handles async Promise)
+      function startAudioLevelReader() {
+        setInterval(async () => {
+          if (csound && isPlaying) {
+            // Update fade-in (8 second fade)
+            if (fadeStartTime) {
+              const elapsed = (Date.now() - fadeStartTime) / 1000;
+              masterFadeIn = Math.min(elapsed / 8.0, 1.0);
+            }
+
+            for (const layer of layers) {
+              try {
+                const channelName = `rms_${layer}`;
+                const rmsRaw = await csound.getControlChannel(channelName);
+                const rmsValue =
+                  typeof rmsRaw === "number" ? rmsRaw : Number(rmsRaw) || 0.0;
+                const normalizedLevel = Math.min(Math.max(rmsValue, 0.0), 1.0);
+                // Apply fade-in multiplier and faster smoothing for more responsive particles
+                layerAudioLevels[layer] =
+                  layerAudioLevels[layer] * 0.6 +
+                  normalizedLevel * masterFadeIn * 0.4;
+              } catch (e) {
+                // Channel not ready yet
+              }
+            }
+
+            // Update audio meter display
+            const maxLevel = Math.max(...Object.values(layerAudioLevels));
+            const audioDisplay = document.getElementById("audioLevelText");
+            if (audioDisplay) {
+              const bars = Math.floor(maxLevel * 20);
+              audioDisplay.textContent =
+                "█".repeat(bars) +
+                "▁".repeat(20 - bars) +
+                ` ${(maxLevel * 100).toFixed(0)}%`;
+              audioDisplay.style.color =
+                maxLevel > 0.5
+                  ? "#00ff00"
+                  : maxLevel > 0.2
+                    ? "#ffff00"
+                    : "#667eea";
+            }
+          }
+        }, 50); // Read every 50ms
+        console.log("✓ Audio level reader started");
+      }
+
+      function animateThreeJS() {
+        requestAnimationFrame(animateThreeJS);
+
+        if (enable3DBackground && particleMeshes.length > 0) {
+          const time = Date.now() * 0.0005;
+
+          // Audio levels are now updated in separate async loop (see startAudioLevelReader)
+
+          const particlesPerLayer = Math.floor(particleCount / layers.length);
+
+          // Flocking behavior with audio reactivity
+          for (let i = 0; i < particleMeshes.length; i++) {
+            const mesh = particleMeshes[i];
+            const userData = mesh.userData;
+            const layerIndex = userData.layerIndex;
+            const layer = userData.layer;
+            const audioLevel = layerAudioLevels[layer] || 0.0;
+
+            // Audio reactive speed multiplier
+            const audioBoost = 1.0 + audioLevel * 10.0;
+
+            const force = new THREE.Vector3(0, 0, 0);
+            let neighborCount = 0;
+            const center = new THREE.Vector3(0, 0, 0);
+            const avgVel = new THREE.Vector3(0, 0, 0);
+
+            // Check neighbors from the same layer
+            const startIdx = layerIndex * particlesPerLayer;
+            const endIdx = Math.min(
+              startIdx + particlesPerLayer,
+              particleMeshes.length,
+            );
+
+            for (let j = startIdx; j < endIdx; j++) {
+              if (i === j) continue;
+
+              const neighbor = particleMeshes[j];
+              const diff = new THREE.Vector3().subVectors(
+                neighbor.position,
+                mesh.position,
+              );
+              const distSq = diff.lengthSq();
+              const interactionRange = 180 + audioLevel * 150;
+
+              if (
+                distSq < interactionRange * interactionRange &&
+                distSq > 0.1
+              ) {
+                const dist = Math.sqrt(distSq);
+
+                // Cohesion: move towards center of neighbors (stronger)
+                center.add(neighbor.position);
+
+                // Alignment: match velocity (stronger)
+                avgVel.add(neighbor.userData.velocity);
+
+                // Separation: avoid crowding (smaller distance)
+                if (dist < 20) {
+                  const repelForce = ((20 - dist) / 20) * 0.8;
+                  force.sub(diff.normalize().multiplyScalar(repelForce));
+                }
+
+                neighborCount++;
+              }
+            }
+
+            // Apply flocking forces
+            if (neighborCount > 0) {
+              // Cohesion (stronger for tight clustering)
+              center.divideScalar(neighborCount).sub(mesh.position);
+              force.add(center.multiplyScalar(0.015));
+
+              // Alignment (stronger for synchronized movement)
+              avgVel.divideScalar(neighborCount).sub(userData.velocity);
+              force.add(avgVel.multiplyScalar(0.08));
+            }
+
+            // Attraction to layer's home position (stronger with audio)
+            const layerAngleOffset = (layerIndex / layers.length) * Math.PI * 2;
+            const homePos = new THREE.Vector3(
+              Math.cos(layerAngleOffset + time * 0.1) * 300,
+              Math.sin(time * 0.3 + layerIndex) * 150,
+              Math.sin(layerAngleOffset + time * 0.1) * 300,
+            );
+            const homeAttraction = 0.002 + audioLevel * 0.003;
+            const toHome = homePos
+              .sub(mesh.position)
+              .multiplyScalar(homeAttraction);
+            force.add(toHome);
+
+            // Apply forces to velocity
+            userData.velocity.add(force);
+
+            // Damping
+            userData.velocity.multiplyScalar(0.96);
+
+            // Limit velocity
+            const maxSpeed = 2.5 * audioBoost;
+            if (userData.velocity.length() > maxSpeed) {
+              userData.velocity.normalize().multiplyScalar(maxSpeed);
+            }
+
+            // Update position
+            mesh.position.add(
+              userData.velocity.clone().multiplyScalar(rotationSpeed),
+            );
+
+            // Audio-reactive color brightness and size
+            const layerColor = layerColors[layer];
+            const color = new THREE.Color();
+            const brightnessMult = 1.0 + audioLevel * 1.5;
+            color.setHSL(
+              layerColor.h,
+              layerColor.s,
+              Math.min(layerColor.l * brightnessMult, 0.95),
+            );
+
+            mesh.material.color.copy(color);
+            mesh.material.emissive.copy(color);
+            mesh.material.emissiveIntensity = 0.5 + audioLevel * 1.5;
+
+            // Audio-reactive size pulsing
+            const sizeMultiplier = 1.0 + audioLevel * 8.0;
+            mesh.scale.setScalar(sizeMultiplier);
+
+            // Boundary containment (soft sphere)
+            const boundaryRadius = 500;
+            const distFromCenter = mesh.position.length();
+
+            if (distFromCenter > boundaryRadius) {
+              const pushBack =
+                ((distFromCenter - boundaryRadius) / distFromCenter) * 0.05;
+              mesh.position.multiplyScalar(1 - pushBack);
+            }
+          }
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      // Csound and audio setup
+      let csound = null;
+      let isPlaying = false;
+      let startTime = 0;
+      let analyser = null;
+      let dataArray = null;
+      let composerTimers = []; // Store all setTimeout IDs for clean stop
+      let randomBgEnabled = false;
+      let randomBgInterval = 30; // seconds
+      let randomBgTimer = null;
+
+      // CSD Recording variables
+      let csdRecording = false;
+      let csdRecordingStartTime = 0;
+
+      const bPhrygian = [
+        47, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 67, 69, 71, 72, 74, 76,
+        78, 79, 81, 83,
+      ];
+      const chordTones = [35, 38, 40, 43, 47, 50, 52, 55, 59];
+
+      // Layer volumes - load from localStorage or use defaults
+      const volumes = {};
+      const muteStates = {};
+      let soloLayer = null;
+      let masterVolume = 1.0;
+
+      // Load saved settings or use defaults
+      function loadSettings() {
+        layers.forEach((layer) => {
+          const saved = localStorage.getItem(`vol_${layer}`);
+          volumes[layer] = saved ? parseFloat(saved) : 0.5;
+          muteStates[layer] = false;
+        });
+      }
+      loadSettings();
+
+      // Save settings to localStorage
+      function saveSettings() {
+        layers.forEach((layer) => {
+          localStorage.setItem(`vol_${layer}`, volumes[layer]);
+        });
+      }
+
+      const orc = `
+            sr = 44100
+            ksmps = 32
+            nchnls = 2
+            0dbfs = 1
+            seed 0
+
+            gkMasterFade init 0
+            gkMasterVol init 1
+            gkDryLevel init 1
+            gkKillSwitch init 1
+            gaMasterL init 0
+            gaMasterR init 0
+
+            gaRvbL init 0
+            gaRvbR init 0
+            gaEchoL init 0
+            gaEchoR init 0
+            gaBellShimL init 0
+            gaBellShimR init 0
+            gaPwmRvbL init 0
+            gaPwmRvbR init 0
+            gaFofRvbL init 0
+            gaFofRvbR init 0
+            gaFluteRvbL init 0
+            gaFluteRvbR init 0
+            gaCelloRvbL init 0
+            gaCelloRvbR init 0
+            gaAmbienceL init 0
+            gaAmbienceR init 0
+            gaCricketDelL init 0
+            gaCricketDelR init 0
+            gaShimmerL init 0
+            gaShimmerR init 0
+            gaEchoL init 0
+            gaEchoR init 0
+
+            instr FM
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_fm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 2, 5
+            iModIndex random 3.5, 8.0
+            kEnv expsegr 0.001, 0.01, 1, iDur * 0.15, 0.3, iDur * 0.25, 0.08, 0.05, 0.001
+            kAmpLfo lfo 0.08, random:i(0.2, 0.5)
+            kAmpMod = 0.92 + kAmpLfo
+            aModEnv expsegr 0.001, 0.005, 1, iDur * 0.1, 0.2, iDur * 0.15, 0.05, 0.03, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv * kAmpMod, iFreq + aMod
+            aFilt tone aCar, 12000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = iPanCenter + kPanLfo
+            chnset kPan, "pan_fm"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_fm"
+            aL, aR pan2 aFilt, kPan
+            aLDelay vdelay aL, 0.5, 5
+            aRDelay vdelay aR, 0.7, 5
+            aLWide = aL + aRDelay * 0.2
+            aRWide = aR + aLDelay * 0.2
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.3
+            gaRvbR = gaRvbR + aRWide * 0.3
+            outs aLWide * 0.4 * gkMasterFade * gkDryLevel, aRWide * 0.4 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Drone
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iAmpBase = p7
+            kVol chnget "vol_drone"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1, 2
+            iModIndex random 0.3, 1.2
+            kEnv linsegr 0, iDur * 0.4, 1, iDur * 0.3, 0.95, iDur * 0.2, 0.8, iDur * 0.1, 0
+            kAmpLfo lfo 0.25, random:i(0.03, 0.08)
+            kAmpMod = 0.75 + kAmpLfo
+            kLfo lfo 0.15, random:i(0.05, 0.15), 0
+            aModEnv1 linseg 1, iDur * 0.5, 0.6, iDur * 0.5, 0.4
+            aMod1 poscil (iModIndex + kLfo) * aModEnv1 * iFreq1, iFreq1 * iModRatio
+            aCar1 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq1 + aMod1
+            aModEnv2 linseg 0.8, iDur * 0.4, 1, iDur * 0.6, 0.5
+            aMod2 poscil (iModIndex + kLfo * 0.8) * aModEnv2 * iFreq2, iFreq2 * (iModRatio * 1.1)
+            aCar2 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq2 + aMod2
+            aModEnv3 linseg 0.9, iDur * 0.6, 0.7, iDur * 0.4, 0.6
+            aMod3 poscil (iModIndex + kLfo * 1.2) * aModEnv3 * iFreq3, iFreq3 * (iModRatio * 0.9)
+            aCar3 poscil kAmp * kEnv * kAmpMod * 0.28, iFreq3 + aMod3
+            aMix = aCar1 + aCar2 + aCar3
+            kPanLfo lfo 0.2, random:i(0.04, 0.1)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_drone"
+            kRms rms aMix
+            chnset kRms * 10, "rms_drone"
+            aL, aR pan2 aMix, kPan
+            aLDelay vdelay aL, 0.8, 8
+            aRDelay vdelay aR, 1.1, 8
+            aLWide = aL + aRDelay * 0.25
+            aRWide = aR + aLDelay * 0.25
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.6
+            gaRvbR = gaRvbR + aRWide * 0.6
+            outs aLWide * 0.25 * gkMasterFade * gkDryLevel, aRWide * 0.25 * gkMasterFade * gkDryLevel
+            endin
+
+            instr NoiseSwell
+            iAmpBase = p4
+            kVol chnget "vol_noise"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.55, 1, iDur * 0.1, 0.9, iDur * 0.35, 0
+            aNoise pinkish 1
+            kCf lfo 80, random:i(0.03, 0.08)
+            kCf = kCf + 150
+            aFilt lpf18 aNoise, kCf, 0.3, 0.5
+            aFilt = aFilt * kAmp * kEnv
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_noise"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_noise"
+            aL, aR pan2 aFilt, kPan
+            aL = aL * 2.0
+            aR = aR * 2.0
+            gaRvbL = gaRvbL + aL * 0.5
+            gaRvbR = gaRvbR + aR * 0.5
+            outs aL * 2.0 * gkMasterFade * gkDryLevel, aR * 2.0 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Rumble
+            iAmpBase = p4
+            kVol chnget "vol_rumble"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.4, 1, iDur * 0.2, 0.9, iDur * 0.4, 0
+            kLfo1 lfo random:i(15, 35), random:i(0.1, 0.25)
+            kLfo2 lfo random:i(20, 45), random:i(0.08, 0.2)
+            kLfo3 lfo random:i(10, 30), random:i(0.12, 0.3)
+            kLfo4 lfo random:i(25, 50), random:i(0.15, 0.35)
+            aOsc1 poscil kAmp * kEnv * 0.3, 35 + kLfo1
+            aOsc2 poscil kAmp * kEnv * 0.3, 42 + kLfo2
+            aOsc3 poscil kAmp * kEnv * 0.25, 28 + kLfo3
+            aOsc4 poscil kAmp * kEnv * 0.15, 55 + kLfo4
+            aMix = aOsc1 + aOsc2 + aOsc3 + aOsc4
+            aMix butterlp aMix, 120
+            aMix = aMix * 1.5
+            aMix tanh aMix
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_rumble"
+            kRms rms aMix
+            chnset kRms * 10, "rms_rumble"
+            aL, aR pan2 aMix, kPan
+            gaRvbL = gaRvbL + aL * 0.6
+            gaRvbR = gaRvbR + aR * 0.6
+            outs aL * 1.5 * gkMasterFade * gkDryLevel, aR * 1.5 * gkMasterFade * gkDryLevel
+            endin
+
+            instr BellChord
+            iNote1 = p4
+            iNote2 = p5
+            iNote3 = p6
+            iAmpBase = p7
+            kVol chnget "vol_bellchord"
+            kAmp = iAmpBase * kVol * 0.5
+            iDur = p3
+            iFreq1 = cpsmidinn(iNote1)
+            iFreq2 = cpsmidinn(iNote2)
+            iFreq3 = cpsmidinn(iNote3)
+            kEnv linsegr 0, 0.02, 1, iDur - 0.05, 0.95, 0.03, 0
+            iModRat1 random 3, 5
+            iModRat2 random 3.5, 5.5
+            iModRat3 random 3.2, 5.2
+            iModIdx random 0.5, 1.5
+            kModEnv expseg 1, 0.05, 0.3, iDur - 0.05, 0.1
+            aMod1 poscil iModIdx * kModEnv * iFreq1, iFreq1 * iModRat1
+            aBell1 poscil kAmp * kEnv * 0.25, iFreq1 + aMod1
+            aMod2 poscil iModIdx * kModEnv * iFreq2, iFreq2 * iModRat2
+            aBell2 poscil kAmp * kEnv * 0.25, iFreq2 + aMod2
+            aMod3 poscil iModIdx * kModEnv * iFreq3, iFreq3 * iModRat3
+            aBell3 poscil kAmp * kEnv * 0.2, iFreq3 + aMod3
+            aMix = aBell1 + aBell2 + aBell3
+            aFilt tone aMix, 8000
+            kPanLfo lfo 0.45, random:i(0.2, 0.5)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_bellchord"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_bellchord"
+            aL, aR pan2 aFilt, kPan
+            aL = aL * 1.5
+            aR = aR * 1.5
+            gaBellShimL = gaBellShimL + aL * 0.5
+            gaBellShimR = gaBellShimR + aR * 0.5
+            outs aL * 0.2 * gkMasterFade * gkDryLevel, aR * 0.2 * gkMasterFade * gkDryLevel
+            endin
+
+            instr PwmChord
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iFreq4 = cpsmidinn(p7)
+            iAmpBase = p8
+            kVol chnget "vol_pwm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, iDur * 0.35, 1, iDur * 0.3, 0.95, iDur * 0.25, 0.7, iDur * 0.1, 0
+            kAmpLfo lfo 0.3, random:i(0.04, 0.09)
+            kAmpMod = 0.7 + kAmpLfo
+            kPw lfo 0.25, random:i(0.3, 0.7)
+            kPw = kPw + 0.5
+            aPw1 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1, 2, kPw
+            aPw2 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1 * 1.002, 2, kPw
+            aPw3 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2, 2, kPw
+            aPw4 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2 * 0.998, 2, kPw
+            aPw5 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3, 2, kPw
+            aPw6 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3 * 1.001, 2, kPw
+            aPw7 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4, 2, kPw
+            aPw8 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4 * 0.999, 2, kPw
+            aMix = aPw1 + aPw2 + aPw3 + aPw4 + aPw5 + aPw6 + aPw7 + aPw8
+            aFilt moogladder aMix, 1200, 0.2
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_pwm"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_pwm"
+            aL, aR pan2 aFilt, kPan
+            gaPwmRvbL = gaPwmRvbL + aL * 0.6
+            gaPwmRvbR = gaPwmRvbR + aR * 0.6
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+
+            instr Flute
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_flute"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 0.05, 1, iDur - 0.1, 0.9, 0.05, 0
+            kAmpLfo lfo 0.2, random:i(0.1, 0.2)
+            kAmpMod = 0.8 + kAmpLfo
+            iVibRate random 4.5, 6.5
+            iVibDepth random 0.008, 0.015
+            kVib lfo iVibDepth, iVibRate
+            aNoise rand 0.1
+            kNoiseEnv expseg 1, 0.08, 0.01, iDur - 0.08, 0.01
+            aBreath = aNoise * kNoiseEnv * kAmp * kAmpMod * 0.3
+            aBreath butterlp aBreath, iFreq * 3
+            aFlute1 poscil kAmp * kEnv * kAmpMod * 0.4, iFreq * (1 + kVib)
+            aFlute2 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq * 1.003 * (1 + kVib * 0.9)
+            aFlute3 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq * 0.997 * (1 + kVib * 1.1)
+            aMix = aFlute1 + aFlute2 + aFlute3 + aBreath
+            aFilt tone aMix, 4000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.2, random:i(0.08, 0.15)
+            kPan = iPanCenter + kPanLfo
+            chnset kPan, "pan_flute"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_flute"
+            aL, aR pan2 aFilt, kPan
+            gaFluteRvbL = gaFluteRvbL + aL * 0.7
+            gaFluteRvbR = gaFluteRvbR + aR * 0.7
+            outs aL * 0.3 * gkMasterFade * gkDryLevel, aR * 0.3 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cello
+            iFreq = cpsmidinn(p4) * 0.5
+            iAmpBase = p5
+            kVol chnget "vol_cello"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 1.5, 1, iDur - 2.5, 0.98, 1, 0
+            iVibRate random 4, 5.5
+            iVibDepth random 0.004, 0.007
+            kVib lfo iVibDepth, iVibRate
+            kPwmLfo lfo 0.15, random:i(0.08, 0.15)
+            kPwm = 0.5 + kPwmLfo
+            aSaw1 vco2 kAmp * kEnv * 0.18, iFreq * (1 + kVib), 0
+            aSaw2 vco2 kAmp * kEnv * 0.18, iFreq * 1.007 * (1 + kVib * 0.98), 0
+            aSaw3 vco2 kAmp * kEnv * 0.18, iFreq * 0.993 * (1 + kVib * 1.02), 0
+            aSaw4 vco2 kAmp * kEnv * 0.17, iFreq * 1.012 * (1 + kVib), 0
+            aSaw5 vco2 kAmp * kEnv * 0.17, iFreq * 0.988 * (1 + kVib * 0.97), 0
+            aPw1 vco2 kAmp * kEnv * 0.12, iFreq * 1.003 * (1 + kVib), 2, kPwm
+            aPw2 vco2 kAmp * kEnv * 0.12, iFreq * 0.997 * (1 + kVib * 1.01), 2, kPwm
+            aMix = aSaw1 + aSaw2 + aSaw3 + aSaw4 + aSaw5 + aPw1 + aPw2
+            aFilt moogladder aMix, 600 + kEnv * 800, 0.3
+            aFilt butterlp aFilt, 1200
+            aFilt tone aFilt, 1800
+            iPan random 0.45, 0.55
+            chnset iPan, "pan_cello"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_cello"
+            aL, aR pan2 aFilt, iPan
+            gaCelloRvbL = gaCelloRvbL + aL * 1.1
+            gaCelloRvbR = gaCelloRvbR + aR * 1.1
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+            instr LowThunder
+            iAmpBase = p4
+            kVol chnget "vol_thunder"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv expseg 1, 0.1, 0.8, 0.3, 0.6, iDur - 0.4, 0.001
+            aPink pinkish 1
+            kSubCf expseg 80, 0.2, 30, iDur - 0.2, 12
+            aSub butterlp aPink, kSubCf
+            aSub = aSub * 4
+            kMidCf expseg 180, 0.25, 70, iDur - 0.25, 25
+            aMid butterlp aPink, kMidCf
+            aMid = aMid * 1.2
+            aMix = (aSub * 5 + aMid * 2) * kEnv * kAmp
+            aMix tanh aMix * 1.3
+            aMix limit aMix, -0.85, 0.85
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_thunder"
+            kRms rms aMix
+            chnset kRms * 10, "rms_thunder"
+            aL, aR pan2 aMix, kPan
+            aL = aL * 0.6
+            aR = aR * 0.6
+            gaRvbL = gaRvbL + aL * 0.4
+            gaRvbR = gaRvbR + aR * 0.4
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cricket
+            iAmpBase = p4
+            kVol chnget "vol_cricket"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iFreq random 4500, 8500
+            iFadeIn random 0.02, 0.08
+            iFadeOut random 0.02, 0.08
+            kEnv linseg 0, iFadeIn, 1, iDur - iFadeIn - iFadeOut, 1, iFadeOut, 0
+            kChirp lfo 1, random:i(30, 60), 0
+            kChirp = (kChirp + 1) * 0.5
+            kFreqMod lfo random:i(200, 600), random:i(8, 15)
+            aNoise rand 0.65
+            aChirp butterbp aNoise, iFreq + kFreqMod, iFreq * 0.25
+            aChirp = aChirp * kChirp * kEnv * kAmp
+            aChirp butterhp aChirp, 3500
+            aChirp tone aChirp, 9000
+            iPanStart random 0, 1
+            iPanEnd random 0, 1
+            iPanMid random 0, 1
+            kPanLfo1 lfo 0.4, random:i(0.3, 0.8)
+            kPanLfo2 lfo 0.3, random:i(0.5, 1.2), 0.25
+            kPan linseg iPanStart, iDur * 0.33, iPanMid, iDur * 0.33, iPanEnd, iDur * 0.34, iPanStart
+            kPan = kPan + kPanLfo1 + kPanLfo2
+            kPan limit kPan, 0, 1
+            chnset kPan, "pan_cricket"
+            kRms rms aChirp
+            chnset kRms * 10, "rms_cricket"
+            aL, aR pan2 aChirp, kPan
+            gaCricketDelL = gaCricketDelL + aL * 0.95
+            gaCricketDelR = gaCricketDelR + aR * 0.95
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 1.8 * gkMasterFade * gkDryLevel, aR * 1.8 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Bird
+            iAmpBase = p4
+            kVol chnget "vol_bird"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iStartFreq random 1000, 4000
+            iEndFreq random 800, 4500
+            kEnv expseg 0.001, 0.01, 1, iDur - 0.01, 0.01
+            kFreq expseg iStartFreq, iDur * 0.3, iEndFreq, iDur * 0.7, iEndFreq * 0.8
+            iModRatio random 2, 4
+            iModIndex random 1, 3
+            aMod poscil iModIndex * kFreq, kFreq * iModRatio
+            aBird poscil kAmp * kEnv, kFreq + aMod
+            aNoise rand 0.15
+            aNoise butterbp aNoise, kFreq, kFreq * 0.5
+            aBird = aBird + aNoise * kEnv
+            aBird tone aBird, 7000
+            iPanStart random 0, 1
+            iPanEnd random 0, 1
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_bird"
+            kRms rms aBird
+            chnset kRms * 10, "rms_bird"
+            aL, aR pan2 aBird, kPan
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr WaterDrip
+            iAmpBase = p4
+            kVol chnget "vol_water"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iDropFreq random 1200, 2800
+            iModFreq random 3000, 5000
+            kEnv expseg 1, 0.003, 0.6, 0.02, 0.3, iDur - 0.023, 0.001
+            aDrip poscil kAmp * kEnv, iDropFreq + (iModFreq * kEnv * 0.3)
+            aDrip butterbp aDrip, iDropFreq, iDropFreq * 1.8
+            aClick rand kAmp * kEnv * 0.2
+            aClick butterhp aClick, 4000
+            aDrop = aDrip + aClick
+            aDrop tone aDrop, 6000
+            iPan random 0.2, 0.8
+            kPan = iPan
+            chnset kPan, "pan_water"
+            kRms rms aDrop
+            chnset kRms * 10, "rms_water"
+            aL, aR pan2 aDrop, kPan
+            gaShimmerL = gaShimmerL + aL * 0.85
+            gaShimmerR = gaShimmerR + aR * 0.85
+            outs aL * 0.12 * gkMasterFade * gkDryLevel, aR * 0.12 * gkMasterFade * gkDryLevel
+            endin
+
+            instr CracklingFire
+            iAmpBase = p4
+            kVol chnget "vol_fire"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kCrackleRate1 lfo 12, random:i(0.8, 3.2), 2
+            kCrackleRate1 = abs(kCrackleRate1) + 5
+            kCrackleRate2 lfo 18, random:i(1.5, 4.5), 0
+            kCrackleRate2 = abs(kCrackleRate2) + 8
+            aCrackle1 dust kAmp * 0.8, kCrackleRate1 * 95
+            aCrackle1 butterbp aCrackle1, random:i(400, 1800), random:i(600, 1200)
+            aCrackle2 dust kAmp * 0.6, kCrackleRate2 * 120
+            aCrackle2 butterbp aCrackle2, random:i(800, 2500), random:i(400, 900)
+            aCrackle3 dust kAmp * 0.4, random:i(60, 150)
+            aCrackle3 butterbp aCrackle3, random:i(200, 600), random:i(300, 700)
+            aCrackle = aCrackle1 + aCrackle2 + aCrackle3
+            kWindRate lfo 1.5, random:i(0.2, 0.6)
+            kWindRate = abs(kWindRate) + 0.5
+            aWind pinker
+            aWind = aWind * kAmp * kWindRate * 0.4
+            aWind butterbp aWind, random:i(200, 800), random:i(300, 600)
+            aWind tone aWind, 1200
+            aAir noise kAmp * 0.25, 0.5
+            aAir butterbp aAir, random:i(500, 2000), random:i(800, 1500)
+            kAirMod lfo 0.6, random:i(0.3, 0.9)
+            aAir = aAir * (kAirMod + 0.4)
+            aRumble rand kAmp * 0.35
+            aRumble tone aRumble, 120
+            aRumble butterlp aRumble, 180
+            aFire = aCrackle + aWind + aAir + aRumble
+            kEnv linsegr 0, iDur * 0.15, 1, iDur * 0.7, 0.9, 0.2, 0
+            aFire = aFire * kEnv
+            kPanLfo1 lfo 0.35, random:i(0.15, 0.45)
+            kPanLfo2 lfo 0.25, random:i(0.25, 0.65), 0.25
+            iPanCenter random 0.35, 0.65
+            kPan = iPanCenter + kPanLfo1 + kPanLfo2 * 0.5
+            kPan limit kPan, 0.05, 0.95
+            chnset kPan, "pan_fire"
+            kRms rms aFire
+            chnset kRms * 10, "rms_fire"
+            aL, aR pan2 aFire, kPan
+            gaEchoL = gaEchoL + aL * 0.6
+            gaEchoR = gaEchoR + aR * 0.6
+            outs aL * 0.65 * gkMasterFade * gkDryLevel, aR * 0.65 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Marimba
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_marimba"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1.5, 2.8
+            iModIndex random 1.2, 2.8
+            kEnv expsegr 0.001, 0.003, 1, iDur * 0.08, 0.25, iDur * 0.12, 0.08, 0.04, 0.001
+            aModEnv expsegr 0.001, 0.002, 1, iDur * 0.05, 0.15, iDur * 0.08, 0.03, 0.02, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv, iFreq + aMod
+            aFilt tone aCar, 3500
+            aFilt butterlp aFilt, 2800
+            iPan random 0.25, 0.75
+            chnset iPan, "pan_marimba"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_marimba"
+            aL, aR pan2 aFilt, iPan
+            aLDelay vdelay aL, 0.4, 4
+            aRDelay vdelay aR, 0.6, 4
+            aLWide = aL + aRDelay * 0.18
+            aRWide = aR + aLDelay * 0.18
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.25
+            gaRvbR = gaRvbR + aRWide * 0.25
+            outs aLWide * 0.35 * gkMasterFade * gkDryLevel, aRWide * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr GlobalFadeIn
+            gkMasterFade init 0
+            gkReverbFade init 0
+            if gkMasterFade < 1 then
+            gkMasterFade = gkMasterFade + (1.0 / (8.0 * kr))
+            gkMasterFade limit gkMasterFade, 0, 1
+            endif
+            if timeinsts() > 1 && gkReverbFade < 1 then
+            gkReverbFade = gkReverbFade + (1.0 / (6.0 * kr))
+            gkReverbFade limit gkReverbFade, 0, 1
+            endif
+            gkMasterVol chnget "vol_effect"
+            gkDryLevel chnget "vol_dry"
+            endin
+
+            instr MasterVolumeInit
+            chnset 1, "vol_effect"
+            chnset 1, "vol_dry"
+            chnset 1, "kill_switch"
+            endin
+
+            instr KillSwitch
+            gkKillSwitch chnget "kill_switch"
+            if gkKillSwitch < 0.01 then
+            turnoff2 "FM", 2, 0
+            turnoff2 "Drone", 2, 0
+            turnoff2 "NoiseSwell", 2, 0
+            turnoff2 "Rumble", 2, 0
+            turnoff2 "BellChord", 2, 0
+            turnoff2 "PwmChord", 2, 0
+            turnoff2 "LowThunder", 2, 0
+            turnoff2 "Flute", 2, 0
+            turnoff2 "Cello", 2, 0
+            turnoff2 "Cricket", 2, 0
+            turnoff2 "Bird", 2, 0
+            turnoff2 "WaterDrip", 2, 0
+            turnoff2 "CracklingFire", 2, 0
+            turnoff2 "Marimba", 2, 0
+            endif
+            endin
+
+            instr CricketMultitapDelay
+            aInL = gaCricketDelL
+            aInR = gaCricketDelR
+            aPingL delay aInR, 0.11
+            aPongR delay aInL, 0.13
+            aPingL2 delay aPongR, 0.19
+            aPongR2 delay aPingL, 0.21
+            aPingL3 delay aPongR2, 0.31
+            aPongR3 delay aPingL2, 0.37
+            aPingL4 delay aPongR3, 0.47
+            aPongR4 delay aPingL3, 0.53
+            aMixL = aInL + aPingL * 0.7 + aPingL2 * 0.5 + aPingL3 * 0.35 + aPingL4 * 0.2
+            aMixR = aInR + aPongR * 0.7 + aPongR2 * 0.5 + aPongR3 * 0.35 + aPongR4 * 0.2
+            aMixL butterlp aMixL, 7000
+            aMixR butterlp aMixR, 7000
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.94, 10000
+            aRvbL tone aRvbL, 6000
+            aRvbR tone aRvbR, 6000
+            kMaster chnget "vol_effect"
+            outs (aMixL * 0.3 + aRvbL * 0.8) * kMaster * gkReverbFade, (aMixR * 0.3 + aRvbR * 0.8) * kMaster * gkReverbFade
+            clear gaCricketDelL, gaCricketDelR
+            endin
+
+            instr Echo
+            aInL = gaEchoL
+            aInR = gaEchoR
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aInL + aDelL*0.55, 0.47
+            aDelR delay aInR + aDelR*0.6, 0.53
+            aDelL tone aDelL, 3000
+            aDelR tone aDelR, 3000
+            kMaster chnget "vol_effect"
+            outs aDelL * 0.2 * kMaster, aDelR * 0.2 * kMaster
+            clear gaEchoL, gaEchoR
+            endin
+
+            instr BellShimmer
+            aInL = gaBellShimL
+            aInR = gaBellShimR
+            aShiftL1 poscil aInL * 0.4, 1.03, -1
+            aShiftL2 poscil aInL * 0.35, 0.97, -1
+            aShiftL3 poscil aInL * 0.3, 1.07, -1
+            aShiftR1 poscil aInR * 0.4, 1.04, -1
+            aShiftR2 poscil aInR * 0.35, 0.96, -1
+            aShiftR3 poscil aInR * 0.3, 1.06, -1
+            aShimL = aInL + aShiftL1 + aShiftL2 + aShiftL3
+            aShimR = aInR + aShiftR1 + aShiftR2 + aShiftR3
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aShimL + aDelR * 0.3, 0.37
+            aDelR delay aShimR + aDelL * 0.3, 0.43
+            aDelL tone aDelL, 6000
+            aDelR tone aDelR, 6000
+            aMixL = aShimL + aDelL * 0.4
+            aMixR = aShimR + aDelR * 0.4
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.92, 9000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaBellShimL, gaBellShimR
+            endin
+
+            instr PwmFreeverb
+            aRvbL, aRvbR freeverb gaPwmRvbL, gaPwmRvbR, 0.88, 0.5
+            kMaster chnget "vol_effect"
+            outs aRvbL * kMaster * gkReverbFade, aRvbR * kMaster * gkReverbFade
+            clear gaPwmRvbL, gaPwmRvbR
+            endin
+
+            instr FluteNetwork
+            aInL = gaFluteRvbL
+            aInR = gaFluteRvbR
+            aChL1 vdelay aInL, 12 + 3 * lfo:k(1, 0.5), 30
+            aChR1 vdelay aInR, 14 + 3 * lfo:k(1, 0.45), 30
+            aChL2 vdelay aInL, 18 + 2.5 * lfo:k(1, 0.6), 30
+            aChR2 vdelay aInR, 16 + 2.5 * lfo:k(1, 0.55), 30
+            aChL = (aInL + aChL1 * 0.35 + aChL2 * 0.25) * 0.65
+            aChR = (aInR + aChR1 * 0.35 + aChR2 * 0.25) * 0.65
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aChL + aDelR * 0.25, 0.31
+            aDelR delay aChR + aDelL * 0.25, 0.37
+            aDelL tone aDelL, 3500
+            aDelR tone aDelR, 3500
+            aMixL = aChL + aDelL * 0.3
+            aMixR = aChR + aDelR * 0.3
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.88, 7000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.65 * kMaster * gkReverbFade, aRvbR * 0.65 * kMaster * gkReverbFade
+            clear gaFluteRvbL, gaFluteRvbR
+            endin
+
+            instr CelloNetwork
+            aInL = gaCelloRvbL
+            aInR = gaCelloRvbR
+            aChL1 vdelay aInL, 18 + 6 * lfo:k(1, 0.35), 50
+            aChR1 vdelay aInR, 20 + 6 * lfo:k(1, 0.32), 50
+            aChL2 vdelay aInL, 26 + 5 * lfo:k(1, 0.48), 50
+            aChR2 vdelay aInR, 24 + 5 * lfo:k(1, 0.44), 50
+            aChL3 vdelay aInL, 32 + 4 * lfo:k(1, 0.52), 50
+            aChR3 vdelay aInR, 30 + 4 * lfo:k(1, 0.5), 50
+            aChL = (aInL + aChL1 * 0.4 + aChL2 * 0.3 + aChL3 * 0.2) * 0.6
+            aChR = (aInR + aChR1 * 0.4 + aChR2 * 0.3 + aChR3 * 0.2) * 0.6
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aChL + aDelR * 0.35, 0.41
+            aDelR delay aChR + aDelL * 0.35, 0.47
+            aDelL tone aDelL, 2800
+            aDelR tone aDelR, 2800
+            aMixL = aChL + aDelL * 0.4
+            aMixR = aChR + aDelR * 0.4
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.9, 5000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaCelloRvbL, gaCelloRvbR
+            endin
+
+            instr AmbienceReverb
+            aInL = gaAmbienceL
+            aInR = gaAmbienceR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.93, 10000
+            aRvbL tone aRvbL, 6000
+            aRvbR tone aRvbR, 6000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.5 * kMaster * gkReverbFade, aRvbR * 0.5 * kMaster * gkReverbFade
+            clear gaAmbienceL, gaAmbienceR
+            endin
+
+            instr Reverb
+            aL, aR reverbsc gaRvbL, gaRvbR, 0.85, 8000
+            kMaster chnget "vol_effect"
+            outs aL * kMaster * gkReverbFade, aR * kMaster * gkReverbFade
+            clear gaRvbL, gaRvbR
+            endin
+
+            instr WaterShimmerReverb
+            aL = gaShimmerL
+            aR = gaShimmerR
+            aPitchL, aPitchR reverbsc aL, aR, 0.92, 12000
+            aPitchL = aPitchL * 0.4
+            aPitchR = aPitchR * 0.4
+            aDelL vdelay3 aPitchL, 23, 500
+            aDelR vdelay3 aPitchR, 29, 500
+            aShimL = aPitchL + aDelL * 0.6
+            aShimR = aPitchR + aDelR * 0.6
+            kMaster chnget "vol_effect"
+            outs aShimL * kMaster * gkReverbFade, aShimR * kMaster * gkReverbFade
+            clear gaShimmerL, gaShimmerR
+            endin
+
+            instr FireEcho
+            aL = gaEchoL
+            aR = gaEchoR
+            aDelL vdelay3 aL, 180, 600
+            aDelR vdelay3 aR, 240, 600
+            aFeedL = aL + aDelR * 0.4
+            aFeedR = aR + aDelL * 0.4
+            kMaster chnget "vol_effect"
+            outs aFeedL * 0.5 * kMaster * gkReverbFade, aFeedR * 0.5 * kMaster * gkReverbFade
+            clear gaEchoL, gaEchoR
+            endin
+            `;
+
+      // CSD Recording Functions
+      function generateCsound() {
+        if (!csdRecording) {
+          // Start recording
+          csdRecording = true;
+          csdRecordingStartTime = Date.now();
+
+          const output = document.getElementById("csdOutput");
+
+          // Get current volume settings from sliders
+          const layers = [
+            "fm",
+            "drone",
+            "noise",
+            "rumble",
+            "bellchord",
+            "pwm",
+            "thunder",
+            "flute",
+            "cello",
+            "cricket",
+            "bird",
+            "water",
+            "fire",
+            "marimba",
+          ];
+          let channelInits = "";
+          layers.forEach((layer) => {
+            const slider = document.getElementById(`slider-${layer}`);
+            const vol = slider ? slider.value / 100 : 0.5;
+            channelInits += `chnset ${vol.toFixed(2)}, "vol_${layer}"\n      `;
+          });
+
+          const csdHeader = `<CsoundSynthesizer>
+      <CsOptions>
+      -odac -d -m0
+      </CsOptions>
+      <CsInstruments>
+      ${orc.trim()}
+
+      ; Initialize control channels for standalone playback
+      instr ChannelInit
+            ${channelInits}chnset 1.0, "vol_dry"
+            chnset 1.0, "vol_effect"
+            turnoff
+      endin
+      </CsInstruments>
+      <CsScore>
+      ; === RECORDED PERFORMANCE ===
+      ; Started: ${new Date().toISOString()}
+
+      ; Initialize control channels first
+      i "ChannelInit" 0 0.01
+
+      ; Effect instruments (always on)
+      i "GlobalFadeIn" 0 3600
+      i "MasterVolumeInit" 0 0.01
+      i "KillSwitch" 0 3600
+      i "Echo" 0 3600
+      i "BellShimmer" 0 3600
+      i "PwmFreeverb" 0 3600
+      i "FluteNetwork" 0 3600
+      i "CelloNetwork" 0 3600
+      i "CricketMultitapDelay" 0 3600
+      i "AmbienceReverb" 0 3600
+      i "Reverb" 0 3600
+      i "WaterShimmerReverb" 0 3600
+      i "FireEcho" 0 3600
+
+      ; Performance notes
+      `;
+          output.value = csdHeader;
+          output.classList.add("visible");
+          document.getElementById("startCsdBtn").textContent =
+            "⏹ Stop Recording";
+          document.getElementById("startCsdBtn").style.background = "#dc3545";
+          document.getElementById("toggleConsoleBtn").textContent =
+            "👁️ Hide Console";
+          console.log("CSD Recording started");
+        } else {
+          // Stop recording
+          stopCSDRecording();
+        }
+      }
+
+      function stopCSDRecording() {
+        if (!csdRecording) return;
+        csdRecording = false;
+
+        const output = document.getElementById("csdOutput");
+        const footer = `\ne\n</CsScore>
+      </CsoundSynthesizer>`;
+        output.value += footer;
+
+        document.getElementById("startCsdBtn").textContent =
+          "⏺ Start CSD Recording";
+        document.getElementById("startCsdBtn").style.background = "#007bff";
+        document.getElementById("downloadCsdBtn").disabled = false;
+        console.log("CSD Recording stopped");
+
+        // Prompt user to download
+        if (confirm("Recording stopped. Download the CSD file now?")) {
+          downloadCsd();
+        }
+      }
+
+      function addNoteToCSD(instrName, p3, ...pfields) {
+        if (!csdRecording) return;
+
+        const elapsed = (Date.now() - csdRecordingStartTime) / 1000;
+        const p2 = elapsed.toFixed(3);
+
+        let scoreStatement;
+        if (pfields.length > 0) {
+          const pfieldsStr = pfields.join(" ");
+          scoreStatement = `i "${instrName}" ${p2} ${p3} ${pfieldsStr}`;
+        } else {
+          scoreStatement = `i "${instrName}" ${p2} ${p3}`;
+        }
+
+        const output = document.getElementById("csdOutput");
+        output.value += scoreStatement + "\n";
+      }
+
+      function downloadCsd() {
+        const output = document.getElementById("csdOutput");
+        if (!output.value.trim()) {
+          alert("No CSD content to download");
+          return;
+        }
+
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/:/g, "-")
+          .split(".")[0];
+        const filename = `etude1_${timestamp}.csd`;
+
+        const blob = new Blob([output.value], {
+          type: "text/plain;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log(`Downloaded: ${filename}`);
+      }
+
+      // Update effective volume based on mute/solo state
+      function updateEffectiveVolume(layer) {
+        let effectiveVol = volumes[layer];
+        if (muteStates[layer]) {
+          effectiveVol = 0;
+        } else if (soloLayer !== null && soloLayer !== layer) {
+          effectiveVol = 0;
+        }
+        if (csound) {
+          csound.setControlChannel(`vol_${layer}`, effectiveVol);
+        }
+      }
+
+      // Immediately trigger an instrument for solo preview
+      function triggerInstrument(layer) {
+        const note = choose(bPhrygian);
+        const amp = 0.12;
+
+        switch (layer) {
+          case "fm":
+            csound.inputMessage(`i "FM" 0 1.5 ${note} ${amp}`);
+            addNoteToCSD("FM", 1.5, note, amp);
+            break;
+          case "drone":
+            const note2 = choose(chordTones);
+            const note3 = choose(chordTones);
+            csound.inputMessage(
+              `i "Drone" 0 8 ${note} ${note2} ${note3} ${amp}`,
+            );
+            addNoteToCSD("Drone", 8, note, note2, note3, amp);
+            break;
+          case "noise":
+            csound.inputMessage(`i "NoiseSwell" 0 15 ${amp}`);
+            addNoteToCSD("NoiseSwell", 15, amp);
+            break;
+          case "rumble":
+            csound.inputMessage(`i "Rumble" 0 12 ${amp * 1.5}`);
+            addNoteToCSD("Rumble", 12, amp * 1.5);
+            break;
+          case "bellchord":
+            const b2 = note + 7;
+            const b3 = note + 12;
+            csound.inputMessage(
+              `i "BellChord" 0 5 ${note} ${b2} ${b3} ${amp * 0.8}`,
+            );
+            addNoteToCSD("BellChord", 5, note, b2, b3, amp * 0.8);
+            break;
+          case "pwm":
+            const p1 = choose(chordTones);
+            const p2 = choose(chordTones);
+            const p3 = choose(chordTones);
+            const p4 = choose(chordTones);
+            csound.inputMessage(
+              `i "PwmChord" 0 10 ${p1} ${p2} ${p3} ${p4} ${amp}`,
+            );
+            addNoteToCSD("PwmChord", 10, p1, p2, p3, p4, amp);
+            break;
+          case "thunder":
+            csound.inputMessage(`i "LowThunder" 0 6 ${amp * 1.2}`);
+            addNoteToCSD("LowThunder", 6, amp * 1.2);
+            break;
+          case "flute":
+            csound.inputMessage(`i "Flute" 0 4 ${note} ${amp}`);
+            addNoteToCSD("Flute", 4, note, amp);
+            break;
+          case "cello":
+            csound.inputMessage(
+              `i "Cello" 0 4 ${bPhrygian[randInt(0, 4)]} ${amp * 1.8}`,
+            );
+            addNoteToCSD("Cello", 4, bPhrygian[randInt(0, 4)], amp * 1.8);
+            break;
+          case "cricket":
+            csound.inputMessage(`i "Cricket" 0 0.15 ${amp}`);
+            addNoteToCSD("Cricket", 0.15, amp);
+            break;
+          case "bird":
+            const birdNote = bPhrygian[randInt(8, bPhrygian.length)];
+            csound.inputMessage(`i "Bird" 0 2 ${amp * 0.5}`);
+            addNoteToCSD("Bird", 2, amp * 0.5);
+            break;
+          case "rumble":
+            csound.inputMessage(`i "Rumble" 0 12 ${amp * 1.2}`);
+            addNoteToCSD("Rumble", 12, amp * 1.2);
+            break;
+        }
+        console.log(`✓ Triggered ${layer} instrument`);
+      }
+
+      // Setup slider listeners
+      function setupSliders() {
+        layers.forEach((layer) => {
+          const slider = document.getElementById(`slider-${layer}`);
+          const volLabel = document.getElementById(`vol-${layer}`);
+
+          // Set initial value from saved settings
+          slider.value = Math.round(volumes[layer] * 100);
+          volLabel.textContent = slider.value + "%";
+
+          slider.addEventListener("input", function () {
+            const val = this.value / 100;
+            volumes[layer] = val;
+            volLabel.textContent = this.value + "%";
+            updateEffectiveVolume(layer);
+            saveSettings();
+          });
+        });
+
+        // Setup mute/solo buttons
+        document.querySelectorAll(".layer-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const layer = this.dataset.layer;
+            const action = this.dataset.action;
+
+            if (action === "mute") {
+              muteStates[layer] = !muteStates[layer];
+              this.classList.toggle("active", muteStates[layer]);
+              updateEffectiveVolume(layer);
+            } else if (action === "solo") {
+              if (soloLayer === layer) {
+                soloLayer = null;
+                this.classList.remove("active");
+                console.log(`Solo OFF for ${layer}`);
+              } else {
+                // Remove active from all solo buttons
+                document
+                  .querySelectorAll('[data-action="solo"]')
+                  .forEach((b) => b.classList.remove("active"));
+                soloLayer = layer;
+                this.classList.add("active");
+                console.log(`Solo ON for ${layer}`);
+
+                // Immediately trigger this instrument so you hear it right away
+                if (isPlaying && csound) {
+                  triggerInstrument(layer);
+                  console.log(`Triggered ${layer} for preview`);
+                }
+              }
+              // Update all layers
+              layers.forEach((l) => {
+                updateEffectiveVolume(l);
+                console.log(
+                  `Layer ${l}: vol=${volumes[l]}, muted=${muteStates[l]}, solo=${soloLayer}, effective=${soloLayer === null || soloLayer === l ? volumes[l] : 0}`,
+                );
+              });
+            }
+          });
+        });
+      }
+
+      // Update time display
+      function updateTimeDisplay() {
+        if (isPlaying && startTime > 0) {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const minutes = Math.floor(elapsed / 60);
+          const seconds = elapsed % 60;
+          document.getElementById("timeText").textContent =
+            `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        }
+        requestAnimationFrame(updateTimeDisplay);
+      }
+      updateTimeDisplay();
+
+      // Initialize Three.js
+      initThreeJS();
+      animateThreeJS();
+
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function randInt(min, max) {
+        return Math.floor(rand(min, max));
+      }
+
+      function choose(arr) {
+        return arr[randInt(0, arr.length)];
+      }
+
+      function composeFM() {
+        if (!isPlaying) return;
+        const note = choose(bPhrygian) + 24;
+        const dur = rand(0.2, 1.2);
+        const amp = rand(0.04, 0.1);
+        csound.inputMessage(`i "FM" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("FM", dur, note, amp);
+        const timer = setTimeout(composeFM, rand(400, 3000));
+        composerTimers.push(timer);
+      }
+
+      function composeDrone() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.35) {
+          const timer = setTimeout(composeDrone, rand(8000, 16000));
+          composerTimers.push(timer);
+          return;
+        }
+        const note1 = choose(chordTones);
+        const note2 = choose(chordTones);
+        const note3 = choose(chordTones);
+        const dur = rand(10, 20);
+        const amp = rand(0.06, 0.12);
+        csound.inputMessage(
+          `i "Drone" 0 ${dur} ${note1} ${note2} ${note3} ${amp}`,
+        );
+        addNoteToCSD("Drone", dur, note1, note2, note3, amp);
+        const timer = setTimeout(composeDrone, rand(8000, 18000));
+        composerTimers.push(timer);
+      }
+
+      function composeRumble() {
+        if (!isPlaying) return;
+        const dur = rand(8, 18);
+        const amp = rand(0.2, 0.35);
+        csound.inputMessage(`i "Rumble" 0 ${dur} ${amp}`);
+        addNoteToCSD("Rumble", dur, amp);
+        const timer = setTimeout(composeRumble, rand(12000, 30000));
+        composerTimers.push(timer);
+      }
+
+      function composeNoiseSwell() {
+        if (!isPlaying) return;
+        const dur = rand(24, 40);
+        const amp = rand(0.1, 0.16);
+        csound.inputMessage(`i "NoiseSwell" 0 ${dur} ${amp}`);
+        addNoteToCSD("NoiseSwell", dur, amp);
+        const timer = setTimeout(composeNoiseSwell, rand(10000, 20000));
+        composerTimers.push(timer);
+      }
+
+      function composeBellChord() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.5) {
+          const timer = setTimeout(composeBellChord, rand(4000, 8000));
+          composerTimers.push(timer);
+          return;
+        }
+        const baseNote = choose(bPhrygian);
+        const intervals = choose([
+          [0, 7, 12],
+          [0, 5, 12],
+          [0, 7, 14],
+        ]);
+        const note1 = baseNote + intervals[0];
+        const note2 = baseNote + intervals[1];
+        const note3 = baseNote + intervals[2];
+        const dur = rand(4, 8);
+        const amp = rand(0.08, 0.14);
+        csound.inputMessage(
+          `i "BellChord" 0 ${dur} ${note1} ${note2} ${note3} ${amp}`,
+        );
+        addNoteToCSD("BellChord", dur, note1, note2, note3, amp);
+        const timer = setTimeout(composeBellChord, rand(6000, 12000));
+        composerTimers.push(timer);
+      }
+
+      function composePwmChord() {
+        if (!isPlaying) return;
+        const note1 = choose(chordTones);
+        const note2 = choose(chordTones);
+        const note3 = choose(chordTones);
+        const note4 = choose(chordTones);
+        const dur = rand(10, 18);
+        const amp = rand(0.14, 0.2);
+        csound.inputMessage(
+          `i "PwmChord" 0 ${dur} ${note1} ${note2} ${note3} ${note4} ${amp}`,
+        );
+        addNoteToCSD("PwmChord", dur, note1, note2, note3, note4, amp);
+        const timer = setTimeout(composePwmChord, rand(8000, 15000));
+        composerTimers.push(timer);
+      }
+
+      function composeThunder() {
+        if (!isPlaying) return;
+        const dur = rand(5, 12);
+        const amp = rand(0.25, 0.45);
+        csound.inputMessage(`i "LowThunder" 0 ${dur} ${amp}`);
+        addNoteToCSD("LowThunder", dur, amp);
+        const timer = setTimeout(composeThunder, rand(25000, 70000));
+        composerTimers.push(timer);
+      }
+
+      function composeFlute() {
+        if (!isPlaying) return;
+
+        // Play ONE note immediately
+        const note = bPhrygian[randInt(5, 12)];
+        const dur = rand(0.4, 1.8);
+        const amp = rand(0.1, 0.18);
+        csound.inputMessage(`i "Flute" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Flute", dur, note, amp);
+
+        // Decide if we should play more notes in this phrase
+        const shouldContinue = Math.random() < 0.7 && randInt(0, 5) > 0;
+
+        if (shouldContinue) {
+          // Schedule next note in phrase
+          const nextNoteDelay = (dur + rand(0.3, 0.9)) * 1000;
+          const timer = setTimeout(composeFlute, nextNoteDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of phrase - wait longer before next phrase
+          const timer = setTimeout(composeFlute, rand(8000, 18000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeCello() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.7) {
+          const timer = setTimeout(composeCello, rand(20000, 40000));
+          composerTimers.push(timer);
+          return;
+        }
+
+        // Play ONE note immediately
+        const note = bPhrygian[randInt(0, 4)];
+        const dur = rand(3, 6);
+        const amp = rand(0.3, 0.45);
+        csound.inputMessage(`i "Cello" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Cello", dur, note, amp);
+
+        // Decide if we should play another note in this phrase
+        const shouldContinue = Math.random() < 0.5;
+
+        if (shouldContinue) {
+          // Schedule next note in phrase
+          const nextNoteDelay = (dur + rand(2.5, 5.0)) * 1000;
+          const timer = setTimeout(composeCello, nextNoteDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of phrase - wait longer before next phrase
+          const timer = setTimeout(composeCello, rand(30000, 60000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeCricket() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.4) {
+          const timer = setTimeout(composeCricket, rand(4000, 9000));
+          composerTimers.push(timer);
+          return;
+        }
+        const dur = rand(0.5, 2.5);
+        const amp = rand(0.35, 0.55);
+        csound.inputMessage(`i "Cricket" 0 ${dur} ${amp}`);
+        addNoteToCSD("Cricket", dur, amp);
+        const timer = setTimeout(composeCricket, rand(3500, 8000));
+        composerTimers.push(timer);
+      }
+
+      function composeBird() {
+        if (!isPlaying) return;
+
+        // Play ONE chirp immediately
+        const dur = rand(0.2, 0.8);
+        const amp = rand(0.18, 0.32);
+        csound.inputMessage(`i "Bird" 0 ${dur} ${amp}`);
+        addNoteToCSD("Bird", dur, amp);
+
+        // Decide if we should chirp again (up to 4 chirps total)
+        const shouldContinue = Math.random() < 0.6 && randInt(0, 4) > 0;
+
+        if (shouldContinue) {
+          // Schedule next chirp very soon (rapid chirping)
+          const nextChirpDelay = (dur + rand(0.1, 0.3)) * 1000;
+          const timer = setTimeout(composeBird, nextChirpDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of chirp sequence - wait longer before next sequence
+          const timer = setTimeout(composeBird, rand(8000, 20000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeWater() {
+        if (!isPlaying) return;
+
+        // Play ONE drip immediately
+        const dur = rand(0.08, 0.18);
+        const amp = rand(0.2, 0.4);
+        csound.inputMessage(`i "WaterDrip" 0 ${dur} ${amp}`);
+        addNoteToCSD("WaterDrip", dur, amp);
+
+        // Decide if we should drip again (up to 3 drips total)
+        const shouldContinue = Math.random() < 0.5 && randInt(0, 3) > 0;
+
+        if (shouldContinue) {
+          // Schedule next drip very soon (rapid dripping)
+          const nextDripDelay = rand(200, 600);
+          const timer = setTimeout(composeWater, nextDripDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of drip sequence - wait longer before next sequence
+          const timer = setTimeout(composeWater, rand(4000, 12000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeFire() {
+        if (!isPlaying) return;
+        const dur = rand(6, 18);
+        const amp = rand(0.25, 0.45);
+        csound.inputMessage(`i "CracklingFire" 0 ${dur} ${amp}`);
+        addNoteToCSD("CracklingFire", dur, amp);
+        const timer = setTimeout(composeFire, rand(1500, 6000));
+        composerTimers.push(timer);
+      }
+
+      function composeMarimba() {
+        if (!isPlaying) return;
+        const note = choose(bPhrygian) - 24;
+        const dur = rand(0.15, 0.4);
+        const amp = rand(0.025, 0.055);
+        csound.inputMessage(`i "Marimba" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Marimba", dur, note, amp);
+        const timer = setTimeout(composeMarimba, rand(2000, 8000));
+        composerTimers.push(timer);
+      }
+
+      setupSliders();
+
+      document
+        .getElementById("startBtn")
+        .addEventListener("click", async function () {
+          try {
+            if (csound == null) {
+              document.getElementById("statusText").textContent =
+                "Loading Csound...";
+              console.log("Loading Csound WASM...");
+
+              const { Csound } = await import(
+                "https://unpkg.com/@csound/browser@6.18.7/dist/csound.js"
+              );
+
+              console.log("Creating Csound instance...");
+              document.getElementById("statusText").textContent =
+                "Creating instance...";
+              csound = await Csound();
+
+              console.log("Setting audio output...");
+              document.getElementById("statusText").textContent =
+                "Configuring audio...";
+              await csound.setOption("-odac");
+
+              const orcLines = orc.split("\n");
+              console.log(
+                "Compiling orchestra... (" + orcLines.length + " lines)",
+              );
+              console.log("First 10 lines:", orcLines.slice(0, 10).join("\n"));
+              document.getElementById("statusText").textContent =
+                "Compiling...";
+
+              try {
+                const compileResult = await csound.compileOrc(orc);
+                console.log("Compile result:", compileResult);
+
+                if (compileResult !== 0) {
+                  throw new Error(
+                    "Orchestra compilation failed with code: " + compileResult,
+                  );
+                }
+              } catch (compileError) {
+                console.error("Compilation error:", compileError);
+                throw new Error(
+                  "Failed to compile orchestra: " + compileError.message,
+                );
+              }
+
+              console.log("Starting Csound audio engine...");
+              document.getElementById("statusText").textContent =
+                "Starting audio...";
+              await csound.start();
+              console.log("Csound started successfully!");
+
+              // Initialize volume channels with effective volumes
+              console.log("Initializing control channels...");
+              layers.forEach((layer) => {
+                updateEffectiveVolume(layer);
+              });
+
+              // Initialize dry and effect level channels
+              csound.setControlChannel("vol_dry", 1.0);
+              csound.setControlChannel("vol_effect", 1.0);
+
+              console.log("Starting effect instruments and global fade-in...");
+              csound.inputMessage('i "GlobalFadeIn" 0 3600');
+              csound.inputMessage('i "MasterVolumeInit" 0 0.01');
+              csound.inputMessage('i "KillSwitch" 0 3600');
+              csound.inputMessage('i "Echo" 0 3600');
+              csound.inputMessage('i "BellShimmer" 0 3600');
+              csound.inputMessage('i "PwmFreeverb" 0 3600');
+              csound.inputMessage('i "FluteNetwork" 0 3600');
+              csound.inputMessage('i "CelloNetwork" 0 3600');
+              csound.inputMessage('i "CricketMultitapDelay" 0 3600');
+              csound.inputMessage('i "AmbienceReverb" 0 3600');
+              csound.inputMessage('i "Reverb" 0 3600');
+              csound.inputMessage('i "WaterShimmerReverb" 0 3600');
+              csound.inputMessage('i "FireEcho" 0 3600');
+              console.log("Effect instruments and fade-in started");
+
+              setTimeout(() => {
+                try {
+                  const audioContext = csound.getAudioContext();
+                  analyser = audioContext.createAnalyser();
+                  analyser.fftSize = 2048;
+                  analyser.smoothingTimeConstant = 0.8;
+                  dataArray = new Uint8Array(analyser.frequencyBinCount);
+                  const node = csound.getNode();
+                  node.connect(analyser);
+                  analyser.connect(audioContext.destination);
+                  console.log("Audio analyzer connected");
+                } catch (e) {
+                  console.log("Audio analyzer setup delayed");
+                }
+              }, 500);
+            }
+
+            isPlaying = true;
+            startTime = Date.now();
+            fadeStartTime = Date.now(); // Start 8-second fade-in
+            masterFadeIn = 0.0;
+
+            console.log(
+              "Starting generative composers with 8-second fade-in...",
+            );
+            document.getElementById("statusText").textContent =
+              "Starting composers...";
+
+            // Clear any existing timers before starting
+            composerTimers.forEach((timer) => clearTimeout(timer));
+            composerTimers = [];
+
+            composeFM();
+            composeDrone();
+            composeNoiseSwell();
+            composeRumble();
+            composeBellChord();
+            composePwmChord();
+            composeThunder();
+            composeFlute();
+            composeCello();
+            composeCricket();
+            composeBird();
+            composeWater();
+            composeFire();
+            composeMarimba();
+
+            console.log("All composers started!");
+
+            // Start audio level reader for particle reactivity
+            startAudioLevelReader();
+
+            // Start random background timer if enabled
+            if (randomBgEnabled) {
+              startRandomBackgroundTimer();
+            }
+
+            document.getElementById("statusText").textContent = "Playing";
+            document.getElementById("startBtn").disabled = true;
+            document.getElementById("stopBtn").disabled = false;
+          } catch (e) {
+            document.getElementById("statusText").textContent =
+              "Error: " + e.message;
+            console.error(e);
+          }
+        });
+
+      document
+        .getElementById("stopBtn")
+        .addEventListener("click", async function () {
+          isPlaying = false;
+
+          // Stop CSD recording if active
+          if (csdRecording) {
+            stopCSDRecording();
+          }
+
+          // Clear all composer timers to prevent new notes from triggering
+          composerTimers.forEach((timer) => clearTimeout(timer));
+          composerTimers = [];
+          console.log("All composer timers cleared");
+
+          // Stop random background timer
+          stopRandomBackgroundTimer();
+
+          // IMMEDIATELY kill all active Csound instruments
+          if (csound) {
+            csound.setControlChannel("kill_switch", 0);
+            console.log("Kill switch activated - all instruments stopping");
+          }
+
+          document.getElementById("statusText").textContent = "Stopping...";
+
+          // Fade out dry signal smoothly (2.5 seconds)
+          const dryFadeSteps = 50; // 2.5 seconds at 50ms intervals
+          const dryFadeInterval = 50;
+          let dryStep = 0;
+
+          const dryFade = setInterval(() => {
+            dryStep++;
+            // Smooth exponential fade
+            const dryLevel = Math.pow(1.0 - dryStep / dryFadeSteps, 2);
+            if (csound) {
+              csound.setControlChannel("vol_dry", dryLevel);
+            }
+            if (dryStep >= dryFadeSteps) {
+              clearInterval(dryFade);
+            }
+          }, dryFadeInterval);
+
+          // Fade out effects elegantly (5 seconds) - let reverb tail naturally
+          const effectFadeSteps = 100; // 5 seconds at 50ms intervals
+          const effectFadeInterval = 50;
+          let effectStep = 0;
+
+          const effectFade = setInterval(() => {
+            effectStep++;
+            // Gentle exponential fade for beautiful reverb tail
+            const effectLevel = Math.pow(1.0 - effectStep / effectFadeSteps, 2);
+            if (csound) {
+              csound.setControlChannel("vol_effect", effectLevel);
+            }
+            if (effectStep >= effectFadeSteps) {
+              clearInterval(effectFade);
+              // Fully stopped - restore settings
+              document.getElementById("statusText").textContent = "Stopped";
+              if (csound) {
+                csound.setControlChannel("vol_dry", 1.0);
+                csound.setControlChannel("vol_effect", 1.0);
+                csound.setControlChannel("kill_switch", 1);
+              }
+            }
+          }, effectFadeInterval);
+
+          startTime = 0;
+          fadeStartTime = null;
+          masterFadeIn = 0.0;
+          document.getElementById("timeText").textContent = "0:00";
+          document.getElementById("startBtn").disabled = false;
+          document.getElementById("stopBtn").disabled = true;
+        });
+
+      // CSD Recording Controls
+      document
+        .getElementById("startCsdBtn")
+        .addEventListener("click", function () {
+          generateCsound();
+        });
+
+      document
+        .getElementById("toggleConsoleBtn")
+        .addEventListener("click", function () {
+          const output = document.getElementById("csdOutput");
+          const isVisible = output.classList.contains("visible");
+          if (isVisible) {
+            output.classList.remove("visible");
+            this.textContent = "👁️ Show Console";
+          } else {
+            output.classList.add("visible");
+            this.textContent = "👁️ Hide Console";
+          }
+        });
+
+      document
+        .getElementById("downloadCsdBtn")
+        .addEventListener("click", function () {
+          downloadCsd();
+        });
+
+      // 3D Background Controls
+      // Dry Level Control
+      document
+        .getElementById("slider-dry")
+        .addEventListener("input", function () {
+          const dryLevel = this.value / 100;
+          document.getElementById("vol-dry").textContent = this.value + "%";
+          if (csound) {
+            csound.setControlChannel("vol_dry", dryLevel);
+          }
+          console.log(`Dry level: ${this.value}%`);
+        });
+
+      // Effect Level Control
+      document
+        .getElementById("slider-effect")
+        .addEventListener("input", function () {
+          const effectLevel = this.value / 100;
+          document.getElementById("vol-effect").textContent = this.value + "%";
+          if (csound) {
+            csound.setControlChannel("vol_effect", effectLevel);
+          }
+          console.log(`Effect level: ${this.value}%`);
+        });
+
+      // Removed dead code for enable3D, rotation-speed, particle-count
+      /*
+            document
+              .getElementById("enable3D")
+              .addEventListener("change", function () {
+                enable3DBackground = this.checked;
+                console.log(`3D Background: ${enable3DBackground ? "ON" : "OFF"}`);
+              });
+
+            document
+              .getElementById("rotation-speed")
+              .addEventListener("input", function () {
+                rotationSpeed = this.value / 100;
+                document.getElementById("rotation-speed-val").textContent =
+                  this.value + "%";
+              });
+
+            document
+              .getElementById("particle-count")
+              .addEventListener("input", function () {
+                particleCount = parseInt(this.value);
+                document.getElementById("particle-count-val").textContent =
+                  this.value;
+                createParticles();
+                console.log(`Particle count updated to ${particleCount}`);
+              });
+            */
+
+      // Shape button event listeners
+      document.querySelectorAll(".shape-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          // Remove active class from all shape buttons
+          document
+            .querySelectorAll(".shape-btn")
+            .forEach((b) => b.classList.remove("active"));
+
+          // Add active class to clicked button
+          this.classList.add("active");
+
+          // Update current shape and recreate particles
+          currentShape = this.dataset.shape;
+          createParticles();
+          console.log(`Shape changed to: ${currentShape}`);
+        });
+      });
+
+      // Set sphere as default active
+      document
+        .querySelector('.shape-btn[data-shape="sphere"]')
+        .classList.add("active");
+
+      // Background image URLs
+      const backgroundImages = {
+        none: "none",
+
+        // Deep Space
+        nebula2:
+          "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=1920&q=80",
+        milkyway:
+          "https://images.unsplash.com/photo-1464802686167-b939a6910659?w=1920&q=80",
+        galaxy1:
+          "https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=1920&q=80",
+        galaxy2:
+          "https://images.unsplash.com/photo-1514897575457-c4db467cf78e?w=1920&q=80",
+        deepfield1:
+          "https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=1920&q=80",
+        deepfield2:
+          "https://images.unsplash.com/photo-1447433819943-74a20887a81e?w=1920&q=80",
+
+        // Sunsets & Sunrises
+        sunset1:
+          "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
+        sunset2:
+          "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=80",
+        sunset3:
+          "https://images.unsplash.com/photo-1472120435266-53107fd0c44a?w=1920&q=80",
+        sunrise2:
+          "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1920&q=80",
+        sunrise3:
+          "https://images.unsplash.com/photo-1482192505345-5655af888cc4?w=1920&q=80",
+        sunrise4:
+          "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=1920&q=80",
+
+        // Clouds & Atmosphere
+        clouds1:
+          "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=1920&q=80",
+        clouds2:
+          "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?w=1920&q=80",
+        clouds3:
+          "https://images.unsplash.com/photo-1500740516770-92bd004b996e?w=1920&q=80",
+        clouds4:
+          "https://images.unsplash.com/photo-1517685352821-92cf88aee5a5?w=1920&q=80",
+        clouds5:
+          "https://images.unsplash.com/photo-1536514498073-50e69d39c6cf?w=1920&q=80",
+        sky1: "https://images.unsplash.com/photo-1517685352821-92cf88aee5a5?w=1920&q=80",
+        sky2: "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?w=1920&q=80",
+
+        // Lunar Surface
+        moon1:
+          "https://images.unsplash.com/photo-1446941611757-91d2c3bd3d45?w=1920&q=80",
+        moon2:
+          "https://images.unsplash.com/photo-1509023464722-18d996393ca8?w=1920&q=80",
+        moon3:
+          "https://images.unsplash.com/photo-1532693322450-2cb5c511067d?w=1920&q=80",
+        moon4:
+          "https://images.unsplash.com/photo-1511884642898-4c92249e20b6?w=1920&q=80",
+
+        // Mars & Planets
+        mars1:
+          "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=1920&q=80",
+        mars2:
+          "https://images.unsplash.com/photo-1630839437035-dac17da580d0?w=1920&q=80",
+        jupiter:
+          "https://images.unsplash.com/photo-1610296669228-602fa827fc1f?w=1920&q=80",
+        saturn:
+          "https://images.unsplash.com/photo-1614732484003-ef9881555dc3?w=1920&q=80",
+        earth:
+          "https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=1920&q=80",
+
+        // Earth Landscapes
+        desert2:
+          "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=1920&q=80",
+        desert3:
+          "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=1920&q=80",
+        mountain1:
+          "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
+        ocean1:
+          "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=1920&q=80",
+        aurora:
+          "https://images.unsplash.com/photo-1579033461380-adb47c3eb938?w=1920&q=80",
+      };
+
+      // Background selector - initialize after DOM is ready
+      function initBackgroundSelector() {
+        const selector = document.getElementById("background-select");
+        if (!selector) {
+          console.error("Background selector not found!");
+          return;
+        }
+
+        selector.addEventListener("change", function () {
+          const container = document.getElementById("three-container");
+          const bg = this.value;
+
+          console.log(`Background changing to: ${bg}`);
+
+          if (bg === "none") {
+            container.style.backgroundImage = "none";
+            container.style.backgroundColor = "#000000";
+          } else {
+            const url = backgroundImages[bg];
+            console.log(`Setting background URL: ${url}`);
+            container.style.backgroundImage = `url('${url}')`;
+            container.style.backgroundSize = "cover";
+            container.style.backgroundPosition = "center";
+            container.style.backgroundRepeat = "no-repeat";
+          }
+        });
+
+        // Set default background on load
+        const defaultBg = selector.value;
+        console.log(`Default background: ${defaultBg}`);
+        if (defaultBg !== "none") {
+          const container = document.getElementById("three-container");
+          const url = backgroundImages[defaultBg];
+          console.log(`Setting initial background: ${url}`);
+          container.style.backgroundImage = `url('${url}')`;
+          container.style.backgroundSize = "cover";
+          container.style.backgroundPosition = "center";
+          container.style.backgroundRepeat = "no-repeat";
+        }
+      }
+
+      // Random background selector
+      function selectRandomBackground() {
+        const selector = document.getElementById("background-select");
+        const container = document.getElementById("three-container");
+
+        // Get all background options except "none"
+        const allBgs = Object.keys(backgroundImages).filter(
+          (key) => key !== "none",
+        );
+
+        // Pick a random one
+        const randomBg = allBgs[Math.floor(Math.random() * allBgs.length)];
+
+        // Update selector
+        selector.value = randomBg;
+
+        // Apply background
+        const url = backgroundImages[randomBg];
+        container.style.backgroundImage = `url('${url}')`;
+        container.style.backgroundSize = "cover";
+        container.style.backgroundPosition = "center";
+        container.style.backgroundRepeat = "no-repeat";
+
+        console.log(`Random background selected: ${randomBg}`);
+      }
+
+      function startRandomBackgroundTimer() {
+        if (randomBgTimer) {
+          clearInterval(randomBgTimer);
+        }
+
+        if (randomBgEnabled) {
+          // Change immediately
+          selectRandomBackground();
+
+          // Then change at intervals
+          randomBgTimer = setInterval(() => {
+            selectRandomBackground();
+          }, randomBgInterval * 1000);
+
+          console.log(
+            `Random background timer started (${randomBgInterval}s interval)`,
+          );
+        }
+      }
+
+      function stopRandomBackgroundTimer() {
+        if (randomBgTimer) {
+          clearInterval(randomBgTimer);
+          randomBgTimer = null;
+          console.log("Random background timer stopped");
+        }
+      }
+
+      // Will be called at the end after all elements are ready
+
+      // Skybox code disabled - using CSS background images instead
+      /*
+            document
+              .getElementById("enableSkybox")
+              .addEventListener("change", function () {
+                skyboxEnabled = this.checked;
+                setSkyboxVisibility(skyboxEnabled);
+                console.log(`Skybox: ${skyboxEnabled ? "ON" : "OFF"}`);
+              });
+
+            document.querySelectorAll(".skybox-btn").forEach((btn) => {
+              btn.addEventListener("click", function () {
+                document
+                  .querySelectorAll(".skybox-btn")
+                  .forEach((b) => b.classList.remove("active"));
+
+                this.classList.add("active");
+
+                currentSkybox = this.dataset.skybox;
+                loadSkyboxTexture(currentSkybox);
+                console.log(`Skybox changed to: ${currentSkybox}`);
+              });
+            });
+
+            document
+              .querySelector('.skybox-btn[data-skybox="nebula"]')
+              .classList.add("active");
+            */
+
+      // Random background controls
+      document
+        .getElementById("random-bg-enabled")
+        .addEventListener("change", function () {
+          randomBgEnabled = this.checked;
+          if (randomBgEnabled && isPlaying) {
+            startRandomBackgroundTimer();
+          } else {
+            stopRandomBackgroundTimer();
+          }
+          console.log(`Random backgrounds: ${randomBgEnabled ? "ON" : "OFF"}`);
+        });
+
+      document
+        .getElementById("bg-interval")
+        .addEventListener("input", function () {
+          randomBgInterval = parseInt(this.value);
+          document.getElementById("bg-interval-val").textContent =
+            this.value + "s";
+
+          // Restart timer with new interval if active
+          if (randomBgEnabled && isPlaying) {
+            startRandomBackgroundTimer();
+          }
+
+          console.log(`Background interval: ${randomBgInterval}s`);
+        });
+
+      document
+        .getElementById("toggleSlidersBtn")
+        .addEventListener("click", function () {
+          const slidersSection = document.getElementById("sliders-section");
+          const isHidden = slidersSection.style.display === "none";
+
+          slidersSection.style.display = isHidden ? "block" : "none";
+          this.textContent = isHidden ? "⚙️ Hide Sliders" : "⚙️ Show Sliders";
+        });
+
+      // Hide All Controls button and TAB key
+      function toggleAllControls() {
+        const controls = document.getElementById("controls");
+        const isHidden = controls.style.display === "none";
+
+        controls.style.display = isHidden ? "block" : "none";
+
+        console.log(`Controls ${isHidden ? "shown" : "hidden"}`);
+      }
+
+      document
+        .getElementById("hideAllBtn")
+        .addEventListener("click", toggleAllControls);
+
+      // TAB key to hide/show all controls
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Tab") {
+          e.preventDefault(); // Prevent default tab behavior
+          toggleAllControls();
+        }
+      });
+
+      // Initialize background selector now that all DOM elements are ready
+      initBackgroundSelector();
+
+      console.log("All UI initialized successfully");
+    </script>
+  </body>
+</html>

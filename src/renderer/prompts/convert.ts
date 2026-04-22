@@ -54,15 +54,36 @@ The source is a complete CSD with <CsoundSynthesizer>, <CsOptions>, <CsInstrumen
    - \`inputMessage("i N 0 -1")\` calls for any instruments that should run continuously (drones, reverb, master FX).
    - \`inputMessage("i 1 0 dur p4 p5 ...")\` calls triggered from UI (knob/key/mouse events).
 
-4. **Global k-rate controls**: for every line \`gk<Name> init <value>\` in the source, rewrite the orchestra so that immediately after the init line you do:
-       gk<Name> chnget "<name>"
-   Channel name is the variable name without the "gk" prefix, lowercased (gkCutoff → "cutoff"). Keep the init line so the default is preserved.
+4. **Control channels — CRITICAL**: \`chnget\` MUST live inside each instrument body, NOT at global scope. Global \`chnget\` runs once at init and returns 0 — slider moves will have no effect. Correct pattern, inside EVERY instrument that uses the parameter:
 
-5. **Parameter → UI mapping**:
-   - One \`<input type="range">\` per gk channel. Range heuristic: init ∈ [0,1] → [0, 1, 0.001]; init ∈ [0, 127] → [0, 127, 1]; init ∈ [20, 20000] → [20, 20000, 1] log-scaled if possible, else step=1; else [init*0.1, init*3, (max-min)/200].
-   - Label = Name (split camelCase, e.g. "Cutoff Freq").
+       instr 1
+         kCutoff chnget "cutoff"
+         kCutoff port kCutoff, 0.01    ; smoothing to avoid clicks
+         kRes    chnget "resonance"
+         kRes    port kRes, 0.01
+         ; ... now use kCutoff, kRes in the signal path
+         aFilt moogladder aIn, kCutoff, kRes
+         ...
+       endin
+
+   Drop any \`gk<Name> init <value>\` globals from the source — they become channel reads inside instruments instead. If an instrument needs an i-rate snapshot of a channel at note start (rare), use \`iCutoff = i(kCutoff)\` AFTER reading kCutoff via chnget.
+
+5. **Channel initialization**: after \`await csound.start()\`, call \`csound.setControlChannel(name, defaultValue)\` for EVERY channel used by the orchestra, matching the slider's default value. Without this the first k-period reads 0 from every channel.
+
+       await csound.start();
+       await csound.inputMessage("i 2 0 -1");  // always-on FX first if any
+
+       // Initialize all control channels to their slider defaults
+       csound.setControlChannel("cutoff", 2000);
+       csound.setControlChannel("resonance", 0.3);
+       csound.setControlChannel("volume", 0.7);
+
+6. **Parameter → UI mapping**:
+   - One \`<input type="range">\` per channel. Range heuristic: default ∈ [0,1] → [0, 1, 0.001]; default ∈ [0, 127] → [0, 127, 1]; default ∈ [20, 20000] → [20, 20000, 1] (prefer log-scaled slider if feasible); else [default*0.1, default*3, (max-min)/200].
+   - Label = Name (split camelCase, e.g. "Cutoff Freq"). Channel name is the camelCase original lowercased on the first letter (gkCutoffFreq → "cutoffFreq").
    - Show the current value to 2 decimals next to the slider.
    - Event handler: \`csound.setControlChannel("<name>", Number(slider.value))\`.
+   - The initial slider \`value\` attribute MUST match the setControlChannel init call from step 5.
 
 6. **Note triggers**: if instr 1 uses p4 (pitch in Hz or MIDI), render a 2-octave keyboard of buttons for MIDI 48..72 where each click does:
        csound.inputMessage(\`i 1 0 \${DUR} \${MIDI_TO_HZ(note)} 0.5\`);

@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FM Bell - Csound 7 Browser Synth</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(
+          135deg,
+          #0f0f1a 0%,
+          #1a1025 50%,
+          #0d1520 100%
+        );
+        color: #e0e0e0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 780px;
+        margin: 0 auto;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 6px;
+        color: #7dd3fc;
+        font-size: 2em;
+        text-shadow: 0 0 20px rgba(125, 211, 252, 0.3);
+      }
+      .subtitle {
+        text-align: center;
+        margin-bottom: 28px;
+        color: #666;
+        font-size: 0.85em;
+      }
+
+      /* Status */
+      .status {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.9em;
+      }
+      .status.ready {
+        color: #4ade80;
+      }
+      .status.error {
+        color: #f87171;
+      }
+      .status.loading {
+        color: #fbbf24;
+      }
+
+      /* Start button */
+      .start-btn {
+        display: block;
+        width: 100%;
+        background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+        color: #0f0f1a;
+        border: none;
+        padding: 14px 30px;
+        border-radius: 10px;
+        font-size: 1em;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 20px rgba(125, 211, 252, 0.25);
+        margin-bottom: 20px;
+      }
+      .start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(125, 211, 252, 0.35);
+      }
+      .start-btn:active {
+        transform: translateY(0);
+      }
+      .start-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Sliders panel */
+      .controls {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 12px;
+        padding: 22px 24px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .control-group {
+        margin-bottom: 18px;
+      }
+      .control-group:last-child {
+        margin-bottom: 0;
+      }
+      .control-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #7dd3fc;
+        font-size: 0.9em;
+      }
+      .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      input[type="range"] {
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        outline: none;
+        -webkit-appearance: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #7dd3fc;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(125, 211, 252, 0.5);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #7dd3fc;
+        cursor: pointer;
+        border: none;
+      }
+      .val-display {
+        min-width: 56px;
+        text-align: right;
+        font-weight: 700;
+        font-family: "SF Mono", "Fira Code", monospace;
+        color: #fff;
+        font-size: 0.9em;
+      }
+
+      /* Keyboard */
+      .keyboard-section {
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 12px;
+        padding: 22px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .keyboard-section h2 {
+        margin-bottom: 14px;
+        color: #7dd3fc;
+        font-size: 1.1em;
+        text-align: center;
+      }
+      .keys {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .key {
+        background: rgba(255, 255, 255, 0.07);
+        border: 2px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 16px 10px;
+        min-width: 52px;
+        text-align: center;
+        font-weight: 600;
+        transition: all 0.08s;
+        cursor: pointer;
+        user-select: none;
+      }
+      .key:hover {
+        background: rgba(125, 211, 252, 0.15);
+        border-color: rgba(125, 211, 252, 0.4);
+      }
+      .key.active {
+        background: #7dd3fc;
+        color: #0f0f1a;
+        transform: scale(0.94);
+        box-shadow: 0 0 24px rgba(125, 211, 252, 0.5);
+        border-color: #7dd3fc;
+      }
+      .key.black-note {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.08);
+      }
+      .key.black-note:hover {
+        background: rgba(125, 211, 252, 0.1);
+      }
+      .key.black-note.active {
+        background: #38bdf8;
+        color: #0f0f1a;
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        border-color: #38bdf8;
+      }
+      .key-letter {
+        font-size: 1.15em;
+        margin-bottom: 3px;
+      }
+      .key-note {
+        font-size: 0.72em;
+        opacity: 0.6;
+      }
+
+      /* Info */
+      .info {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 0.82em;
+        line-height: 1.6;
+        border-left: 3px solid rgba(125, 211, 252, 0.4);
+        color: #999;
+      }
+      .info strong {
+        color: #bbb;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 0.7em;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>FM Bell</h1>
+      <div class="subtitle">Csound 7 Browser Synth &mdash; Global Reverb</div>
+
+      <div class="status ready" id="status">
+        Ready &mdash; Click Start Audio to initialize Csound
+      </div>
+      <button class="start-btn" id="startBtn">Start Audio</button>
+
+      <!-- Sliders -->
+      <div class="controls">
+        <div class="control-group">
+          <label for="duration">Duration</label>
+          <div class="slider-row">
+            <input
+              type="range"
+              id="duration"
+              min="0.5"
+              max="8"
+              step="0.5"
+              value="3"
+            />
+            <span class="val-display" id="durationVal">3.0s</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="ratio">C:M Ratio (1 : _)</label>
+          <div class="slider-row">
+            <input
+              type="range"
+              id="ratio"
+              min="0.5"
+              max="5"
+              step="0.1"
+              value="1.4"
+            />
+            <span class="val-display" id="ratioVal">1.4</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="modIndex">Mod Index</label>
+          <div class="slider-row">
+            <input
+              type="range"
+              id="modIndex"
+              min="0.5"
+              max="20"
+              step="0.5"
+              value="10"
+            />
+            <span class="val-display" id="modIndexVal">10.0</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="reverbSend">Reverb Send</label>
+          <div class="slider-row">
+            <input
+              type="range"
+              id="reverbSend"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.4"
+            />
+            <span class="val-display" id="reverbSendVal">0.40</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ASCII Keyboard -->
+      <div class="keyboard-section">
+        <h2>Keyboard</h2>
+        <div class="keys" id="keys"></div>
+      </div>
+
+      <div class="info">
+        <strong>How to play:</strong> Click Start Audio, then press keyboard
+        keys or click the buttons to ring bells. Adjust sliders to shape each
+        new note. Try ratio 1.4 for classic bell, 2.76 for tubular bell, 3.5 for
+        glockenspiel. Higher mod index = brighter attack.
+      </div>
+
+      <div class="footer">Made with DrC &mdash; Csound 7 WASM</div>
+    </div>
+
+    <script>
+      // ─── Key mapping: computer key → note name → MIDI → frequency ───
+      const KEY_MAP = [
+        { key: "a", note: "A3", midi: 57, black: false },
+        { key: "w", note: "A#3", midi: 58, black: true },
+        { key: "s", note: "B3", midi: 59, black: false },
+        { key: "d", note: "C4", midi: 60, black: false },
+        { key: "r", note: "C#4", midi: 61, black: true },
+        { key: "f", note: "D4", midi: 62, black: false },
+        { key: "t", note: "D#4", midi: 63, black: true },
+        { key: "g", note: "E4", midi: 64, black: false },
+        { key: "h", note: "F4", midi: 65, black: false },
+        { key: "u", note: "F#4", midi: 66, black: true },
+        { key: "j", note: "G4", midi: 67, black: false },
+        { key: "i", note: "G#4", midi: 68, black: true },
+        { key: "k", note: "A4", midi: 69, black: false },
+      ];
+
+      // Build keyboard UI
+      const keysContainer = document.getElementById("keys");
+      for (const k of KEY_MAP) {
+        const el = document.createElement("div");
+        el.className = "key" + (k.black ? " black-note" : "");
+        el.dataset.key = k.key;
+        el.dataset.midi = k.midi;
+        el.innerHTML =
+          '<div class="key-letter">' +
+          k.key.toUpperCase() +
+          '</div><div class="key-note">' +
+          k.note +
+          "</div>";
+        keysContainer.appendChild(el);
+      }
+
+      // ─── Slider wiring ───
+      const durationSlider = document.getElementById("duration");
+      const ratioSlider = document.getElementById("ratio");
+      const modIndexSlider = document.getElementById("modIndex");
+      const reverbSendSlider = document.getElementById("reverbSend");
+      const durationVal = document.getElementById("durationVal");
+      const ratioVal = document.getElementById("ratioVal");
+      const modIndexVal = document.getElementById("modIndexVal");
+      const reverbSendVal = document.getElementById("reverbSendVal");
+
+      durationSlider.addEventListener("input", () => {
+        durationVal.textContent =
+          parseFloat(durationSlider.value).toFixed(1) + "s";
+      });
+      ratioSlider.addEventListener("input", () => {
+        ratioVal.textContent = parseFloat(ratioSlider.value).toFixed(1);
+      });
+      modIndexSlider.addEventListener("input", () => {
+        modIndexVal.textContent = parseFloat(modIndexSlider.value).toFixed(1);
+      });
+      reverbSendSlider.addEventListener("input", () => {
+        reverbSendVal.textContent = parseFloat(reverbSendSlider.value).toFixed(
+          2,
+        );
+      });
+
+      // ─── Csound engine ───
+      let csound = null;
+      let audioStarted = false;
+      const activeKeys = new Set();
+      const statusEl = document.getElementById("status");
+      const startBtn = document.getElementById("startBtn");
+
+      const ORC = `
+sr = 44100
+ksmps = 32
+nchnls = 2
+0dbfs = 1
+
+giSine ftgen 0, 0, 8192, 10, 1
+
+gaRvbL init 0
+gaRvbR init 0
+
+instr 1
+  iFreq   = p4
+  iDur    = p5
+  iMod    = p6
+  iIdx    = p7
+  iSend   = p8
+
+  ; Amplitude: instant attack, exponential bell decay
+  kAmp expseg 0.5, 0.002, 0.5, iDur - 0.002, 0.0001
+
+  ; Index: bright attack decaying to near-sine
+  kIdx expseg iIdx, 0.005, iIdx, iDur * 0.3, iIdx * 0.15, iDur * 0.7 - 0.005, 0.3
+
+  ; FM oscillator
+  aOut foscili kAmp, iFreq, 1, iMod, kIdx, giSine
+
+  ; Stereo spread via slight detune
+  aOut2 foscili kAmp * 0.7, iFreq * 1.003, 1, iMod, kIdx * 0.95, giSine
+  aL = aOut * 0.7 + aOut2 * 0.3
+  aR = aOut * 0.3 + aOut2 * 0.7
+
+  ; Reverb send
+  gaRvbL = gaRvbL + aL * iSend
+  gaRvbR = gaRvbR + aR * iSend
+
+  outs aL, aR
+endin
+
+instr 99
+  aWetL, aWetR reverbsc gaRvbL, gaRvbR, 0.88, 8000
+  outs aWetL * 0.5, aWetR * 0.5
+  gaRvbL = 0
+  gaRvbR = 0
+endin
+`;
+
+      function midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+      }
+
+      function playNote(midi) {
+        if (!audioStarted || !csound) return;
+        const freq = midiToFreq(midi).toFixed(3);
+        const dur = parseFloat(durationSlider.value);
+        const ratio = parseFloat(ratioSlider.value);
+        const idx = parseFloat(modIndexSlider.value);
+        const send = parseFloat(reverbSendSlider.value);
+        csound.inputMessage(
+          "i 1 0 " +
+            dur +
+            " " +
+            freq +
+            " " +
+            dur +
+            " " +
+            ratio +
+            " " +
+            idx +
+            " " +
+            send,
+        );
+      }
+
+      async function startAudio() {
+        if (audioStarted) return;
+        try {
+          statusEl.textContent = "Loading Csound from CDN...";
+          statusEl.className = "status loading";
+          startBtn.disabled = true;
+
+          const { Csound } = await import(
+            "https://cdn.jsdelivr.net/npm/@csound/browser@7.0.0-beta28/dist/csound.js"
+          );
+
+          statusEl.textContent = "Creating Csound instance...";
+          csound = await Csound({
+            useWorker: false,
+            useSPN: false,
+            outputChannelCount: 2,
+          });
+
+          await csound.setOption("-odac");
+          await csound.setOption("-m0");
+
+          statusEl.textContent = "Compiling orchestra...";
+          await csound.compileOrc(ORC);
+
+          statusEl.textContent = "Starting engine...";
+          await csound.start();
+
+          // Start always-on reverb
+          await csound.inputMessage("i 99 0 -1");
+
+          audioStarted = true;
+          startBtn.textContent = "Audio Running";
+          startBtn.disabled = true;
+          statusEl.textContent = "Play with your keyboard or click the keys!";
+          statusEl.className = "status ready";
+        } catch (err) {
+          statusEl.textContent = "Error: " + err.message;
+          statusEl.className = "status error";
+          startBtn.disabled = false;
+          console.error(err);
+        }
+      }
+
+      // ─── Keyboard input ───
+      document.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        if (activeKeys.has(key)) return;
+        const entry = KEY_MAP.find((k) => k.key === key);
+        if (!entry) return;
+        e.preventDefault();
+        activeKeys.add(key);
+        const el = document.querySelector('[data-key="' + key + '"]');
+        if (el) el.classList.add("active");
+        playNote(entry.midi);
+      });
+
+      document.addEventListener("keyup", (e) => {
+        const key = e.key.toLowerCase();
+        activeKeys.delete(key);
+        const el = document.querySelector('[data-key="' + key + '"]');
+        if (el) el.classList.remove("active");
+      });
+
+      // Mouse/touch on key buttons
+      document.querySelectorAll(".key").forEach((el) => {
+        el.addEventListener("mousedown", () => {
+          el.classList.add("active");
+          playNote(+el.dataset.midi);
+        });
+        el.addEventListener("mouseup", () => {
+          el.classList.remove("active");
+        });
+        el.addEventListener("mouseleave", () => {
+          el.classList.remove("active");
+        });
+        el.addEventListener(
+          "touchstart",
+          (e) => {
+            e.preventDefault();
+            el.classList.add("active");
+            playNote(+el.dataset.midi);
+          },
+          { passive: false },
+        );
+        el.addEventListener("touchend", () => {
+          el.classList.remove("active");
+        });
+      });
+
+      startBtn.addEventListener("click", startAudio);
+    </script>
+  </body>
+</html>

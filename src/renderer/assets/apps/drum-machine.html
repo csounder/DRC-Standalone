@@ -1,0 +1,4276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dr.C - CsoundAI Drum Machine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          "Rajdhani",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #eee;
+        padding: 15px;
+        min-height: 100vh;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+      }
+      .container {
+        max-width: 1800px;
+        margin: 0 auto;
+      }
+      .header {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .header-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(15, 52, 96, 0.3);
+        border: 2px solid #00d9ff;
+        border-radius: 10px;
+        padding: 10px 15px;
+        gap: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      .header-title-center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex: 1;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .header button,
+      .header-left button,
+      .header-right button {
+        min-height: 28px;
+        height: 28px;
+        padding: 4px 10px;
+        font-size: 0.8em;
+      }
+
+      .logo {
+        width: 50px;
+        height: 50px;
+        background: radial-gradient(circle, #00d9ff 0%, #0088cc 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5em;
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+      }
+
+      h1 {
+        font-size: 2.4em;
+        color: #00d9ff;
+        text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+        white-space: nowrap;
+        letter-spacing: 2px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 5px;
+      }
+
+      .tab {
+        background: rgba(15, 52, 96, 0.4);
+        color: #888;
+        border: 1px solid transparent;
+        padding: 6px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        font-size: 0.8em;
+      }
+
+      .tab.header-tab {
+        font-size: 1.1em;
+        padding: 10px 20px;
+        min-width: 140px;
+        text-align: center;
+      }
+
+      .tab:hover {
+        color: #00d9ff;
+      }
+
+      .tab.active {
+        background: rgba(15, 52, 96, 0.7);
+        color: #00d9ff;
+        border-color: #00d9ff;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .transport {
+        background: rgba(15, 52, 96, 0.3);
+        padding: 10px;
+        border-radius: 12px;
+        margin-top: 0;
+        margin-bottom: 20px;
+        border: 2px solid #00d9ff;
+      }
+
+      .transport-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: nowrap;
+        justify-content: center;
+        background: rgba(15, 52, 96, 0.4);
+        border: 2px solid #00d9ff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        max-width: 1650px;
+        margin: 0 auto;
+      }
+
+      .transport-row button,
+      .transport-row .tab {
+        min-height: 28px;
+        height: 28px;
+        padding: 4px 8px;
+        white-space: nowrap;
+        font-size: 0.85em;
+      }
+
+      .tempo-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .tempo-control label {
+        font-size: 0.85em;
+        color: #888;
+      }
+
+      .tempo-control input[type="range"] {
+        width: 120px;
+        height: 8px;
+        background: #0f3460;
+        border-radius: 4px;
+        outline: none;
+      }
+
+      .tempo-control input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: #00d9ff;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .bpm-display {
+        font-size: 1.2em;
+        color: #00d9ff;
+        font-weight: bold;
+        min-width: 60px;
+        text-align: center;
+      }
+
+      button {
+        background: #0f3460;
+        color: #eee;
+        border: 1px solid #00d9ff;
+        padding: 6px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.85em;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        min-height: 30px;
+        line-height: 1.2;
+      }
+
+      .control-group-content button,
+      .pattern-selector button,
+      .track-actions button {
+        min-height: 28px;
+        padding: 5px 10px;
+        font-size: 0.8em;
+      }
+
+      button:hover:not(:disabled) {
+        background: #00d9ff;
+        color: #1a1a2e;
+        box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      button.active {
+        background: #00d9ff;
+        color: #1a1a2e;
+      }
+
+      button.rec {
+        border-color: #ff3366;
+        color: #ff3366;
+      }
+
+      button.rec.active {
+        background: #ff3366;
+        color: #fff;
+        animation: pulse 1s infinite;
+      }
+
+      /* Transport and recording buttons - uniform sizing */
+      .transport button {
+        padding: 8px 14px;
+        font-size: 0.85em;
+        min-width: 100px;
+      }
+
+      #start-recording {
+        background: #d00;
+        border-color: #ff3366;
+        min-width: 100px;
+      }
+
+      #stop-recording {
+        background: #444;
+        border-color: #666;
+        min-width: 100px;
+      }
+
+      .control-group-row #start-recording,
+      .control-group-row #stop-recording {
+        margin-right: 15px;
+      }
+
+      .control-group-row #enable-midi,
+      .control-group-row #record {
+        min-width: 90px;
+      }
+
+
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      .main-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-width: 1800px;
+        margin: 0 auto;
+      }
+
+      .pattern-track-controls {
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 1400px;
+      }
+
+      .control-group {
+        background: rgba(15, 52, 96, 0.4);
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 217, 255, 0.3);
+      }
+
+      .control-group.no-border {
+        border: none;
+        background: transparent;
+        padding: 6px 8px;
+      }
+
+      .control-group-row {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: nowrap;
+        justify-content: center;
+      }
+
+      .control-group-row button,
+      .control-group-row select,
+      .control-group-row input[type="text"] {
+        font-size: 0.75em;
+        padding: 4px 6px;
+        height: 26px;
+      }
+
+      /* Compact buttons for pattern/track controls */
+      #rename-pattern {
+        min-width: 65px;
+        padding: 4px 8px;
+      }
+
+      #new-pattern,
+      #copy-pattern,
+      #paste-pattern,
+      #clear-pattern,
+      #clear-track {
+        min-width: 50px;
+        padding: 4px 8px;
+      }
+
+      #save-pattern,
+      #load-pattern-btn {
+        min-width: 55px;
+        padding: 4px 8px;
+      }
+
+      #random-pattern,
+      #random-track {
+        min-width: 85px;
+        padding: 4px 8px;
+      }
+
+      /* Compact select dropdowns */
+      #pattern-select,
+      #track-select,
+      #preset-select {
+        min-width: 80px;
+        max-width: 120px;
+      }
+
+      .control-group-label {
+        color: #00d9ff;
+        font-size: 0.8em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        white-space: nowrap;
+        margin-right: 4px;
+      }
+
+      .control-separator {
+        width: 2px;
+        height: 24px;
+        background: rgba(0, 217, 255, 0.3);
+        margin: 0 6px;
+      }
+
+      .control-group-content {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+        flex: 1;
+      }
+
+      .control-group-inner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .grid-and-mixer {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 15px;
+      }
+
+      .sequencer-grid-container {
+        background: rgba(15, 52, 96, 0.3);
+        border: 2px solid #00d9ff;
+        border-radius: 10px;
+        padding: 15px;
+      }
+
+      .master-fx-panel {
+        max-width: 1600px;
+        margin: 0 auto 10px auto;
+      }
+
+      .master-fx-panel .panel {
+        padding: 12px;
+      }
+
+      .master-fx-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .fx-group {
+        background: rgba(15, 52, 96, 0.3);
+        border: 1px solid rgba(0, 217, 255, 0.4);
+        border-radius: 6px;
+        padding: 8px 12px;
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        align-items: flex-end;
+      }
+
+      .fx-group.volume-group {
+        justify-content: center;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .fx-group.volume-group .fx-control {
+        width: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .fx-group.volume-group .fx-control input[type="range"] {
+        width: 130px;
+      }
+
+      .fx-row-with-sides > .fx-group.volume-group {
+        display: flex;
+        justify-content: center;
+      }
+
+      .fx-group.volume-group .fx-control label {
+        font-size: 1em;
+        font-weight: bold;
+      }
+
+      .fx-group.volume-group .fx-control input[type="range"] {
+        height: 4px;
+      }
+
+      .fx-row {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .fx-row-with-sides {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .fx-side-panel {
+        background: rgba(15, 52, 96, 0.3);
+        border: 1px solid rgba(0, 217, 255, 0.4);
+        border-radius: 6px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .fx-middle-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .fx-control {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .fx-control label {
+        font-size: 0.7em;
+        color: #888;
+        text-align: center;
+      }
+
+      .fx-control input[type="range"] {
+        width: 100%;
+        height: 3px;
+        background: #0f3460;
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+      }
+
+      .fx-control input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 10px;
+        height: 10px;
+        background: #00d9ff;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .fx-control .mixer-value {
+        color: #888;
+        font-size: 0.65em;
+        text-align: center;
+        min-height: 14px;
+      }
+
+      .sequencer {
+        background: rgba(15, 52, 96, 0.3);
+        padding: 15px;
+        border-radius: 12px;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .pattern-selector {
+        /* Moved to control-group styling */
+      }
+
+      .pattern-selector label {
+        color: #888;
+        font-size: 0.9em;
+      }
+
+      .pattern-selector select {
+        background: #0f3460;
+        color: #00d9ff;
+        border: 2px solid #00d9ff;
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .pattern-selector input[type="text"] {
+        background: #0f3460;
+        color: #00d9ff;
+        border: 2px solid #00d9ff;
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-weight: bold;
+        min-width: 150px;
+      }
+
+      .pattern-selector button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+      }
+
+      .track-actions {
+        /* Moved to control-group styling */
+      }
+
+      /* Recording controls in master section */
+      .recording-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(0, 217, 255, 0.2);
+      }
+
+      /* Horizontal VU meters */
+      .vu-meters {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: rgba(15, 52, 96, 0.3);
+        border: 1px solid rgba(0, 217, 255, 0.4);
+        border-radius: 6px;
+        padding: 8px 12px;
+      }
+
+      .vu-meter {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .vu-meter label {
+        font-size: 0.8em;
+        color: #888;
+        min-width: 12px;
+      }
+
+      .vu-bar-container {
+        width: 120px;
+        height: 10px;
+        background: #0a0a0a;
+        border: 1px solid #00d9ff;
+        border-radius: 3px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .vu-bar {
+        position: absolute;
+        left: 0;
+        height: 100%;
+        background: linear-gradient(90deg, #0f0 0%, #ff0 70%, #f00 100%);
+        transition: width 0.05s;
+      }
+
+      /* Compact waveform */
+      .waveform-compact {
+        width: 100%;
+        max-width: 200px;
+        height: 60px;
+      }
+
+      .fft-display {
+        width: 200px;
+        height: 60px;
+      }
+
+      .fft-container {
+        background: rgba(15, 52, 96, 0.3);
+        border: 1px solid rgba(0, 217, 255, 0.4);
+        border-radius: 6px;
+        padding: 8px 12px;
+      }
+
+      .track-actions label {
+        color: #888;
+        font-size: 0.85em;
+      }
+
+      .track-actions select {
+        background: #0f3460;
+        color: #00d9ff;
+        border: 1px solid #00d9ff;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.9em;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .track-actions button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+      }
+
+      .seq-row {
+        display: grid;
+        grid-template-columns: 75px repeat(16, 1fr);
+        gap: 2px;
+        margin-bottom: 5px;
+        align-items: center;
+      }
+
+      .track-header {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        align-items: stretch;
+      }
+
+      .track-buttons {
+        display: flex;
+        gap: 3px;
+        justify-content: center;
+      }
+
+      .instrument-label {
+        font-size: 0.75em;
+        color: #00d9ff;
+        font-weight: 600;
+        padding: 4px 6px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .instrument-label:hover {
+        background: rgba(0, 217, 255, 0.2);
+      }
+
+      .instrument-label.muted {
+        opacity: 0.3;
+        color: #666;
+      }
+
+      .instrument-label.soloed {
+        background: rgba(255, 215, 0, 0.3);
+        border: 2px solid #ffd700;
+      }
+
+      .instrument-label.triggered {
+        background: rgba(0, 255, 255, 0.8) !important;
+        color: #000 !important;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        transform: scale(1.05);
+      }
+
+      .solo-btn-grid,
+      .mute-btn-grid {
+        flex: 1;
+        padding: 3px;
+        min-height: 20px;
+        border-radius: 3px;
+        border: 1px solid #0f3460;
+        background: rgba(0, 0, 0, 0.4);
+        color: #00d9ff;
+        font-size: 9px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .solo-btn-grid:hover,
+      .mute-btn-grid:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: #00d9ff;
+      }
+
+      .solo-btn-grid.active {
+        background: #ffd700;
+        color: #000;
+        border-color: #ffd700;
+      }
+
+      .mute-btn-grid.active {
+        background: #d00;
+        color: #fff;
+        border-color: #d00;
+      }
+
+      .step {
+        aspect-ratio: 1;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid #0f3460;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        position: relative;
+        min-height: 24px;
+        max-height: 35px;
+      }
+
+      .step input[type="checkbox"] {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+        opacity: 0;
+        position: absolute;
+      }
+
+      .step.active {
+        background: #00d9ff;
+        border-color: #00d9ff;
+      }
+
+      .step.current {
+        border-color: #ff6b9d;
+        border-width: 3px;
+        box-shadow: 0 0 10px rgba(255, 107, 157, 0.5);
+      }
+
+      .step-indicator {
+        display: none; /* HIDDEN - not needed */
+      }
+
+      .beat-marker {
+        text-align: center;
+        font-size: 0.7em;
+        color: #666;
+        grid-column: span 4;
+      }
+
+      .beat-markers {
+        display: grid;
+        grid-template-columns: 120px repeat(4, 1fr);
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+
+      .arrangement {
+        background: rgba(15, 52, 96, 0.3);
+        padding: 20px;
+        border-radius: 12px;
+      }
+
+      .arrangement-header {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .arrangement-header input[type="text"] {
+        background: #0f3460;
+        color: #00d9ff;
+        border: 2px solid #00d9ff;
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-weight: bold;
+        min-width: 200px;
+      }
+
+      .arrangement-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+
+      .arrangement-list {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 15px;
+        min-height: 200px;
+      }
+
+      .arrangement-item {
+        background: rgba(15, 52, 96, 0.5);
+        border: 2px solid #00d9ff;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .arrangement-item.playing {
+        background: #00d9ff;
+        color: #1a1a2e;
+      }
+
+      .arrangement-info {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .arrangement-info strong {
+        color: #00d9ff;
+      }
+
+      .arrangement-item.playing .arrangement-info strong {
+        color: #1a1a2e;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+        order: 1; /* Master controls appear FIRST (above grid) */
+      }
+
+      .panel {
+        background: rgba(15, 52, 96, 0.5);
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid #00d9ff;
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+      }
+
+      /* Master controls in horizontal layout */
+      .panel .mixer-control {
+        display: inline-block;
+        margin: 0 15px 10px 0;
+        vertical-align: top;
+      }
+
+      .panel h2 {
+        color: #00d9ff;
+        font-size: 1.1em;
+        margin-bottom: 12px;
+      }
+
+      .mixer-channel {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .mixer-channel:last-child {
+        border-bottom: none;
+      }
+
+      .mixer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .mixer-label {
+        font-size: 0.85em;
+        color: #00d9ff;
+        font-weight: bold;
+      }
+
+      .mixer-buttons {
+        display: flex;
+        gap: 5px;
+      }
+
+      .mixer-buttons button {
+        padding: 4px 10px;
+        font-size: 0.75em;
+        min-width: 40px;
+      }
+
+      .mixer-buttons button.mute-btn.active {
+        background: #ff3366;
+        border-color: #ff3366;
+        color: white;
+      }
+
+      .mixer-buttons button.solo-btn.active {
+        background: #ffd700;
+        border-color: #ffd700;
+        color: #1a1a2e;
+      }
+
+      .mixer-buttons button.lofi-btn.active {
+        background: #ff9500;
+        border-color: #ff9500;
+        color: white;
+      }
+
+      .mixer-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .mixer-control label {
+        font-size: 0.7em;
+        color: #888;
+        min-width: 45px;
+      }
+
+      .mixer-control input[type="range"] {
+        flex: 1;
+        height: 4px;
+        background: #0f3460;
+        border-radius: 2px;
+        outline: none;
+      }
+
+      .mixer-control input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        background: #00d9ff;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .mixer-control .mixer-value {
+        color: #888;
+        font-size: 0.7em;
+        min-width: 40px;
+        text-align: right;
+      }
+
+      .eq-controls {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .eq-band {
+        flex: 1;
+      }
+
+      .eq-band label {
+        font-size: 0.65em;
+        color: #666;
+        display: block;
+        margin-bottom: 3px;
+        text-align: center;
+      }
+
+      .eq-band input[type="range"] {
+        width: 100%;
+        height: 3px;
+        background: #0f3460;
+        border-radius: 2px;
+        outline: none;
+      }
+
+      .eq-band input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 10px;
+        height: 10px;
+        background: #00d9ff;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .file-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .file-actions button {
+        width: 100%;
+        padding: 8px;
+        font-size: 0.85em;
+      }
+
+      .file-actions input[type="file"] {
+        display: none;
+      }
+
+      .status {
+        background: rgba(15, 52, 96, 0.3);
+        padding: 15px;
+        border-radius: 12px;
+        margin-top: 20px;
+        text-align: center;
+        font-size: 0.9em;
+        color: #888;
+      }
+
+      .status.active {
+        color: #00d9ff;
+      }
+
+      .recording-indicator {
+        display: none;
+        background: rgba(255, 51, 102, 0.2);
+        border: 2px solid #ff3366;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: #ff3366;
+        font-weight: bold;
+      }
+
+      .recording-indicator.active {
+        display: block;
+      }
+
+      .bounce-indicator {
+        display: none;
+        background: rgba(0, 217, 255, 0.2);
+        border: 2px solid #00d9ff;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: #00d9ff;
+        font-weight: bold;
+      }
+
+      .bounce-indicator.active {
+        display: block;
+      }
+
+      .velocity-slider {
+        position: absolute;
+        bottom: 2px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        height: 3px;
+        background: rgba(255, 107, 157, 0.5);
+        border-radius: 2px;
+        pointer-events: none;
+      }
+
+      .step.active .velocity-slider {
+        background: #ff6b9d;
+      }
+
+      /* Recording button states */
+      .recording-armed {
+        background-color: #ff9800 !important;
+        color: white !important;
+      }
+
+      .recording-active {
+        background-color: #f44336 !important;
+        animation: recording-pulse 1s infinite;
+      }
+
+      @keyframes recording-pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <!-- Top Row: Pattern View + VU Meters + Title + FFT + Arrangement View -->
+        <div class="header-top-row">
+          <!-- LEFT: Pattern View -->
+          <div class="tab header-tab active" data-tab="pattern">Pattern View</div>
+
+          <!-- VU Meters -->
+          <div class="vu-meters">
+            <div class="vu-meter">
+              <label>L</label>
+              <div class="vu-bar-container">
+                <div id="meter-l" class="vu-bar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="vu-meter">
+              <label>R</label>
+              <div class="vu-bar-container">
+                <div id="meter-r" class="vu-bar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CENTER: Title -->
+          <div class="header-title-center">
+            <h1>DrC - Csound Drum Machine</h1>
+          </div>
+
+          <!-- FFT Display -->
+          <div class="fft-container">
+            <canvas
+              id="fft-canvas"
+              width="200"
+              height="60"
+              class="fft-display"
+              style="
+                background: #0a0a0a;
+                border-radius: 4px;
+              "
+            ></canvas>
+          </div>
+
+          <!-- RIGHT: Arrangement View -->
+          <div class="tab header-tab" data-tab="arrangement">Arrangement View</div>
+        </div>
+
+        <!-- Bottom Row: All Controls -->
+        <div class="transport-row">
+          <button id="load-project-btn" disabled>📂 Load</button>
+          <button id="save-project" disabled>💾 Save</button>
+          <input
+            type="file"
+            id="load-project"
+            accept=".json"
+            style="display: none"
+          />
+          
+          <button id="start-recording" disabled>⏺ Record</button>
+          <button id="stop-recording" disabled>⏹ Stop Rec</button>
+          
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: #888; font-size: 0.85em;">Kit:</label>
+            <select id="drum-kit-select" disabled style="
+              background: #0f3460;
+              color: #00d9ff;
+              border: 1px solid #00d9ff;
+              padding: 4px 8px;
+              border-radius: 6px;
+              font-family: inherit;
+              font-size: 0.8em;
+              font-weight: bold;
+              cursor: pointer;
+            ">
+              <option value="classic">Classic</option>
+              <option value="electronic">Electronic</option>
+              <option value="vintage">Vintage</option>
+              <option value="808">808</option>
+              <option value="glitch">Glitch</option>
+              <option value="industrial">Industrial</option>
+            </select>
+          </div>
+          
+          <button id="play" disabled>▶ Play</button>
+          <button id="stop" disabled>⏹ Stop</button>
+
+          <div class="tempo-control">
+            <label>Volume:</label>
+            <input
+              type="range"
+              id="master-volume"
+              min="0"
+              max="100"
+              value="80"
+              disabled
+            />
+            <div class="bpm-display" id="master-volume-val">80%</div>
+          </div>
+
+          <div class="tempo-control">
+            <label>Tempo:</label>
+            <input
+              type="range"
+              id="tempo"
+              min="60"
+              max="200"
+              value="128"
+              disabled
+            />
+            <div class="bpm-display" id="bpm-display">128</div>
+            <button id="tap-tempo" disabled>Tap</button>
+          </div>
+          
+          <button id="enable-midi">🎛️ MIDI</button>
+          <button id="record" class="rec" disabled>⏺ Rec MIDI</button>
+        </div>
+      </div>
+
+      <!-- Recording Progress Bar (full width below header) -->
+      <div
+        id="record-progress-container"
+        style="
+          display: none;
+          width: 100%;
+          height: 8px;
+          background: #0a0a0a;
+          border: 1px solid #00d9ff;
+          border-radius: 4px;
+          margin-bottom: 15px;
+          overflow: hidden;
+        "
+      >
+        <div
+          id="record-progress-bar"
+          style="
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00d9ff, #00fbff);
+            box-shadow: 0 0 10px #00d9ff;
+            transition: width 0.05s linear;
+          "
+        ></div>
+      </div>
+
+      <!-- MASTER FX CONTROLS (GROUPED) - SEPARATE SECTION -->
+      <div class="master-fx-panel">
+        <div class="panel">
+          <h2 style="font-size: 1.5em; margin-bottom: 12px; text-align: center">Global Effects</h2>
+          <div class="master-fx-container">
+            <!-- Row 1: Reverb/Delay, Pan, and Processing -->
+            <div class="fx-row">
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>Reverb</label>
+                  <input type="range" id="master-reverb" min="0" max="100" value="20" disabled />
+                  <span class="mixer-value" id="master-reverb-val">20%</span>
+                </div>
+                <div class="fx-control">
+                  <label>Delay Time</label>
+                  <input type="range" id="master-delay-time" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-delay-time-val">0ms</span>
+                </div>
+                <div class="fx-control">
+                  <label>Delay FB</label>
+                  <input type="range" id="master-delay-fb" min="0" max="100" value="30" disabled />
+                  <span class="mixer-value" id="master-delay-fb-val">30%</span>
+                </div>
+              </div>
+
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>Pan</label>
+                  <input type="range" id="master-pan" min="0" max="100" value="50" disabled />
+                  <span class="mixer-value" id="master-pan-val">C</span>
+                </div>
+                <div class="fx-control">
+                  <label>Pan LFO Rate</label>
+                  <input type="range" id="master-lfo-rate" min="0" max="100" value="20" disabled />
+                  <span class="mixer-value" id="master-lfo-rate-val">2.1Hz</span>
+                </div>
+                <div class="fx-control">
+                  <label>Pan LFO Depth</label>
+                  <input type="range" id="master-lfo-depth" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-lfo-depth-val">0%</span>
+                </div>
+              </div>
+
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>Wide Stereo</label>
+                  <input type="range" id="master-width" min="0" max="100" value="50" disabled />
+                  <span class="mixer-value" id="master-width-val">50%</span>
+                </div>
+                <div class="fx-control">
+                  <label>Compress</label>
+                  <input type="range" id="master-compress" min="0" max="100" value="30" disabled />
+                  <span class="mixer-value" id="master-compress-val">30%</span>
+                </div>
+                <div class="fx-control">
+                  <label>Distort</label>
+                  <input type="range" id="master-distort" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-distort-val">0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: EQ, Filters, Comb, and Flanger -->
+            <div class="fx-row">
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>EQ Low</label>
+                  <input type="range" id="master-eq-low" min="0" max="100" value="50" disabled />
+                  <span class="mixer-value" id="master-eq-low-val">50</span>
+                </div>
+                <div class="fx-control">
+                  <label>EQ Mid</label>
+                  <input type="range" id="master-eq-mid" min="0" max="100" value="50" disabled />
+                  <span class="mixer-value" id="master-eq-mid-val">50</span>
+                </div>
+                <div class="fx-control">
+                  <label>EQ High</label>
+                  <input type="range" id="master-eq-high" min="0" max="100" value="50" disabled />
+                  <span class="mixer-value" id="master-eq-high-val">50</span>
+                </div>
+              </div>
+
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>HPF</label>
+                  <input type="range" id="master-hpf" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-hpf-val">20Hz</span>
+                </div>
+                <div class="fx-control">
+                  <label>LPF</label>
+                  <input type="range" id="master-lpf" min="0" max="100" value="100" disabled />
+                  <span class="mixer-value" id="master-lpf-val">10kHz</span>
+                </div>
+                <div class="fx-control">
+                  <label>LPF Res</label>
+                  <input type="range" id="master-lpf-res" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-lpf-res-val">0.0</span>
+                </div>
+              </div>
+
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>Comb Freq</label>
+                  <input type="range" id="master-comb-freq" min="0" max="100" value="50" disabled />
+                  <span class="mixer-value" id="master-comb-freq-val">165Hz</span>
+                </div>
+                <div class="fx-control">
+                  <label>Comb Res</label>
+                  <input type="range" id="master-comb-res" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-comb-res-val">0%</span>
+                </div>
+              </div>
+
+              <div class="fx-group">
+                <div class="fx-control">
+                  <label>Flange Rate</label>
+                  <input type="range" id="master-flange-rate" min="0" max="100" value="0" disabled />
+                  <span class="mixer-value" id="master-flange-rate-val">0.1Hz</span>
+                </div>
+                <div class="fx-control">
+                  <label>Flange FB</label>
+                  <input type="range" id="master-flange-fb" min="0" max="95" value="50" disabled />
+                  <span class="mixer-value" id="master-flange-fb-val">50%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content active" data-tab="pattern">
+        <div class="main-layout">
+          <div class="sequencer">
+            <div class="recording-indicator" id="record-indicator">
+              ⏺ REC - Play MIDI to record
+            </div>
+
+            <div class="bounce-indicator" id="bounce-indicator">
+              🎵 RECORDING AUDIO - File will save when you stop playback
+            </div>
+
+            <!-- Pattern & Track Controls -->
+            <div class="transport">
+              <div class="pattern-track-controls">
+                <div class="control-group no-border">
+                  <div class="control-group-row">
+                    <!-- PATTERN CONTROLS -->
+                    <div class="control-group-label">Pattern:</div>
+                    <button id="random-pattern" disabled>🎲 Random</button>
+                    <select id="pattern-select" disabled></select>
+                    <input
+                      type="text"
+                      id="pattern-name"
+                      placeholder="Pattern name"
+                      disabled
+                      style="min-width: 90px; max-width: 100px;"
+                    />
+                    <button id="rename-pattern" disabled>Rename</button>
+                    <button id="save-pattern" disabled>💾 Save</button>
+                    <button id="load-pattern-btn" disabled>📂 Load</button>
+                    <input
+                      type="file"
+                      id="load-pattern-file"
+                      accept=".json"
+                      style="display: none"
+                    />
+                    <select id="preset-select" disabled>
+                      <option value="">📋 Presets</option>
+                      <option value="rock-basic">Rock Basic</option>
+                      <option value="disco">Disco</option>
+                      <option value="funk">Funk</option>
+                      <option value="house">House</option>
+                      <option value="dnb">Drum & Bass</option>
+                      <option value="hiphop">Hip Hop</option>
+                      <option value="reggae">Reggae</option>
+                      <option value="samba">Samba</option>
+                      <option value="breakbeat">Breakbeat</option>
+                      <option value="techno">Techno</option>
+                    </select>
+                    <button id="new-pattern" disabled>New</button>
+                    <button id="copy-pattern" disabled>Copy</button>
+                    <button id="paste-pattern" disabled>Paste</button>
+                    <button id="clear-pattern" disabled>Clear</button>
+
+                    <!-- SEPARATOR -->
+                    <div class="control-separator"></div>
+
+                    <!-- TRACK CONTROLS -->
+                    <div class="control-group-label">Track:</div>
+                    <button id="random-track" disabled>🎲 Random</button>
+                    <select id="track-select" disabled></select>
+                    <button id="clear-track" disabled>Clear</button>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grid + Mixer Side-by-Side -->
+            <div class="grid-and-mixer">
+              <!-- SEQUENCER GRID -->
+              <div class="sequencer-grid-container">
+                <div id="sequencer-grid"></div>
+              </div>
+
+              <!-- INSTRUMENT MIXER -->
+              <div class="instrument-mixer">
+                <div class="panel" style="height: 100%">
+                  <h2 style="font-size: 1em; margin-bottom: 12px">
+                    Instrument Controls
+                  </h2>
+                  <div
+                    id="mixer-channels"
+                    style="max-height: 500px; overflow-y: auto"
+                  ></div>
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" data-tab="arrangement">
+        <div class="arrangement">
+          <div class="arrangement-header">
+            <label style="color: #888">Arrangement:</label>
+            <input
+              type="text"
+              id="arrangement-name"
+              placeholder="My Song"
+              value="Untitled"
+              disabled
+            />
+            <button id="save-arrangement" disabled>💾 Save Arrangement</button>
+            <button id="load-arrangement-btn" disabled>
+              📂 Load Arrangement
+            </button>
+            <input
+              type="file"
+              id="load-arrangement-file"
+              accept=".json"
+              style="display: none"
+            />
+            <button id="bounce-arrangement-audio" disabled>
+              🎵 Bounce Arrangement Audio
+            </button>
+          </div>
+
+          <div class="arrangement-controls">
+            <label style="color: #888">Pattern:</label>
+            <select id="arr-pattern-select" disabled></select>
+
+            <label style="color: #888">Bars:</label>
+            <select id="arr-bars" disabled>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4" selected>4</option>
+              <option value="8">8</option>
+            </select>
+
+            <button id="add-to-arrangement" disabled>Add Section</button>
+            <button id="clear-arrangement" disabled>Clear All</button>
+          </div>
+
+          <div class="arrangement-list" id="arrangement-list">
+            <div style="color: #666; text-align: center; padding: 20px">
+              No arrangement yet. Add patterns above.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="status">Loading Csound...</div>
+    </div>
+
+    <script type="text/javascript">
+      let cs = null;
+      let isPlaying = false;
+      let isRecording = false;
+      let isBouncing = false;
+      let currentStep = 0;
+      let lastPlayedStep = 0;
+      let patternInterval = null;
+      let bpm = 128;
+      let midiAccess = null;
+      let audioRecorder = null;
+      let audioDestination = null;
+      let recordedChunks = [];
+      let mediaRecorder = null;
+      let clipboard = null;
+      let currentKit = 0;
+      let audioStarted = false;
+
+      let muteState = [];
+      let soloState = [];
+      let lofiState = [];
+
+      let masterVolume = 80;
+      let masterReverb = 20;
+      let masterWidth = 50;
+      let masterCompress = 30;
+      let masterLofi = 0;
+
+      let patterns = [
+        {
+          name: "Pattern 1",
+          data: null,
+          eq: null,
+          envelopes: null,
+          pans: null,
+          velocities: null,
+          lofi: null,
+        },
+      ];
+      let currentPatternIndex = 0;
+
+      let arrangement = [];
+      let arrangementName = "Untitled";
+      let arrangementIndex = 0;
+      let arrangementBarCount = 0;
+
+      let tapTimes = [];
+
+      const instruments = [
+        { name: "Kick", note: 36 },
+        { name: "Snare", note: 38 },
+        { name: "ClosedHat", note: 42 },
+        { name: "OpenHat", note: 46 },
+        { name: "Clap", note: 39 },
+        { name: "Tom1", note: 47 },
+        { name: "Tom2", note: 50 },
+        { name: "Ride", note: 51 },
+        { name: "Crash1", note: 49 },
+        { name: "Crash2", note: 57 },
+      ];
+
+      const drumKits = {
+        classic: {
+          name: "Classic",
+          kickPitch: 1.0,
+          snareTone: 1.0,
+          hatBrightness: 1.0,
+          decay: 1.0
+        },
+        electronic: {
+          name: "Electronic",
+          kickPitch: 1.15,
+          snareTone: 1.3,
+          hatBrightness: 1.4,
+          decay: 0.7
+        },
+        vintage: {
+          name: "Vintage",
+          kickPitch: 0.85,
+          snareTone: 0.75,
+          hatBrightness: 0.7,
+          decay: 1.4
+        },
+        "808": {
+          name: "808",
+          kickPitch: 0.5,
+          snareTone: 0.8,
+          hatBrightness: 1.7,
+          decay: 1.5
+        },
+        glitch: {
+          name: "Glitch",
+          kickPitch: 1.6,
+          snareTone: 1.8,
+          hatBrightness: 2.5,
+          decay: 0.25
+        },
+        industrial: {
+          name: "Industrial",
+          kickPitch: 1.35,
+          snareTone: 1.6,
+          hatBrightness: 2.2,
+          decay: 0.4
+        }
+      };
+      
+      let currentDrumKit = "classic";
+
+      // Classic Preset Patterns
+      const presetPatterns = {
+        "rock-basic": {
+          name: "Rock Basic",
+          pattern: [
+            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // Kick
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare
+            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false], // ClosedHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "disco": {
+          name: "Disco",
+          pattern: [
+            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // Kick - Four on floor
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare
+            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false], // ClosedHat
+            [false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, true], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "funk": {
+          name: "Funk",
+          pattern: [
+            [true, false, false, false, false, false, true, false, false, false, true, false, false, false, false, false], // Kick - Syncopated
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare
+            [true, false, true, true, false, true, true, false, true, false, true, true, false, true, true, false], // ClosedHat - 16th notes
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "house": {
+          name: "House",
+          pattern: [
+            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // Kick - Four on floor
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Snare
+            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false], // ClosedHat - Offbeat
+            [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Clap - On 2 & 4
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "dnb": {
+          name: "Drum & Bass",
+          pattern: [
+            [true, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false], // Kick - Breakbeat
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare
+            [true, false, true, false, true, true, true, false, true, false, true, false, true, true, true, false], // ClosedHat - Fast
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "hiphop": {
+          name: "Hip Hop",
+          pattern: [
+            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // Kick
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare - Boom bap
+            [true, false, false, true, false, false, true, false, true, false, false, true, false, false, true, false], // ClosedHat - Swung
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "reggae": {
+          name: "Reggae",
+          pattern: [
+            [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false], // Kick - One drop (3rd beat)
+            [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false], // Snare
+            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false], // ClosedHat - Offbeat
+            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "samba": {
+          name: "Samba",
+          pattern: [
+            [true, false, false, true, false, true, false, false, true, false, false, true, false, true, false, false], // Kick - Samba pattern
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Snare
+            [true, true, true, false, true, true, true, false, true, true, true, false, true, true, true, false], // ClosedHat - Fast latin
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false], // Clap - Clave
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "breakbeat": {
+          name: "Breakbeat",
+          pattern: [
+            [true, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false], // Kick - Amen style
+            [false, false, false, false, true, false, false, true, false, false, false, false, true, false, false, true], // Snare - Syncopated
+            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false], // ClosedHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Ride
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        },
+        "techno": {
+          name: "Techno",
+          pattern: [
+            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], // Kick - Four on floor
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Snare
+            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false], // ClosedHat - Offbeat
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // OpenHat
+            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], // Clap
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Tom2
+            [true, true, false, false, true, true, false, false, true, true, false, false, true, true, false, false], // Ride - 16th pattern
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], // Crash1
+            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]  // Crash2
+          ]
+        }
+      };
+
+      function createEmptyPattern() {
+        return instruments.map(() => Array(16).fill(false));
+      }
+
+      function createDefaultEQ() {
+        return instruments.map(() => ({
+          low: 50,
+          mid: 50,
+          high: 50,
+        }));
+      }
+
+      function createDefaultEnvelopes() {
+        return instruments.map(() => ({
+          attack: 1,
+          release: 50,
+        }));
+      }
+
+      function createDefaultPans() {
+        return instruments.map(() => 50);
+      }
+
+      function createDefaultVelocities() {
+        return instruments.map(() => Array(16).fill(80));
+      }
+
+      function createDefaultLofi() {
+        return instruments.map(() => false);
+      }
+
+      let pattern = createEmptyPattern();
+      let eqSettings = createDefaultEQ();
+      let envelopeSettings = createDefaultEnvelopes();
+      let panSettings = createDefaultPans();
+      let velocitySettings = createDefaultVelocities();
+
+      const volumes = instruments.map(() => 0.8);
+
+      muteState = instruments.map(() => false);
+      soloState = instruments.map(() => false);
+      lofiState = instruments.map(() => false);
+
+      const noteToInstrIndex = {
+        36: 0,
+        38: 1,
+        42: 2,
+        46: 3,
+        39: 4,
+        47: 5,
+        50: 6,
+        51: 7,
+        49: 8,
+        57: 9,
+      };
+
+      const orc = `
+      sr = 44100
+      ksmps = 64
+      nchnls = 2
+      0dbfs = 1
+
+            ; Global audio buses for master effects
+      gaMasterL init 0
+      gaMasterR init 0
+      gaRecordL init 0
+      gaRecordR init 0
+      gaDlyL init 0
+      gaDlyR init 0
+      gaFlangeL init 0
+      gaFlangeR init 0
+
+      opcode EQ3Band, a, akkk
+              aSig, kLow, kMid, kHigh xin
+              kLowGain = 0.5 + (kLow - 50) / 100
+              kMidGain = 0.5 + (kMid - 50) / 100
+              kHighGain = 0.5 + (kHigh - 50) / 100
+
+              aLowBand = butlp(aSig, 250)
+              aMidBand = butbp(aSig, 1500, 2000)
+              aHighBand = buthp(aSig, 4000)
+
+              aOut = (aLowBand * kLowGain + aMidBand * kMidGain + aHighBand * kHighGain) * 0.5
+              xout aOut
+            endop
+
+            opcode Panner, aa, ak
+              aSig, kPan xin
+              kPanNorm = kPan / 100
+              kLeft = cos(kPanNorm * $M_PI_2)
+              kRight = sin(kPanNorm * $M_PI_2)
+              aLeft = aSig * kLeft
+              aRight = aSig * kRight
+              xout aLeft, aRight
+            endop
+
+            opcode LoFi, a, ak
+              aSig, kOnOff xin
+              if kOnOff == 1 then
+                iBits = 6
+                kQuant = 2^iBits
+                aCrushed = int(aSig * kQuant) / kQuant
+                kSampleHold samphold aCrushed, metro(8000)
+                aNoise = rand(0.08)
+                aDistort = tanh(kSampleHold * 2.5) * 0.8
+                aOut = aDistort + aNoise
+              else
+                aOut = aSig
+              endif
+              xout aOut
+            endop
+
+            opcode GatedReverb, a, ai
+              aSig, iGateTime xin
+              aRvb = reverb(aSig, 1.8)
+              kGate = linseg(1, iGateTime, 1, 0.02, 0, 1, 0)
+              aOut = aRvb * kGate
+              xout aOut
+            endop
+
+            instr Kick
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+              iPitchMult = p11
+
+              kPitch = expseg(180*iPitchMult, 0.05, 55*iPitchMult, 0.25*iRel, 40*iPitchMult)
+              aOsc = poscil(1, kPitch)
+              kEnv = expseg(0.001, iAtk, 1, 0.008, 0.75, 0.35*iRel, 0.001)
+              aClick = poscil(0.3, 2000)
+              kClickEnv = expseg(1, 0.003, 0.001)
+              aOut = (aOsc * kEnv + aClick * kClickEnv) * iAmp * 0.45
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Snare
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(0.7)
+              aFilt = butterbp(aNoise, 2200, 800)
+              aTone = poscil(0.5, 200)
+              aMix = (aFilt * 0.7 + aTone * 0.3)
+              kEnv = expseg(0.001, iAtk, 1, 0.008, 0.7, 0.12*iRel, 0.001)
+              aOut = aMix * kEnv * iAmp * 2.4
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr ClosedHat
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(1)
+              aFilt1 = buthp(aNoise, 6000)
+              aFilt2 = butterbp(aFilt1, 8000, 3000)
+              aFilt3 = buthp(aFilt2, 7000)
+              kEnv = expseg(0.001, iAtk, 1, 0.001, 0.5, 0.08*iRel, 0.001)
+              aOut = aFilt3 * kEnv * iAmp * 2.8
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr OpenHat
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(1)
+              aFilt1 = buthp(aNoise, 6000)
+              aFilt2 = butterbp(aFilt1, 8000, 3000)
+              aFilt3 = buthp(aFilt2, 7000)
+              kEnv = expseg(0.001, iAtk, 1, 0.002, 0.6, 0.3*iRel, 0.001)
+              aOut = aFilt3 * kEnv * iAmp * 2.6
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Clap
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(1)
+              aFilt = butterbp(aNoise, 1200, 600)
+              kEnv1 = expseg(1, 0.003, 0.001)
+              kEnv2 = expseg(0.0001, 0.015, 1, 0.003, 0.001)
+              kEnv3 = expseg(0.0001, 0.03, 1, 0.005*iRel, 0.001)
+              kEnvMain = expseg(0.001, iAtk, 1, 0.08*iRel, 0.001)
+              kEnv = (kEnv1 + kEnv2 + kEnv3) * kEnvMain
+              aOut = aFilt * kEnv * iAmp * 2.0
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Tom1
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              kPitch = expseg(130, 0.05, 110, 0.2*iRel, 105)
+              aOsc = poscil(0.9, kPitch)
+              kEnv = expseg(0.001, iAtk, 1, 0.01, 0.7, 0.25*iRel, 0.001)
+              aOut = aOsc * kEnv * iAmp * 0.35
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Tom2
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              kPitch = expseg(185, 0.05, 165, 0.2*iRel, 160)
+              aOsc = poscil(0.9, kPitch)
+              kEnv = expseg(0.001, iAtk, 1, 0.01, 0.7, 0.2*iRel, 0.001)
+              aOut = aOsc * kEnv * iAmp * 0.35
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Ride
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(0.8)
+              aFilt1 = butterbp(aNoise, 3500, 2000)
+              aFilt2 = butterbp(aNoise, 6500, 3000)
+              aFilt3 = butterbp(aNoise, 9000, 4000)
+              aMix = (aFilt1 * 0.4 + aFilt2 * 0.4 + aFilt3 * 0.2)
+              kEnv = expseg(0.001, iAtk, 1, 0.002, 0.6, 0.4*iRel, 0.001)
+              aOut = aMix * kEnv * iAmp * 1.6
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Crash1
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(1)
+              aFilt1 = butterbp(aNoise, 5000, 3000)
+              aFilt2 = butterbp(aNoise, 8000, 4000)
+              aMix = (aFilt1 + aFilt2) * 0.5
+              kEnv = expseg(0.001, iAtk, 1, 0.002, 0.6, 0.8*iRel, 0.001)
+              aOut = aMix * kEnv * iAmp * 1.6
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            instr Crash2
+              iAmp = p4
+              iLow = p5
+              iMid = p6
+              iHigh = p7
+              iAtk = p8 / 1000
+              iRel = p9 / 100
+              iPan = p10
+
+              aNoise = rand(1)
+              aFilt1 = butterbp(aNoise, 4000, 3000)
+              aFilt2 = butterbp(aNoise, 7000, 4000)
+              aFilt3 = butterbp(aNoise, 10000, 5000)
+              aMix = (aFilt1 * 0.4 + aFilt2 * 0.35 + aFilt3 * 0.25)
+              kEnv = expseg(0.001, iAtk, 1, 0.001, 0.7, 1.2*iRel, 0.001)
+              aOut = aMix * kEnv * iAmp * 1.8
+              aOut = EQ3Band(aOut, iLow, iMid, iHigh)
+
+              aL, aR = Panner(aOut, iPan)
+              gaMasterL += aL
+              gaMasterR += aR
+            endin
+
+            ; Master FX chain - runs always with comprehensive effects
+            instr 997
+              ; Read all control channels
+              kVol chnget "master_volume"
+              kDistort chnget "master_distort"
+              kCompress chnget "master_compress"
+              kEQLow chnget "master_eq_low"
+              kEQMid chnget "master_eq_mid"
+              kEQHigh chnget "master_eq_high"
+              kHPF chnget "master_hpf"
+              kLPF chnget "master_lpf"
+              kLPFRes chnget "master_lpf_res"
+              kWidth chnget "master_width"
+              kDelayTime chnget "master_delay_time"
+              kDelayFB chnget "master_delay_fb"
+              kLFORate chnget "master_lfo_rate"
+              kLFODepth chnget "master_lfo_depth"
+              kReverb chnget "master_reverb"
+              kPan chnget "master_pan"
+              kCombFreq chnget "master_comb_freq"
+              kCombRes chnget "master_comb_res"
+              kFlangeRate chnget "master_flange_rate"
+              kFlangeFB chnget "master_flange_fb"
+
+              ; Get audio from global buses
+              aL = gaMasterL
+              aR = gaMasterR
+
+              ; 1. DISTORTION - Aggressive grungy distortion
+              kDistortAmt = kDistort / 100
+              if kDistortAmt > 0.01 then
+                ; Hard clipping + waveshaping
+                kDrive = 1 + (kDistortAmt * 8)
+                aL = aL * kDrive
+                aR = aR * kDrive
+                ; Multi-stage waveshaping for grit
+                aL = tanh(aL * 3) * 0.7
+                aR = tanh(aR * 3) * 0.7
+                aL = distort(aL, 0.5 + kDistortAmt * 0.4, 0)
+                aR = distort(aR, 0.5 + kDistortAmt * 0.4, 0)
+                ; Bit crushing for digital grit
+                kBits = 16 - (kDistortAmt * 12)
+                kQuant = 2^kBits
+                aL = int(aL * kQuant) / kQuant
+                aR = int(aR * kQuant) / kQuant
+                ; Sample rate reduction for more grit
+                kSRReduce = 1 + int(kDistortAmt * 8)
+                aL = samphold(aL, metro(sr / kSRReduce))
+                aR = samphold(aR, metro(sr / kSRReduce))
+              endif
+
+              ; 2. HIGH-PASS FILTER
+              kHPFFreq = 20 + (kHPF / 100) * 980
+              if kHPF > 1 then
+                aL = buthp(aL, kHPFFreq)
+                aR = buthp(aR, kHPFFreq)
+              endif
+
+              ; 3. LOW-PASS FILTER with resonance (40 Hz - 10 kHz)
+              kLPFFreq = 40 + (kLPF / 100) * 9960
+              kResonance = (kLPFRes / 100) * 0.95
+              if kLPF < 99 then
+                aL = moogladder(aL, kLPFFreq, kResonance)
+                aR = moogladder(aR, kLPFFreq, kResonance)
+              endif
+
+              ; 4. 3-BAND EQ
+              kLowGain = 0.5 + (kEQLow - 50) / 100
+              kMidGain = 0.5 + (kEQMid - 50) / 100
+              kHighGain = 0.5 + (kEQHigh - 50) / 100
+              aLowL = butlp(aL, 250)
+              aLowR = butlp(aR, 250)
+              aMidL = butterbp(aL, 1500, 2000)
+              aMidR = butterbp(aR, 1500, 2000)
+              aHighL = buthp(aL, 4000)
+              aHighR = buthp(aR, 4000)
+              aL = (aLowL * kLowGain + aMidL * kMidGain + aHighL * kHighGain) * 0.5
+              aR = (aLowR * kLowGain + aMidR * kMidGain + aHighR * kHighGain) * 0.5
+
+              ; 5. COMB RESONATOR BANK (30-300 Hz base freq, 0-100% resonance)
+              kCombResAmt = kCombRes / 100
+              if kCombResAmt > 0.01 then
+                kBaseFreq = 30 + (kCombFreq / 100) * 270
+                kRvbTime = 0.1 + (kCombResAmt * 2.9)
+                kLoopTime = 1 / kBaseFreq
+                aCombL = vcomb(aL, kRvbTime, kLoopTime, 0.5)
+                aCombR = vcomb(aR, kRvbTime, kLoopTime * 1.01, 0.5)
+                aL = aL * (1 - kCombResAmt * 0.6) + aCombL * kCombResAmt * 0.6
+                aR = aR * (1 - kCombResAmt * 0.6) + aCombR * kCombResAmt * 0.6
+              endif
+
+              ; 6. FLANGER (0.1-10 Hz rate, 0-95% feedback)
+              kFlangeRateHz = 0.1 + (kFlangeRate / 100) * 9.9
+              kFeedback = kFlangeFB / 100
+              if kFlangeRate > 0 then
+                kLFO1 = oscil(1, kFlangeRateHz, -1)
+                kLFO2 = oscil(1, kFlangeRateHz * 1.17, -1)
+                kDelay1 = 2 + (kLFO1 * 5)
+                kDelay2 = 2 + (kLFO2 * 5)
+                aFlangeL = vdelay(aL + (gaFlangeL * kFeedback * 0.95), kDelay1, 10)
+                aFlangeR = vdelay(aR + (gaFlangeR * kFeedback * 0.95), kDelay2, 10)
+                gaFlangeL = aFlangeL
+                gaFlangeR = aFlangeR
+                aL = aL * 0.7 + aFlangeL * 0.3
+                aR = aR * 0.7 + aFlangeR * 0.3
+              else
+                gaFlangeL = 0
+                gaFlangeR = 0
+              endif
+
+              ; 7. COMPRESSION
+              kCompressAmt = kCompress / 100
+              if kCompressAmt > 0.01 then
+                kThresh = 0.7 - (kCompressAmt * 0.3)
+                aL = tanh(aL / kThresh) * kThresh * (1 + kCompressAmt * 0.5)
+                aR = tanh(aR / kThresh) * kThresh * (1 + kCompressAmt * 0.5)
+              endif
+
+              ; 8. STEREO DELAY
+              kDelTime = 0.001 + (kDelayTime / 100) * 0.999
+              kFeedback = kDelayFB / 100
+              if kDelayTime > 1 then
+                aDlyInL = aL + (gaDlyL * kFeedback)
+                aDlyInR = aR + (gaDlyR * kFeedback)
+                gaDlyL = vdelay(aDlyInL, kDelTime * 1000, 1000)
+                gaDlyR = vdelay(aDlyInR, kDelTime * 1000, 1000)
+                aL = aL * 0.7 + gaDlyL * 0.3
+                aR = aR * 0.7 + gaDlyR * 0.3
+              else
+                gaDlyL = 0
+                gaDlyR = 0
+              endif
+
+              ; 9. GLOBAL REVERB (always active, mix controlled by slider)
+              kReverbAmt = kReverb / 100
+              aRvbL, aRvbR freeverb aL, aR, kReverbAmt, 0.5
+              aL = aL * (1 - kReverbAmt * 0.7) + aRvbL * 0.7
+              aR = aR * (1 - kReverbAmt * 0.7) + aRvbR * 0.7
+
+              ; 10. LFO AUTO-PANNER (fixed balance)
+              kLFOHz = 0.1 + (kLFORate / 100) * 10
+              kDepth = kLFODepth / 100
+              if kDepth > 0.01 then
+                kLFO = oscil(kDepth, kLFOHz, -1)
+                kPanL = sqrt(0.5 - kLFO * 0.5)
+                kPanR = sqrt(0.5 + kLFO * 0.5)
+                aL *= kPanL
+                aR *= kPanR
+              endif
+
+              ; 11. STEREO WIDTH (enhanced, wider effect)
+              kWidthAmt = (kWidth - 50) / 50
+              aMid = (aL + aR) * 0.5
+              aSide = (aL - aR) * 0.5
+              kWidthMult = 1.0 + (kWidthAmt * 2.0)
+              aL = aMid + (aSide * kWidthMult)
+              aR = aMid - (aSide * kWidthMult)
+
+              ; 12. MASTER PAN
+              kPanAmt = (kPan - 50) / 50
+              if abs(kPanAmt) > 0.01 then
+                kPanL = sqrt((kPanAmt < 0) ? 1 : (1 - kPanAmt))
+                kPanR = sqrt((kPanAmt > 0) ? 1 : (1 + kPanAmt))
+                aL *= kPanL
+                aR *= kPanR
+              endif
+
+              ; 13. MASTER VOLUME (boosted more)
+              kVolGain = (kVol / 100) * 4.0
+              aL *= kVolGain
+              aR *= kVolGain
+
+              ; 14. LIMITER (brick wall at 0dBFS)
+              aL = tanh(aL * 1.5) * 0.95
+              aR = tanh(aR * 1.5) * 0.95
+
+        ; Output level meters (using RMS for better visual response, boosted for visibility)
+        kPeakL = rms(aL, 50) * 8
+        kPeakR = rms(aR, 50) * 8
+        chnset kPeakL, "meter_L"
+        chnset kPeakR, "meter_R"
+
+              ; Store final audio for recording
+              gaRecordL = aL
+              gaRecordR = aR
+
+              ; Send to output
+              out(aL, aR)
+
+              ; Clear buses for next k-cycle
+              clear gaMasterL, gaMasterR
+            endin
+
+            ; Synced Pattern Recorder - Waits for beat 1, records N bars, auto-stops
+      instr 998
+        ; Simple manual recorder - starts/stops on command
+        aL = gaRecordL
+        aR = gaRecordR
+        
+        ; Control channels
+        kReady chnget "recordReady"  ; 1=recording, 0=stopped
+        kStop chnget "recordStop"    ; 1=user pressed stop
+        
+        ; State variables
+        kRecording init 0
+        kPeak init 0.001
+        
+        ; START recording when kReady goes from 0 to 1
+        if kReady == 1 && kRecording == 0 then
+          kRecording = 1
+          kPeak = 0.001
+        endif
+        
+        ; STOP recording when kStop == 1 or kReady goes to 0
+        if (kStop == 1 || kReady == 0) && kRecording == 1 then
+          kRecording = 0
+          chnset 1, "recordDone"
+          chnset 0, "recordReady"
+          chnset 0, "recordStop"
+        endif
+        
+        ; SIMPLE RECORDING - write everything, trim in JavaScript later
+        if kRecording == 1 then
+          ; DC blocker to remove offset
+          aCleanL = atone(aL, 10)
+          aCleanR = atone(aR, 10)
+          
+          ; Track peak for normalization
+          kAbsL = downsamp(abs(aCleanL))
+          kAbsR = downsamp(abs(aCleanR))
+          kCur = max(kAbsL, kAbsR)
+          if kCur > kPeak then
+            kPeak = kCur
+          endif
+          
+          ; Write to VFS (format 14 = 16-bit WAV)
+          fout "dr_c_capture.wav", 14, aCleanL, aCleanR
+        endif
+        
+        ; Always output peak value
+        chnset kPeak, "maxPeak"
+      endin
+
+            `;
+
+      function updateStatus(msg, active = false) {
+        const el = document.getElementById("status");
+        el.textContent = msg;
+        el.classList.toggle("active", active);
+      }
+
+      function buildSequencer() {
+        const grid = document.getElementById("sequencer-grid");
+        grid.innerHTML = "";
+
+        instruments.forEach((instr, instrIdx) => {
+          const row = document.createElement("div");
+          row.className = "seq-row";
+
+          // Track header with Solo/Mute ABOVE label
+          const trackHeader = document.createElement("div");
+          trackHeader.className = "track-header";
+
+          const trackButtons = document.createElement("div");
+          trackButtons.className = "track-buttons";
+
+          const soloBtn = document.createElement("button");
+          soloBtn.textContent = "S";
+          soloBtn.className = "solo-btn-grid";
+          soloBtn.onclick = () => toggleSolo(instrIdx);
+          soloBtn.id = `solo-grid-${instrIdx}`;
+          soloBtn.title = "Solo";
+          trackButtons.appendChild(soloBtn);
+
+          const muteBtn = document.createElement("button");
+          muteBtn.textContent = "M";
+          muteBtn.className = "mute-btn-grid";
+          muteBtn.onclick = () => toggleMute(instrIdx);
+          muteBtn.id = `mute-grid-${instrIdx}`;
+          muteBtn.title = "Mute";
+          trackButtons.appendChild(muteBtn);
+
+          const label = document.createElement("div");
+          label.className = "instrument-label";
+          label.textContent = instr.name;
+          label.onclick = () => triggerDrum(instrIdx);
+          label.id = `label-${instrIdx}`;
+
+          trackHeader.appendChild(trackButtons);
+          trackHeader.appendChild(label);
+          row.appendChild(trackHeader);
+
+          for (let step = 0; step < 16; step++) {
+            const stepDiv = document.createElement("div");
+            stepDiv.className = "step";
+            stepDiv.dataset.instr = instrIdx;
+            stepDiv.dataset.step = step;
+
+            if (pattern[instrIdx][step]) {
+              stepDiv.classList.add("active");
+            }
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = pattern[instrIdx][step];
+            checkbox.id = `cb-${instrIdx}-${step}`;
+            checkbox.onchange = (e) => {
+              pattern[instrIdx][step] = e.target.checked;
+              stepDiv.classList.toggle("active", e.target.checked);
+            };
+
+            stepDiv.oncontextmenu = (e) => {
+              e.preventDefault();
+              if (pattern[instrIdx][step]) {
+                const vel = prompt(
+                  `Velocity for ${instr.name} step ${step + 1} (0-100):`,
+                  velocitySettings[instrIdx][step],
+                );
+                if (vel !== null) {
+                  const v = Math.max(0, Math.min(100, parseInt(vel) || 80));
+                  velocitySettings[instrIdx][step] = v;
+                  saveCurrentPatternData();
+                }
+              }
+            };
+
+            const indicator = document.createElement("div");
+            indicator.className = "step-indicator";
+
+            const velBar = document.createElement("div");
+            velBar.className = "velocity-slider";
+            velBar.style.height = `${(velocitySettings[instrIdx][step] / 100) * 6}px`;
+
+            stepDiv.appendChild(checkbox);
+            stepDiv.appendChild(indicator);
+            stepDiv.appendChild(velBar);
+            row.appendChild(stepDiv);
+          }
+
+          grid.appendChild(row);
+        });
+      }
+
+      function buildMixer() {
+        const mixer = document.getElementById("mixer-channels");
+        mixer.innerHTML = "";
+
+        instruments.forEach((instr, idx) => {
+          const channel = document.createElement("div");
+          channel.className = "mixer-channel";
+
+          const header = document.createElement("div");
+          header.className = "mixer-header";
+
+          const label = document.createElement("div");
+          label.className = "mixer-label";
+          label.textContent = instr.name;
+
+          const buttons = document.createElement("div");
+          buttons.className = "mixer-buttons";
+
+          const muteBtn = document.createElement("button");
+          muteBtn.textContent = "M";
+          muteBtn.className = "mute-btn";
+          muteBtn.onclick = () => toggleMute(idx);
+          muteBtn.id = `mute-${idx}`;
+
+          const soloBtn = document.createElement("button");
+          soloBtn.textContent = "S";
+          soloBtn.className = "solo-btn";
+          soloBtn.onclick = () => toggleSolo(idx);
+          soloBtn.id = `solo-${idx}`;
+
+          buttons.appendChild(muteBtn);
+          buttons.appendChild(soloBtn);
+
+          header.appendChild(label);
+          header.appendChild(buttons);
+
+          const volDiv = document.createElement("div");
+          volDiv.className = "mixer-control";
+          volDiv.innerHTML = `
+                      <label>Vol</label>
+                      <input type="range" id="vol-slider-${idx}" min="0" max="100" value="${volumes[idx] * 100}" />
+                      <span class="mixer-value" id="vol-${idx}">${Math.round(volumes[idx] * 100)}%</span>
+                    `;
+
+          const panDiv = document.createElement("div");
+          panDiv.className = "mixer-control";
+          panDiv.innerHTML = `
+                      <label>Pan</label>
+                      <input type="range" id="pan-${idx}" min="0" max="100" value="${panSettings[idx]}" />
+                      <span class="mixer-value" id="pan-val-${idx}">${panSettings[idx] > 50 ? "R" + (panSettings[idx] - 50) : panSettings[idx] < 50 ? "L" + (50 - panSettings[idx]) : "C"}</span>
+                    `;
+
+          const atkDiv = document.createElement("div");
+          atkDiv.className = "mixer-control";
+          atkDiv.innerHTML = `
+                      <label>Attack</label>
+                      <input type="range" id="atk-${idx}" min="1" max="100" value="${envelopeSettings[idx].attack}" />
+                      <span class="mixer-value" id="atk-val-${idx}">${envelopeSettings[idx].attack}ms</span>
+                    `;
+
+          const relDiv = document.createElement("div");
+          relDiv.className = "mixer-control";
+          relDiv.innerHTML = `
+                      <label>Release</label>
+                      <input type="range" id="rel-${idx}" min="1" max="100" value="${envelopeSettings[idx].release}" />
+                      <span class="mixer-value" id="rel-val-${idx}">${envelopeSettings[idx].release}%</span>
+                    `;
+
+          const eqDiv = document.createElement("div");
+          eqDiv.className = "eq-controls";
+          eqDiv.innerHTML = `
+                      <div class="eq-band">
+                        <label>Low</label>
+                        <input type="range" id="eq-low-${idx}" min="0" max="100" value="${eqSettings[idx].low}" />
+                      </div>
+                      <div class="eq-band">
+                        <label>Mid</label>
+                        <input type="range" id="eq-mid-${idx}" min="0" max="100" value="${eqSettings[idx].mid}" />
+                      </div>
+                      <div class="eq-band">
+                        <label>High</label>
+                        <input type="range" id="eq-high-${idx}" min="0" max="100" value="${eqSettings[idx].high}" />
+                      </div>
+                    `;
+
+          channel.appendChild(header);
+          channel.appendChild(volDiv);
+          channel.appendChild(panDiv);
+          channel.appendChild(atkDiv);
+          channel.appendChild(relDiv);
+          channel.appendChild(eqDiv);
+          mixer.appendChild(channel);
+        });
+
+        instruments.forEach((instr, idx) => {
+          document.getElementById(`vol-slider-${idx}`).oninput = (e) => {
+            volumes[idx] = e.target.value / 100;
+            document.getElementById(`vol-${idx}`).textContent =
+              `${e.target.value}%`;
+          };
+
+          document.getElementById(`pan-${idx}`).oninput = (e) => {
+            panSettings[idx] = parseInt(e.target.value);
+            const val = panSettings[idx];
+            const display =
+              val > 50 ? "R" + (val - 50) : val < 50 ? "L" + (50 - val) : "C";
+            document.getElementById(`pan-val-${idx}`).textContent = display;
+          };
+
+          document.getElementById(`atk-${idx}`).oninput = (e) => {
+            envelopeSettings[idx].attack = parseInt(e.target.value);
+            document.getElementById(`atk-val-${idx}`).textContent =
+              `${e.target.value}ms`;
+          };
+
+          document.getElementById(`rel-${idx}`).oninput = (e) => {
+            envelopeSettings[idx].release = parseInt(e.target.value);
+            document.getElementById(`rel-val-${idx}`).textContent =
+              `${e.target.value}%`;
+          };
+
+          document.getElementById(`eq-low-${idx}`).oninput = (e) => {
+            eqSettings[idx].low = parseInt(e.target.value);
+          };
+
+          document.getElementById(`eq-mid-${idx}`).oninput = (e) => {
+            eqSettings[idx].mid = parseInt(e.target.value);
+          };
+
+          document.getElementById(`eq-high-${idx}`).oninput = (e) => {
+            eqSettings[idx].high = parseInt(e.target.value);
+          };
+        });
+      }
+
+      function buildTrackSelector() {
+        const select = document.getElementById("track-select");
+        select.innerHTML = "";
+
+        instruments.forEach((instr, idx) => {
+          const opt = document.createElement("option");
+          opt.value = idx;
+          opt.textContent = instr.name;
+          select.appendChild(opt);
+        });
+      }
+
+      function toggleMute(idx) {
+        muteState[idx] = !muteState[idx];
+        const mixerBtn = document.getElementById(`mute-${idx}`);
+        const gridBtn = document.getElementById(`mute-grid-${idx}`);
+        const label = document.getElementById(`label-${idx}`);
+        if (mixerBtn) mixerBtn.classList.toggle("active", muteState[idx]);
+        if (gridBtn) gridBtn.classList.toggle("active", muteState[idx]);
+        label.classList.toggle("muted", muteState[idx]);
+      }
+
+      function toggleSolo(idx) {
+        soloState[idx] = !soloState[idx];
+        const mixerBtn = document.getElementById(`solo-${idx}`);
+        const gridBtn = document.getElementById(`solo-grid-${idx}`);
+        const label = document.getElementById(`label-${idx}`);
+        if (mixerBtn) mixerBtn.classList.toggle("active", soloState[idx]);
+        if (gridBtn) gridBtn.classList.toggle("active", soloState[idx]);
+        label.classList.toggle("soloed", soloState[idx]);
+      }
+
+      function toggleLofi(idx) {
+        lofiState[idx] = !lofiState[idx];
+        const btn = document.getElementById(`lofi-${idx}`);
+        btn.classList.toggle("active", lofiState[idx]);
+        saveCurrentPatternData();
+      }
+
+      function shouldPlayInstrument(idx) {
+        const anySolo = soloState.some((s) => s);
+        if (anySolo) return soloState[idx];
+        return !muteState[idx];
+      }
+
+      function updatePatternSelector() {
+        const select = document.getElementById("pattern-select");
+        const arrSelect = document.getElementById("arr-pattern-select");
+        const nameInput = document.getElementById("pattern-name");
+
+        select.innerHTML = "";
+        arrSelect.innerHTML = "";
+
+        patterns.forEach((p, i) => {
+          const opt1 = document.createElement("option");
+          opt1.value = i;
+          opt1.textContent = p.name;
+          select.appendChild(opt1);
+
+          const opt2 = document.createElement("option");
+          opt2.value = i;
+          opt2.textContent = p.name;
+          arrSelect.appendChild(opt2);
+        });
+
+        select.value = currentPatternIndex;
+        nameInput.value = patterns[currentPatternIndex].name;
+      }
+
+      function loadPattern(index) {
+        currentPatternIndex = index;
+        const p = patterns[index];
+
+        pattern = p.data
+          ? JSON.parse(JSON.stringify(p.data))
+          : createEmptyPattern();
+        eqSettings = p.eq
+          ? JSON.parse(JSON.stringify(p.eq))
+          : createDefaultEQ();
+        envelopeSettings = p.envelopes
+          ? JSON.parse(JSON.stringify(p.envelopes))
+          : createDefaultEnvelopes();
+        panSettings = p.pans
+          ? JSON.parse(JSON.stringify(p.pans))
+          : createDefaultPans();
+        velocitySettings = p.velocities
+          ? JSON.parse(JSON.stringify(p.velocities))
+          : createDefaultVelocities();
+        lofiState = p.lofi
+          ? JSON.parse(JSON.stringify(p.lofi))
+          : createDefaultLofi();
+
+        buildSequencer();
+        buildMixer();
+        updateCurrentStep();
+
+        document.getElementById("pattern-name").value = p.name;
+      }
+
+      function saveCurrentPatternData() {
+        patterns[currentPatternIndex].data = JSON.parse(
+          JSON.stringify(pattern),
+        );
+        patterns[currentPatternIndex].eq = JSON.parse(
+          JSON.stringify(eqSettings),
+        );
+        patterns[currentPatternIndex].envelopes = JSON.parse(
+          JSON.stringify(envelopeSettings),
+        );
+        patterns[currentPatternIndex].pans = JSON.parse(
+          JSON.stringify(panSettings),
+        );
+        patterns[currentPatternIndex].velocities = JSON.parse(
+          JSON.stringify(velocitySettings),
+        );
+        patterns[currentPatternIndex].lofi = JSON.parse(
+          JSON.stringify(lofiState),
+        );
+      }
+
+      function updateCurrentStep() {
+        document
+          .querySelectorAll(".step")
+          .forEach((el) => el.classList.remove("current"));
+        document
+          .querySelectorAll(`[data-step="${currentStep}"]`)
+          .forEach((el) => {
+            el.classList.add("current");
+          });
+      }
+
+      function updateArrangementDisplay() {
+        const list = document.getElementById("arrangement-list");
+
+        if (arrangement.length === 0) {
+          list.innerHTML =
+            '<div style="color: #666; text-align: center; padding: 20px;">No arrangement yet. Add patterns above.</div>';
+          return;
+        }
+
+        list.innerHTML = "";
+        arrangement.forEach((item, idx) => {
+          const div = document.createElement("div");
+          div.className = "arrangement-item";
+          if (idx === arrangementIndex && isPlaying) {
+            div.classList.add("playing");
+          }
+
+          div.innerHTML = `
+                      <div class="arrangement-info">
+                        <strong>${item.patternName}</strong>
+                        <span>×${item.bars} bars</span>
+                      </div>
+                      <button onclick="removeFromArrangement(${idx})">Remove</button>
+                    `;
+
+          list.appendChild(div);
+        });
+      }
+
+      async function ensureAudioStarted() {
+        if (!audioStarted && cs) {
+          try {
+            // Resume audio context first (requires user gesture)
+            const audioContext = await cs.getAudioContext();
+            if (audioContext && audioContext.state === "suspended") {
+              await audioContext.resume();
+              console.log("Audio context resumed");
+            }
+
+            // Now start Csound
+            await cs.start();
+            console.log("Csound started");
+
+            // Start master FX chain (instrument 997 executes before recorder 998)
+            await cs.inputMessage("i 997 0 -1");
+            console.log("Master FX started");
+
+            // Start recorder instrument (always running, listens for recordReady)
+            await cs.inputMessage("i 998 0 -1");
+            console.log("Recorder started");
+
+            audioStarted = true;
+          } catch (err) {
+            console.error("Failed to start audio:", err);
+          }
+        }
+      }
+
+      async function triggerDrum(instrIdx, velocity = null) {
+        if (!cs) return;
+        await ensureAudioStarted();
+        if (!shouldPlayInstrument(instrIdx)) return;
+
+        const vol = velocity !== null ? velocity : volumes[instrIdx];
+        const instr = instruments[instrIdx];
+        const eq = eqSettings[instrIdx];
+        const env = envelopeSettings[instrIdx];
+        const pan = panSettings[instrIdx];
+
+        // Apply drum kit characteristics
+        const kit = drumKits[currentDrumKit];
+        const kitEqLow = Math.max(0, Math.min(100, eq.low));
+        const kitEqMid = Math.max(0, Math.min(100, eq.mid * kit.snareTone));
+        const kitEqHigh = Math.max(0, Math.min(100, eq.high * kit.hatBrightness));
+        const kitRelease = Math.max(1, Math.min(200, env.release * kit.decay));
+        const kitPitch = kit.kickPitch;
+
+        // Visual feedback - flash the label
+        const label = document.getElementById(`label-${instrIdx}`);
+        if (label) {
+          label.classList.add("triggered");
+          setTimeout(() => label.classList.remove("triggered"), 100);
+        }
+
+        await cs.inputMessage(
+          `i "${instr.name}" 0 1 ${vol} ${kitEqLow} ${kitEqMid} ${kitEqHigh} ${env.attack} ${kitRelease} ${pan} ${kitPitch}`,
+        );
+      }
+
+      function getStepDelay(step) {
+        return ((60 / bpm) * 1000) / 4;
+      }
+
+      function playStep() {
+        lastPlayedStep = currentStep;
+
+        // Update Csound with current step for synced recording
+        if (cs) {
+          cs.setControlChannel("currentStep", currentStep);
+        }
+
+        if (arrangement.length > 0 && arrangementIndex < arrangement.length) {
+          const currentArrangement = arrangement[arrangementIndex];
+          const p = patterns[currentArrangement.patternIndex];
+          const patternData = p.data;
+          const patternEQ = p.eq || createDefaultEQ();
+          const patternEnv = p.envelopes || createDefaultEnvelopes();
+          const patternPan = p.pans || createDefaultPans();
+          const patternVel = p.velocities || createDefaultVelocities();
+          const patternLofi = p.lofi || createDefaultLofi();
+
+          if (patternData) {
+            for (let i = 0; i < instruments.length; i++) {
+              if (patternData[i][currentStep] && shouldPlayInstrument(i)) {
+                const vol = volumes[i] * (patternVel[i][currentStep] / 100);
+                const eq = patternEQ[i];
+                const env = patternEnv[i];
+                const pan = patternPan[i];
+                
+                // Apply drum kit characteristics
+                const kit = drumKits[currentDrumKit];
+                const kitEqLow = Math.max(0, Math.min(100, eq.low));
+                const kitEqMid = Math.max(0, Math.min(100, eq.mid * kit.snareTone));
+                const kitEqHigh = Math.max(0, Math.min(100, eq.high * kit.hatBrightness));
+                const kitRelease = Math.max(1, Math.min(200, env.release * kit.decay));
+                const kitPitch = kit.kickPitch;
+                
+                cs.inputMessage(
+                  `i "${instruments[i].name}" 0 1 ${vol} ${kitEqLow} ${kitEqMid} ${kitEqHigh} ${env.attack} ${kitRelease} ${pan} ${kitPitch}`,
+                );
+              }
+            }
+          }
+
+          if (currentStep === 15) {
+            arrangementBarCount++;
+            if (arrangementBarCount >= currentArrangement.bars) {
+              arrangementBarCount = 0;
+              arrangementIndex++;
+
+              if (arrangementIndex >= arrangement.length) {
+                arrangementIndex = 0;
+              }
+
+              updateArrangementDisplay();
+            }
+          }
+        } else {
+          for (let i = 0; i < instruments.length; i++) {
+            if (pattern[i][currentStep]) {
+              const vol = volumes[i] * (velocitySettings[i][currentStep] / 100);
+              const eq = eqSettings[i];
+              const env = envelopeSettings[i];
+              const pan = panSettings[i];
+              
+              // Apply drum kit characteristics
+              const kit = drumKits[currentDrumKit];
+              const kitEqLow = Math.max(0, Math.min(100, eq.low));
+              const kitEqMid = Math.max(0, Math.min(100, eq.mid * kit.snareTone));
+              const kitEqHigh = Math.max(0, Math.min(100, eq.high * kit.hatBrightness));
+              const kitRelease = Math.max(1, Math.min(200, env.release * kit.decay));
+              const kitPitch = kit.kickPitch;
+              
+              if (shouldPlayInstrument(i)) {
+                cs.inputMessage(
+                  `i "${instruments[i].name}" 0 1 ${vol} ${kitEqLow} ${kitEqMid} ${kitEqHigh} ${env.attack} ${kitRelease} ${pan} ${kitPitch}`,
+                );
+              }
+            }
+          }
+        }
+
+        updateCurrentStep();
+        currentStep = (currentStep + 1) % 16;
+      }
+
+      async function startPlayback() {
+        if (patternInterval) return;
+
+        await ensureAudioStarted();
+
+        const baseStepTime = ((60 / bpm) * 1000) / 4;
+        let stepTimer = 0;
+
+        const tick = () => {
+          playStep();
+          const nextDelay = getStepDelay(currentStep - 1);
+          patternInterval = setTimeout(tick, nextDelay);
+        };
+
+        tick();
+        isPlaying = true;
+
+        document.getElementById("play").classList.add("active");
+
+        if (arrangement.length > 0) {
+          updateStatus("Playing arrangement: " + arrangementName, true);
+        } else {
+          updateStatus("Playing pattern...", true);
+        }
+      }
+
+      function stopPlayback() {
+        if (patternInterval) {
+          clearTimeout(patternInterval);
+          patternInterval = null;
+        }
+        isPlaying = false;
+        currentStep = 0;
+        lastPlayedStep = 0;
+        arrangementIndex = 0;
+        arrangementBarCount = 0;
+
+        document.getElementById("play").classList.remove("active");
+        updateCurrentStep();
+        updateArrangementDisplay();
+        updateStatus("Stopped");
+
+        if (isBouncing) {
+          stopAudioBounce();
+        }
+      }
+
+      function toggleRecording() {
+        isRecording = !isRecording;
+
+        const btn = document.getElementById("record");
+        const indicator = document.getElementById("record-indicator");
+
+        btn.classList.toggle("active", isRecording);
+        indicator.classList.toggle("active", isRecording);
+
+        if (isRecording) {
+          if (!isPlaying) {
+            startPlayback();
+          }
+          updateStatus("MIDI Recording - play notes in time", true);
+        } else {
+          updateStatus("Recording stopped");
+          saveCurrentPatternData();
+        }
+      }
+
+      // Helper: Convert AudioBuffer to normalized WAV blob
+      function bufferToWavBlob(abuffer, gain) {
+        let numOfChan = abuffer.numberOfChannels,
+          length = abuffer.length * numOfChan * 2 + 44,
+          buffer = new ArrayBuffer(length),
+          view = new DataView(buffer),
+          channels = [],
+          i,
+          sample,
+          offset = 0,
+          pos = 0;
+
+        // Write WAV RIFF header
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8); // file length - 8
+        setUint32(0x45564157); // "WAVE"
+        setUint32(0x20746d66); // "fmt " chunk
+        setUint32(16); // length = 16
+        setUint16(1); // PCM (uncompressed)
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+        setUint16(numOfChan * 2); // block-align
+        setUint16(16); // 16-bit
+        setUint32(0x61746164); // "data" - chunk
+        setUint32(length - pos - 4); // chunk length
+
+        // Write Interleaved Audio Data
+        for (i = 0; i < abuffer.numberOfChannels; i++)
+          channels.push(abuffer.getChannelData(i));
+
+        while (pos < length) {
+          for (i = 0; i < numOfChan; i++) {
+            // interleave channels
+            sample = Math.max(-1, Math.min(1, channels[i][offset] * gain)); // Apply Gain
+            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit
+            view.setInt16(pos, sample, true); // write 16-bit sample
+            pos += 2;
+          }
+          offset++;
+        }
+
+        return new Blob([buffer], { type: "audio/wav" });
+
+        function setUint16(data) {
+          view.setUint16(pos, data, true);
+          pos += 2;
+        }
+        function setUint32(data) {
+          view.setUint32(pos, data, true);
+          pos += 4;
+        }
+      }
+
+      // Synced Pattern Recording with Normalization
+      let recordMonitor = null;
+      let recordStartTime = 0;
+
+      async function startRecording() {
+        if (!cs || isBouncing) return;
+
+        try {
+          await ensureAudioStarted();
+
+          // Start playback if not playing
+          if (!isPlaying) {
+            startPlayback();
+          }
+
+          isBouncing = true;
+          recordStartTime = Date.now();
+
+          // Initialize recording
+          await cs.setControlChannel("recordReady", 1);
+          await cs.setControlChannel("recordDone", 0);
+          await cs.setControlChannel("recordStop", 0);
+
+          const startBtn = document.getElementById("start-recording");
+          const stopBtn = document.getElementById("stop-recording");
+
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          stopBtn.style.background = "#d00";
+
+          updateStatus("🔴 Recording...");
+          console.log("Recording started");
+
+          // Monitor for completion (in case of errors)
+          recordMonitor = setInterval(async () => {
+            const isDone = await cs.getControlChannel("recordDone");
+            if (isDone === 1) {
+              clearInterval(recordMonitor);
+              await downloadNormalizedWav();
+            }
+          }, 100);
+        } catch (err) {
+          updateStatus("Record error: " + err.message);
+          console.error(err);
+          isBouncing = false;
+        }
+      }
+
+      async function stopRecording() {
+        if (!cs || !isBouncing) return;
+
+        try {
+          console.log("Stopping recording...");
+
+          // Signal recorder to stop
+          await cs.setControlChannel("recordStop", 1);
+          await cs.setControlChannel("recordReady", 0);
+
+          if (recordMonitor) {
+            clearInterval(recordMonitor);
+            recordMonitor = null;
+          }
+
+          // Download the file
+          await downloadNormalizedWav();
+        } catch (err) {
+          updateStatus("Stop error: " + err.message);
+          console.error(err);
+          isBouncing = false;
+        }
+      }
+
+      async function downloadNormalizedWav() {
+        try {
+          console.log("Retrieving recorded file from VFS...");
+
+          // Get the peak value tracked by Csound
+          const peak = await cs.getControlChannel("maxPeak");
+          console.log("Csound tracked peak:", peak);
+
+          // Wait for file system to finalize WAV header
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
+          // Check if file exists
+          try {
+            const fileList = await cs.fs.readdir("/");
+            console.log("Files in root:", fileList);
+          } catch (e) {
+            console.warn("Could not list files:", e);
+          }
+
+          // Use Emscripten filesystem API (with await - returns Uint8Array)
+          let fileData;
+          try {
+            fileData = await cs.fs.readFile("dr_c_capture.wav");
+          } catch (e) {
+            console.error("fs.readFile failed:", e);
+            throw new Error(
+              "Could not read file from VFS - file may not have been written",
+            );
+          }
+
+          if (!fileData || fileData.length < 100) {
+            console.error("File size:", fileData ? fileData.length : 0);
+            throw new Error(
+              `File is empty or corrupt (${fileData ? fileData.length : 0} bytes) - peak was ${peak.toFixed(3)}`,
+            );
+          }
+
+          console.log(`File retrieved: ${fileData.length} bytes`);
+
+          // Decode using Web Audio API
+          const audioCtx = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const originalBuffer = await audioCtx.decodeAudioData(
+            fileData.buffer,
+          );
+
+          // TRIM FIRST 20ms to remove startup click/spike
+          const trimSeconds = 0.02;
+          const trimSamples = Math.floor(
+            trimSeconds * originalBuffer.sampleRate,
+          );
+          const trimmedLength = originalBuffer.length - trimSamples;
+
+          console.log(
+            `Trimming first ${trimSeconds}s (${trimSamples} samples)`,
+          );
+
+          // Create new buffer without the first 500ms
+          const audioBuffer = audioCtx.createBuffer(
+            originalBuffer.numberOfChannels,
+            trimmedLength,
+            originalBuffer.sampleRate,
+          );
+
+          // Copy data, skipping first 500ms
+          for (let ch = 0; ch < originalBuffer.numberOfChannels; ch++) {
+            const originalData = originalBuffer.getChannelData(ch);
+            const trimmedData = audioBuffer.getChannelData(ch);
+            for (let i = 0; i < trimmedLength; i++) {
+              trimmedData[i] = originalData[i + trimSamples];
+            }
+          }
+
+          // Use Csound's tracked peak for normalization (-3dB)
+          const normGain = peak > 0.001 ? 0.707 / peak : 1.0;
+          console.log(
+            `Normalizing with gain: ${normGain.toFixed(3)}x (peak: ${peak.toFixed(3)})`,
+          );
+
+          // Convert to WAV blob with normalization
+          const wavBlob = bufferToWavBlob(audioBuffer, normGain);
+          const url = window.URL.createObjectURL(wavBlob);
+          const a = document.createElement("a");
+
+          // Calculate duration
+          const durationSec = (Date.now() - recordStartTime) / 1000;
+          const patternName = patterns[currentPatternIndex].name.replace(
+            /[^a-zA-Z0-9_-]/g,
+            "_",
+          );
+          const timestamp = Date.now();
+          a.href = url;
+          a.download = `DrC_${patternName}_${durationSec.toFixed(1)}s_${timestamp}.wav`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+
+          updateStatus(
+            `✅ Downloaded: ${a.download} (${(wavBlob.size / 1024).toFixed(1)} KB)`,
+            true,
+          );
+          setTimeout(() => updateStatus("Ready", false), 3000);
+        } catch (err) {
+          console.error("Download error:", err);
+          console.error("Error stack:", err.stack);
+          updateStatus(`❌ Error: ${err.message}`, true);
+          setTimeout(() => updateStatus("Ready", false), 5000);
+        } finally {
+          isBouncing = false;
+
+          const startBtn = document.getElementById("start-recording");
+          const stopBtn = document.getElementById("stop-recording");
+
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          stopBtn.style.background = "#444";
+
+          await cs.setControlChannel("recordReady", 0);
+          await cs.setControlChannel("recordDone", 0);
+          await cs.setControlChannel("recordStop", 0);
+        }
+      }
+
+      function savePattern() {
+        const p = patterns[currentPatternIndex];
+        const filename = prompt("Enter filename for pattern:", p.name);
+        if (!filename) return;
+
+        saveCurrentPatternData();
+
+        const patternData = {
+          version: 3,
+          name: p.name,
+          data: p.data,
+          eq: p.eq,
+          envelopes: p.envelopes,
+          pans: p.pans,
+          velocities: p.velocities,
+          lofi: p.lofi,
+        };
+
+        const json = JSON.stringify(patternData, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${filename}.json`;
+        a.click();
+
+        updateStatus(`Pattern saved: ${filename}.json`, true);
+      }
+
+      function loadPatternFile(file) {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          try {
+            const patternData = JSON.parse(e.target.result);
+
+            patterns[currentPatternIndex] = {
+              name: patternData.name || "Loaded Pattern",
+              data: patternData.data || null,
+              eq: patternData.eq || null,
+              envelopes: patternData.envelopes || null,
+              pans: patternData.pans || null,
+              velocities: patternData.velocities || null,
+              lofi: patternData.lofi || null,
+            };
+
+            updatePatternSelector();
+            loadPattern(currentPatternIndex);
+            updateStatus("Pattern loaded!", true);
+          } catch (err) {
+            updateStatus("Error loading pattern: " + err.message);
+          }
+        };
+
+        reader.readAsText(file);
+      }
+
+      function newPattern() {
+        const num = patterns.length + 1;
+        patterns.push({
+          name: `Pattern ${num}`,
+          data: null,
+          eq: null,
+          envelopes: null,
+          pans: null,
+          velocities: null,
+          lofi: null,
+        });
+
+        currentPatternIndex = patterns.length - 1;
+        updatePatternSelector();
+        loadPattern(currentPatternIndex);
+        updateStatus(`Created Pattern ${num}`);
+      }
+
+      function copyPattern() {
+        const current = patterns[currentPatternIndex];
+        clipboard = {
+          data: current.data ? JSON.parse(JSON.stringify(current.data)) : null,
+          eq: current.eq ? JSON.parse(JSON.stringify(current.eq)) : null,
+          envelopes: current.envelopes
+            ? JSON.parse(JSON.stringify(current.envelopes))
+            : null,
+          pans: current.pans ? JSON.parse(JSON.stringify(current.pans)) : null,
+          velocities: current.velocities
+            ? JSON.parse(JSON.stringify(current.velocities))
+            : null,
+          lofi: current.lofi ? JSON.parse(JSON.stringify(current.lofi)) : null,
+        };
+        document.getElementById("paste-pattern").disabled = false;
+        updateStatus("Pattern copied to clipboard");
+      }
+
+      function pastePattern() {
+        if (!clipboard) return;
+
+        pattern = clipboard.data
+          ? JSON.parse(JSON.stringify(clipboard.data))
+          : createEmptyPattern();
+        eqSettings = clipboard.eq
+          ? JSON.parse(JSON.stringify(clipboard.eq))
+          : createDefaultEQ();
+        envelopeSettings = clipboard.envelopes
+          ? JSON.parse(JSON.stringify(clipboard.envelopes))
+          : createDefaultEnvelopes();
+        panSettings = clipboard.pans
+          ? JSON.parse(JSON.stringify(clipboard.pans))
+          : createDefaultPans();
+        velocitySettings = clipboard.velocities
+          ? JSON.parse(JSON.stringify(clipboard.velocities))
+          : createDefaultVelocities();
+        lofiState = clipboard.lofi
+          ? JSON.parse(JSON.stringify(clipboard.lofi))
+          : createDefaultLofi();
+
+        saveCurrentPatternData();
+        buildSequencer();
+        buildMixer();
+        updateStatus("Pattern pasted");
+      }
+
+      function clearPattern() {
+        if (!confirm("Clear entire pattern?")) return;
+        pattern = createEmptyPattern();
+        saveCurrentPatternData();
+        buildSequencer();
+        updateStatus("Pattern cleared");
+      }
+
+      function clearTrack() {
+        const trackIdx = parseInt(
+          document.getElementById("track-select").value,
+        );
+        pattern[trackIdx].fill(false);
+        saveCurrentPatternData();
+        buildSequencer();
+        updateStatus(`${instruments[trackIdx].name} track cleared`);
+      }
+
+      function randomTrack() {
+        const trackIdx = parseInt(
+          document.getElementById("track-select").value,
+        );
+        const density = 0.35;
+
+        for (let s = 0; s < 16; s++) {
+          const chance = s % 4 === 0 ? density * 1.5 : density;
+          pattern[trackIdx][s] = Math.random() < chance;
+          if (pattern[trackIdx][s]) {
+            velocitySettings[trackIdx][s] = 60 + Math.random() * 40;
+          }
+        }
+
+        saveCurrentPatternData();
+        buildSequencer();
+        updateStatus(`${instruments[trackIdx].name} randomized`);
+      }
+
+      function randomPattern() {
+        const density = 0.3;
+
+        for (let i = 0; i < instruments.length; i++) {
+          for (let s = 0; s < 16; s++) {
+            const chance = s % 4 === 0 ? density * 1.5 : density;
+            pattern[i][s] = Math.random() < chance;
+            if (pattern[i][s]) {
+              velocitySettings[i][s] = 60 + Math.random() * 40;
+            }
+          }
+        }
+
+        saveCurrentPatternData();
+        buildSequencer();
+        updateStatus("Random pattern generated");
+      }
+
+      function renamePattern() {
+        const newName = document.getElementById("pattern-name").value.trim();
+        if (newName) {
+          patterns[currentPatternIndex].name = newName;
+          updatePatternSelector();
+          updateStatus("Pattern renamed");
+        }
+      }
+
+      function addToArrangement() {
+        const patternIdx = parseInt(
+          document.getElementById("arr-pattern-select").value,
+        );
+        const bars = parseInt(document.getElementById("arr-bars").value);
+
+        arrangement.push({
+          patternIndex: patternIdx,
+          patternName: patterns[patternIdx].name,
+          bars: bars,
+        });
+
+        updateArrangementDisplay();
+        updateStatus(`Added ${patterns[patternIdx].name} (${bars} bars)`);
+      }
+
+      function clearArrangement() {
+        if (!confirm("Clear entire arrangement?")) return;
+        arrangement = [];
+        arrangementIndex = 0;
+        arrangementBarCount = 0;
+        updateArrangementDisplay();
+        updateStatus("Arrangement cleared");
+      }
+
+      function saveArrangementData() {
+        const name =
+          document.getElementById("arrangement-name").value.trim() ||
+          "Untitled";
+        const filename = prompt("Enter filename for arrangement:", name);
+        if (!filename) return;
+
+        arrangementName = name;
+
+        const arrData = {
+          version: 1,
+          name: arrangementName,
+          arrangement: arrangement,
+        };
+
+        const json = JSON.stringify(arrData, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${filename}.json`;
+        a.click();
+
+        updateStatus(`Arrangement saved: ${filename}.json`, true);
+      }
+
+      function loadArrangementFile(file) {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          try {
+            const arrData = JSON.parse(e.target.result);
+
+            arrangement = arrData.arrangement || [];
+            arrangementName = arrData.name || "Untitled";
+            document.getElementById("arrangement-name").value = arrangementName;
+
+            updateArrangementDisplay();
+            updateStatus("Arrangement loaded!", true);
+          } catch (err) {
+            updateStatus("Error loading arrangement: " + err.message);
+          }
+        };
+
+        reader.readAsText(file);
+      }
+
+      window.removeFromArrangement = function (idx) {
+        arrangement.splice(idx, 1);
+        updateArrangementDisplay();
+        updateStatus("Removed from arrangement");
+      };
+
+      function saveProject() {
+        const projectName = prompt(
+          "Enter project name:",
+          patterns[currentPatternIndex].name || "MyProject",
+        );
+        if (!projectName) return;
+
+        const project = {
+          version: 6,
+          bpm: bpm,
+          patterns: patterns,
+          volumes: volumes,
+          arrangement: arrangement,
+          arrangementName: arrangementName,
+          currentPattern: currentPatternIndex,
+          currentKit: currentKit,
+          masterFx: {
+            volume: masterVolume,
+            reverb: masterReverb,
+            width: masterWidth,
+            compress: masterCompress,
+            lofi: masterLofi,
+          },
+        };
+
+        const json = JSON.stringify(project, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${projectName}.json`;
+        a.click();
+
+        updateStatus(`Project saved: ${projectName}.json`, true);
+      }
+
+      function loadProject(file) {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          try {
+            const project = JSON.parse(e.target.result);
+
+            bpm = project.bpm || 128;
+            currentKit = project.currentKit || 0;
+            document.getElementById("tempo").value = bpm;
+            document.getElementById("bpm-display").textContent = bpm;
+
+            patterns = project.patterns || [
+              {
+                name: "Pattern 1",
+                data: null,
+                eq: null,
+                envelopes: null,
+                pans: null,
+                velocities: null,
+                lofi: null,
+              },
+            ];
+
+            if (project.volumes) {
+              project.volumes.forEach((v, i) => {
+                if (i < volumes.length) volumes[i] = v;
+              });
+            }
+
+            if (project.masterFx) {
+              masterVolume = project.masterFx.volume || 80;
+              masterReverb = project.masterFx.reverb || 20;
+              masterWidth = project.masterFx.width || 50;
+              masterCompress = project.masterFx.compress || 30;
+              masterLofi = project.masterFx.lofi || 0;
+
+              document.getElementById("master-volume").value = masterVolume;
+              document.getElementById("master-volume-val").textContent =
+                masterVolume + "%";
+              document.getElementById("master-reverb").value = masterReverb;
+              document.getElementById("master-reverb-val").textContent =
+                masterReverb + "%";
+              document.getElementById("master-width").value = masterWidth;
+              document.getElementById("master-width-val").textContent =
+                masterWidth + "%";
+              document.getElementById("master-compress").value = masterCompress;
+              document.getElementById("master-compress-val").textContent =
+                masterCompress + "%";
+              // Master FX removed for now
+            }
+
+            arrangement = project.arrangement || [];
+            arrangementName = project.arrangementName || "Untitled";
+            document.getElementById("arrangement-name").value = arrangementName;
+            currentPatternIndex = project.currentPattern || 0;
+
+            updatePatternSelector();
+            loadPattern(currentPatternIndex);
+            updateArrangementDisplay();
+
+            updateStatus("Project loaded!", true);
+          } catch (err) {
+            updateStatus("Error loading: " + err.message);
+          }
+        };
+
+        reader.readAsText(file);
+      }
+
+      function handleTapTempo() {
+        const now = Date.now();
+        tapTimes.push(now);
+
+        if (tapTimes.length > 4) tapTimes.shift();
+
+        if (tapTimes.length >= 2) {
+          const intervals = [];
+          for (let i = 1; i < tapTimes.length; i++) {
+            intervals.push(tapTimes[i] - tapTimes[i - 1]);
+          }
+          const avgInterval =
+            intervals.reduce((a, b) => a + b) / intervals.length;
+          const newBPM = Math.round(60000 / avgInterval);
+
+          if (newBPM >= 60 && newBPM <= 200) {
+            bpm = newBPM;
+            document.getElementById("tempo").value = bpm;
+            document.getElementById("bpm-display").textContent = bpm;
+
+            if (isPlaying) {
+              stopPlayback();
+              startPlayback();
+            }
+          }
+        }
+
+        setTimeout(() => {
+          tapTimes = tapTimes.filter((t) => Date.now() - t < 2000);
+        }, 2000);
+      }
+
+      async function initMIDI() {
+        if (!navigator.requestMIDIAccess) {
+          updateStatus("Web MIDI not supported");
+          return;
+        }
+
+        try {
+          midiAccess = await navigator.requestMIDIAccess();
+
+          for (let input of midiAccess.inputs.values()) {
+            input.onmidimessage = handleMIDIMessage;
+          }
+
+          document.getElementById("enable-midi").textContent = "✅ MIDI";
+          document.getElementById("enable-midi").disabled = true;
+          updateStatus("MIDI enabled", true);
+        } catch (err) {
+          updateStatus("MIDI denied");
+        }
+      }
+
+      function handleMIDIMessage(event) {
+        const [status, note, velocity] = event.data;
+        const messageType = status & 0xf0;
+
+        if (messageType === 0x90 && velocity > 0) {
+          const instrIdx = noteToInstrIndex[note];
+          if (instrIdx !== undefined) {
+            triggerDrum(instrIdx, velocity / 127);
+
+            if (isRecording && isPlaying) {
+              const recordStep = lastPlayedStep;
+              pattern[instrIdx][recordStep] = true;
+              velocitySettings[instrIdx][recordStep] = Math.round(
+                (velocity / 127) * 100,
+              );
+
+              const cb = document.getElementById(
+                `cb-${instrIdx}-${recordStep}`,
+              );
+              if (cb) cb.checked = true;
+
+              const stepDiv = document.querySelector(
+                `[data-instr="${instrIdx}"][data-step="${recordStep}"]`,
+              );
+              if (stepDiv) stepDiv.classList.add("active");
+            }
+          }
+        }
+      }
+
+      async function initCsound() {
+        try {
+          updateStatus("Loading Csound 7...");
+          const { Csound } = await import(
+            "https://cdn.jsdelivr.net/npm/@csound/browser@7.0.0-beta26/dist/csound.js"
+          );
+
+          cs = await Csound({
+            useWorker: false,
+            useSPN: false,
+            outputChannelCount: 2,
+          });
+          await cs.compileOrc(orc);
+          await cs.setOption("-odac");
+
+          // Initialize master control channels
+          await cs.setControlChannel("master_volume", masterVolume);
+          await cs.setControlChannel("master_reverb", masterReverb);
+          await cs.setControlChannel("master_distort", 0);
+          await cs.setControlChannel("master_width", masterWidth);
+          await cs.setControlChannel("master_compress", masterCompress);
+          await cs.setControlChannel("master_pan", 50);
+          await cs.setControlChannel("master_eq_low", 50);
+          await cs.setControlChannel("master_eq_mid", 50);
+          await cs.setControlChannel("master_eq_high", 50);
+          await cs.setControlChannel("master_hpf", 0);
+          await cs.setControlChannel("master_lpf", 100);
+          await cs.setControlChannel("master_lpf_res", 0);
+          await cs.setControlChannel("master_delay_time", 0);
+          await cs.setControlChannel("master_delay_fb", 30);
+          await cs.setControlChannel("master_lfo_rate", 20);
+          await cs.setControlChannel("master_lfo_depth", 0);
+          await cs.setControlChannel("master_comb_freq", 50);
+          await cs.setControlChannel("master_comb_res", 0);
+          await cs.setControlChannel("master_flange_rate", 0);
+          await cs.setControlChannel("master_flange_fb", 50);
+
+          // Recording channels
+          await cs.setControlChannel("recordReady", 0);
+          await cs.setControlChannel("recordStop", 0);
+          await cs.setControlChannel("recordDone", 0);
+          await cs.setControlChannel("maxPeak", 0.001);
+
+          document.getElementById("play").disabled = false;
+          document.getElementById("stop").disabled = false;
+          document.getElementById("record").disabled = false;
+          document.getElementById("tempo").disabled = false;
+          document.getElementById("tap-tempo").disabled = false;
+          document.getElementById("pattern-select").disabled = false;
+          document.getElementById("pattern-name").disabled = false;
+          document.getElementById("rename-pattern").disabled = false;
+          document.getElementById("save-pattern").disabled = false;
+          document.getElementById("load-pattern-btn").disabled = false;
+          document.getElementById("preset-select").disabled = false;
+          document.getElementById("new-pattern").disabled = false;
+          document.getElementById("copy-pattern").disabled = false;
+          document.getElementById("clear-pattern").disabled = false;
+          document.getElementById("track-select").disabled = false;
+          document.getElementById("clear-track").disabled = false;
+          document.getElementById("random-track").disabled = false;
+          document.getElementById("random-pattern").disabled = false;
+          document.getElementById("start-recording").disabled = false;
+          document.getElementById("stop-recording").disabled = true;
+          document.getElementById("save-project").disabled = false;
+          document.getElementById("load-project-btn").disabled = false;
+          document.getElementById("arr-pattern-select").disabled = false;
+          document.getElementById("arr-bars").disabled = false;
+          document.getElementById("add-to-arrangement").disabled = false;
+          document.getElementById("clear-arrangement").disabled = false;
+          document.getElementById("arrangement-name").disabled = false;
+          document.getElementById("save-arrangement").disabled = false;
+          document.getElementById("load-arrangement-btn").disabled = false;
+          document.getElementById("bounce-arrangement-audio").disabled = false;
+          document.getElementById("master-volume").disabled = false;
+          document.getElementById("master-reverb").disabled = false;
+          document.getElementById("master-distort").disabled = false;
+          document.getElementById("master-width").disabled = false;
+          document.getElementById("master-compress").disabled = false;
+          document.getElementById("master-pan").disabled = false;
+          document.getElementById("master-eq-low").disabled = false;
+          document.getElementById("master-eq-mid").disabled = false;
+          document.getElementById("master-eq-high").disabled = false;
+          document.getElementById("master-hpf").disabled = false;
+          document.getElementById("master-lpf").disabled = false;
+          document.getElementById("master-lpf-res").disabled = false;
+          document.getElementById("master-delay-time").disabled = false;
+          document.getElementById("master-delay-fb").disabled = false;
+          document.getElementById("master-lfo-rate").disabled = false;
+          document.getElementById("master-lfo-depth").disabled = false;
+          document.getElementById("master-comb-freq").disabled = false;
+          document.getElementById("master-comb-res").disabled = false;
+          document.getElementById("master-flange-rate").disabled = false;
+          document.getElementById("master-flange-fb").disabled = false;
+          document.getElementById("drum-kit-select").disabled = false;
+
+          buildSequencer();
+          buildMixer();
+          buildTrackSelector();
+          updatePatternSelector();
+          updateCurrentStep();
+
+          updateStatus(
+            "Ready! Click a drum or press PLAY/SPACE to start.",
+            true,
+          );
+
+          // Start meter and waveform update loop
+          startMeterUpdate();
+        } catch (err) {
+          updateStatus("Error: " + err.message);
+          console.error(err);
+        }
+      }
+
+      // Update VU meters and waveform display
+      let analyser = null;
+      let fftDataArray = null;
+      let timeDomainData = null;
+
+      function startMeterUpdate() {
+        const meterL = document.getElementById("meter-l");
+        const meterR = document.getElementById("meter-r");
+        const fftCanvas = document.getElementById("fft-canvas");
+
+        if (!meterL || !meterR || !fftCanvas) {
+          console.error("Meter elements not found!");
+          return;
+        }
+
+        const fftCtx = fftCanvas.getContext("2d");
+
+        // Setup FFT analyser - do it asynchronously after first update
+        async function setupFFT() {
+          if (cs && !analyser) {
+            try {
+              // Get the AudioContext from Csound
+              const audioContext = await cs.getAudioContext();
+              if (audioContext) {
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.8;
+                fftDataArray = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.fftSize);
+                
+                // Try different methods to get Csound's audio node
+                let csOutputNode = null;
+                
+                // Method 1: Try getNode()
+                if (typeof cs.getNode === 'function') {
+                  csOutputNode = await cs.getNode();
+                }
+                
+                // Method 2: Try accessing the node property directly
+                if (!csOutputNode && cs.node) {
+                  csOutputNode = cs.node;
+                }
+                
+                // Method 3: Try getting AudioNode from the Csound object
+                if (!csOutputNode && cs.audioNode) {
+                  csOutputNode = cs.audioNode;
+                }
+                
+                if (csOutputNode) {
+                  // Connect: Csound -> Analyser -> Destination
+                  csOutputNode.disconnect();
+                  csOutputNode.connect(analyser);
+                  analyser.connect(audioContext.destination);
+                  console.log("FFT analyser connected successfully");
+                } else {
+                  console.warn("Could not find Csound output node. Available properties:", Object.keys(cs));
+                }
+              } else {
+                console.warn("AudioContext not available");
+              }
+            } catch (err) {
+              console.error("Could not setup FFT analyser:", err);
+            }
+          }
+        }
+        
+        // Try to setup FFT after a short delay
+        setTimeout(setupFFT, 1000);
+
+        async function updateMeters() {
+          if (!cs) return;
+
+          try {
+            // Get peak levels from Csound (await if it's async)
+            const peakL = await cs.getControlChannel("meter_L");
+            const peakR = await cs.getControlChannel("meter_R");
+
+            // Update VU meters (0-100%) - HORIZONTAL: use width not height
+            if (meterL && typeof peakL === "number") {
+              meterL.style.width = Math.min(peakL * 100, 100) + "%";
+            }
+            if (meterR && typeof peakR === "number") {
+              meterR.style.width = Math.min(peakR * 100, 100) + "%";
+            }
+
+            // Draw FFT
+            if (fftCtx) {
+              fftCtx.fillStyle = "#0a0a0a";
+              fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+              
+              if (analyser && fftDataArray) {
+                analyser.getByteFrequencyData(fftDataArray);
+                
+                const barWidth = fftCanvas.width / fftDataArray.length;
+                let x = 0;
+                
+                for (let i = 0; i < fftDataArray.length; i++) {
+                  const barHeight = (fftDataArray[i] / 255) * fftCanvas.height;
+                  
+                  // Color gradient based on frequency
+                  const hue = (i / fftDataArray.length) * 60 + 180; // Cyan to green
+                  fftCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                  fftCtx.fillRect(x, fftCanvas.height - barHeight, barWidth, barHeight);
+                  
+                  x += barWidth;
+                }
+              } else {
+                // Show "connecting" text if analyser not ready
+                fftCtx.fillStyle = "#00d9ff";
+                fftCtx.font = "12px Rajdhani";
+                fftCtx.textAlign = "center";
+                fftCtx.fillText("FFT connecting...", fftCanvas.width / 2, fftCanvas.height / 2);
+              }
+            }
+          } catch (err) {
+            // Silently fail if channels not available yet
+            console.warn("Meter update error:", err);
+          }
+
+          requestAnimationFrame(updateMeters);
+        }
+
+        updateMeters();
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.code === "Space" && !e.target.matches("input")) {
+          e.preventDefault();
+          if (isPlaying) {
+            stopPlayback();
+          } else if (cs) {
+            startPlayback();
+          }
+        }
+      });
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.onclick = () => {
+          const tabName = tab.dataset.tab;
+
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-content")
+            .forEach((c) => c.classList.remove("active"));
+
+          tab.classList.add("active");
+          document
+            .querySelector(`.tab-content[data-tab="${tabName}"]`)
+            .classList.add("active");
+        };
+      });
+
+      document.getElementById("play").onclick = startPlayback;
+      document.getElementById("stop").onclick = stopPlayback;
+      document.getElementById("record").onclick = toggleRecording;
+      document.getElementById("tap-tempo").onclick = handleTapTempo;
+      document.getElementById("enable-midi").onclick = initMIDI;
+
+      document.getElementById("pattern-select").onchange = (e) => {
+        loadPattern(parseInt(e.target.value));
+      };
+
+      document.getElementById("rename-pattern").onclick = renamePattern;
+      document.getElementById("save-pattern").onclick = savePattern;
+      document.getElementById("load-pattern-btn").onclick = () => {
+        document.getElementById("load-pattern-file").click();
+      };
+      document.getElementById("load-pattern-file").onchange = (e) => {
+        if (e.target.files.length > 0) {
+          loadPatternFile(e.target.files[0]);
+        }
+      };
+      
+      document.getElementById("preset-select").onchange = (e) => {
+        const presetKey = e.target.value;
+        if (presetKey && presetPatterns[presetKey]) {
+          const preset = presetPatterns[presetKey];
+          
+          // Load the preset pattern
+          pattern = preset.pattern.map(track => [...track]);
+          
+          // Reset to default settings for a clean preset experience
+          eqSettings = createDefaultEQ();
+          envelopeSettings = createDefaultEnvelopes();
+          panSettings = createDefaultPans();
+          velocitySettings = createDefaultVelocities();
+          lofiState = instruments.map(() => false);
+          
+          // Update the grid display
+          buildSequencer();
+          buildMixer();
+          
+          // Update the pattern name
+          patterns[currentPatternIndex].name = preset.name;
+          patterns[currentPatternIndex].data = pattern;
+          patterns[currentPatternIndex].eq = eqSettings;
+          patterns[currentPatternIndex].envelopes = envelopeSettings;
+          patterns[currentPatternIndex].pans = panSettings;
+          patterns[currentPatternIndex].velocities = velocitySettings;
+          patterns[currentPatternIndex].lofi = lofiState;
+          
+          updatePatternSelect();
+          
+          // Reset the dropdown to show "Presets"
+          e.target.value = "";
+          
+          console.log("Loaded preset pattern:", preset.name);
+        }
+      };
+      
+      document.getElementById("new-pattern").onclick = newPattern;
+      document.getElementById("copy-pattern").onclick = copyPattern;
+      document.getElementById("paste-pattern").onclick = pastePattern;
+      document.getElementById("clear-pattern").onclick = clearPattern;
+      document.getElementById("clear-track").onclick = clearTrack;
+      document.getElementById("random-track").onclick = randomTrack;
+      document.getElementById("random-pattern").onclick = randomPattern;
+      document.getElementById("start-recording").onclick = startRecording;
+      document.getElementById("stop-recording").onclick = stopRecording;
+
+      document.getElementById("drum-kit-select").onchange = (e) => {
+        currentDrumKit = e.target.value;
+        console.log("Drum kit changed to:", drumKits[currentDrumKit].name);
+      };
+
+      document.getElementById("save-project").onclick = saveProject;
+      document.getElementById("load-project-btn").onclick = () => {
+        document.getElementById("load-project").click();
+      };
+      document.getElementById("load-project").onchange = (e) => {
+        if (e.target.files.length > 0) {
+          loadProject(e.target.files[0]);
+        }
+      };
+
+      document.getElementById("add-to-arrangement").onclick = addToArrangement;
+      document.getElementById("clear-arrangement").onclick = clearArrangement;
+      document.getElementById("save-arrangement").onclick = saveArrangementData;
+      document.getElementById("load-arrangement-btn").onclick = () => {
+        document.getElementById("load-arrangement-file").click();
+      };
+      document.getElementById("load-arrangement-file").onchange = (e) => {
+        if (e.target.files.length > 0) {
+          loadArrangementFile(e.target.files[0]);
+        }
+      };
+      document.getElementById("bounce-arrangement-audio").onclick = () =>
+        bounceAudio("arrangement");
+
+      document.getElementById("tempo").oninput = (e) => {
+        bpm = parseInt(e.target.value);
+        document.getElementById("bpm-display").textContent = bpm;
+
+        if (isPlaying) {
+          stopPlayback();
+          startPlayback();
+        }
+      };
+
+      document.getElementById("master-volume").oninput = (e) => {
+        masterVolume = parseInt(e.target.value);
+        document.getElementById("master-volume-val").textContent =
+          masterVolume + "%";
+        if (cs) cs.setControlChannel("master_volume", masterVolume);
+      };
+
+      document.getElementById("master-reverb").oninput = (e) => {
+        masterReverb = parseInt(e.target.value);
+        document.getElementById("master-reverb-val").textContent =
+          masterReverb + "%";
+        if (cs) cs.setControlChannel("master_reverb", masterReverb);
+      };
+
+      document.getElementById("master-distort").oninput = (e) => {
+        const distortVal = parseInt(e.target.value);
+        document.getElementById("master-distort-val").textContent =
+          distortVal + "%";
+        if (cs) cs.setControlChannel("master_distort", distortVal);
+      };
+
+      document.getElementById("master-width").oninput = (e) => {
+        masterWidth = parseInt(e.target.value);
+        document.getElementById("master-width-val").textContent =
+          masterWidth + "%";
+        if (cs) cs.setControlChannel("master_width", masterWidth);
+      };
+
+      document.getElementById("master-compress").oninput = (e) => {
+        masterCompress = parseInt(e.target.value);
+        document.getElementById("master-compress-val").textContent =
+          masterCompress + "%";
+        if (cs) cs.setControlChannel("master_compress", masterCompress);
+      };
+
+      document.getElementById("master-pan").oninput = (e) => {
+        const panVal = parseInt(e.target.value);
+        const display =
+          panVal > 50
+            ? "R" + (panVal - 50)
+            : panVal < 50
+              ? "L" + (50 - panVal)
+              : "C";
+        document.getElementById("master-pan-val").textContent = display;
+        if (cs) cs.setControlChannel("master_pan", panVal);
+      };
+
+      // Master EQ controls
+      document.getElementById("master-eq-low").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-eq-low-val").textContent = val;
+        if (cs) cs.setControlChannel("master_eq_low", val);
+      };
+
+      document.getElementById("master-eq-mid").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-eq-mid-val").textContent = val;
+        if (cs) cs.setControlChannel("master_eq_mid", val);
+      };
+
+      document.getElementById("master-eq-high").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-eq-high-val").textContent = val;
+        if (cs) cs.setControlChannel("master_eq_high", val);
+      };
+
+      // Master filters
+      document.getElementById("master-hpf").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-hpf-val").textContent = val + " Hz";
+        if (cs) cs.setControlChannel("master_hpf", val);
+      };
+
+      document.getElementById("master-lpf").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        const freq = 40 + (val / 100) * 9960;
+        const display =
+          freq >= 1000
+            ? (freq / 1000).toFixed(1) + "kHz"
+            : Math.round(freq) + "Hz";
+        document.getElementById("master-lpf-val").textContent = display;
+        if (cs) cs.setControlChannel("master_lpf", val);
+      };
+
+      document.getElementById("master-lpf-res").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        const res = (val / 100) * 0.95;
+        document.getElementById("master-lpf-res-val").textContent =
+          res.toFixed(2);
+        if (cs) cs.setControlChannel("master_lpf_res", val);
+      };
+
+      // Stereo delay
+      document.getElementById("master-delay-time").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-delay-time-val").textContent =
+          val + " ms";
+        if (cs) cs.setControlChannel("master_delay_time", val);
+      };
+
+      document.getElementById("master-delay-fb").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-delay-fb-val").textContent = val + "%";
+        if (cs) cs.setControlChannel("master_delay_fb", val);
+      };
+
+      // LFO auto-panner
+      document.getElementById("master-lfo-rate").oninput = (e) => {
+        const val = parseInt(e.target.value) / 10;
+        document.getElementById("master-lfo-rate-val").textContent =
+          val.toFixed(1) + " Hz";
+        if (cs) cs.setControlChannel("master_lfo_rate", val);
+      };
+
+      document.getElementById("master-lfo-depth").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-lfo-depth-val").textContent = val + "%";
+        if (cs) cs.setControlChannel("master_lfo_depth", val);
+      };
+
+      // Comb resonator controls
+      document.getElementById("master-comb-freq").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        const freq = 30 + (val / 100) * 270;
+        document.getElementById("master-comb-freq-val").textContent =
+          Math.round(freq) + "Hz";
+        if (cs) cs.setControlChannel("master_comb_freq", val);
+      };
+
+      document.getElementById("master-comb-res").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-comb-res-val").textContent = val + "%";
+        if (cs) cs.setControlChannel("master_comb_res", val);
+      };
+
+      // Flanger controls
+      document.getElementById("master-flange-rate").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        const rate = 0.1 + (val / 100) * 9.9;
+        document.getElementById("master-flange-rate-val").textContent =
+          rate.toFixed(1) + "Hz";
+        if (cs) cs.setControlChannel("master_flange_rate", val);
+      };
+
+      document.getElementById("master-flange-fb").oninput = (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById("master-flange-fb-val").textContent = val + "%";
+        if (cs) cs.setControlChannel("master_flange_fb", val);
+      };
+
+      // Auto-initialize Csound on page load
+      window.addEventListener("DOMContentLoaded", () => {
+        initCsound();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,5140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather Sonification - Modal Harmony</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #0a0a0a;
+        color: #fff;
+        overflow-x: hidden;
+      }
+
+      /* Dedicated Visualization Frame */
+      #viz-frame {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 300px;
+        z-index: 10;
+        background: rgba(10, 10, 10, 0.9);
+        border-bottom: 2px solid rgba(100, 150, 255, 0.3);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        transition: height 0.3s ease;
+      }
+
+      /* Expand viz frame to full screen when controls are hidden */
+      body.fullscreen-viz #viz-frame {
+        height: 100vh;
+        border-bottom: none;
+
+      #viz-title {
+        text-align: center;
+        padding: 4px 10px;
+        font-size: 1.3em;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        flex-shrink: 0;
+      }
+      #viz-title span {
+        font-size: 0.5em;
+        font-weight: normal;
+        -webkit-text-fill-color: rgba(200, 220, 255, 0.6);
+        margin-left: 10px;
+      }
+      }
+
+      #viz-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        padding: 6px 10px;
+        background: rgba(20, 20, 40, 0.5);
+        border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+      }
+
+      .viz-tab {
+        padding: 8px 16px;
+        background: rgba(50, 50, 80, 0.5);
+        border: 2px solid rgba(100, 150, 255, 0.3);
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 13px;
+      }
+
+      .viz-tab:hover {
+        background: rgba(70, 70, 100, 0.7);
+      }
+
+      .viz-tab.active {
+        background: rgba(100, 150, 255, 0.4);
+        border-color: rgba(100, 150, 255, 0.8);
+      }
+
+      #viz-display {
+        flex: 1;
+        position: relative;
+        overflow: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        grid-auto-rows: minmax(200px, 1fr);
+        gap: 2px;
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      .viz-panel {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: none;
+        min-height: 200px;
+      }
+
+      .viz-panel.active {
+        display: block;
+      }
+
+      #graphs-panel {
+        padding: 10px;
+      }
+
+      #canvas-container {
+        position: fixed;
+        top: 250px;
+        left: 0;
+        width: 100%;
+        height: calc(100% - 250px);
+        z-index: 0;
+      }
+
+      #viz-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .overlay {
+        position: relative;
+        z-index: 1;
+        padding: 20px;
+        padding-top: 310px;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .overlay > * {
+        pointer-events: auto;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+
+
+      .card {
+        background: rgba(20, 20, 40, 0.85);
+        backdrop-filter: blur(20px);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        box-shadow: 0 8px 32px rgba(100, 150, 255, 0.2);
+        border: 1px solid rgba(100, 150, 255, 0.2);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .advanced-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+        padding: 12px;
+        background: rgba(50, 50, 80, 0.3);
+        border-radius: 12px;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .control-label {
+        font-size: 0.75em;
+        opacity: 0.8;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      select,
+      input[type="range"],
+      input[type="number"] {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 2px solid rgba(100, 150, 255, 0.3);
+        background: rgba(30, 30, 60, 0.9);
+        color: #fff;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      select:hover,
+      input:hover {
+        border-color: rgba(100, 150, 255, 0.6);
+      }
+
+      input[type="range"] {
+        padding: 4px;
+        cursor: ew-resize;
+      }
+
+      input[type="number"] {
+        width: 100%;
+      }
+
+      .slider-value {
+        text-align: center;
+        font-size: 0.85em;
+        font-weight: bold;
+        color: rgba(100, 150, 255, 0.9);
+      }
+
+      button {
+        padding: 8px 18px;
+        border-radius: 8px;
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      #playBtn {
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        color: white;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+      }
+
+      #playBtn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+      }
+
+      #stopBtn {
+        background: linear-gradient(135deg, #f44336, #da190b);
+        color: white;
+        box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+      }
+
+      #stopBtn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(244, 67, 54, 0.6);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .mode-select {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .mode-btn {
+        padding: 10px;
+        background: rgba(50, 50, 80, 0.5);
+        border: 2px solid rgba(100, 150, 255, 0.3);
+        border-radius: 10px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+      }
+
+      .mode-btn:hover {
+        background: rgba(70, 70, 100, 0.7);
+        border-color: rgba(100, 150, 255, 0.6);
+      }
+
+      .mode-btn.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-color: #667eea;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+      }
+
+      .toggle-btn {
+        padding: 6px 14px;
+        background: rgba(50, 50, 80, 0.3);
+        border: 2px solid rgba(100, 150, 255, 0.2);
+        border-radius: 8px;
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 12px;
+        margin-left: 10px;
+      }
+
+      .toggle-btn:hover {
+        background: rgba(70, 70, 100, 0.5);
+        border-color: rgba(100, 150, 255, 0.4);
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .toggle-btn.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-color: #667eea;
+        box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+        color: #fff;
+      }
+
+      .status {
+        text-align: center;
+        padding: 15px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.5);
+        margin-bottom: 20px;
+        font-weight: 600;
+        font-size: 1.1em;
+      }
+
+      .chord-display {
+        text-align: center;
+        padding: 30px;
+        background: rgba(100, 150, 255, 0.1);
+        border-radius: 15px;
+        margin-bottom: 20px;
+        border: 2px solid rgba(100, 150, 255, 0.3);
+      }
+
+      .current-chord {
+        font-size: 3em;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-shadow: 0 0 30px rgba(100, 150, 255, 0.8);
+        font-family: "Georgia", serif;
+      }
+
+      .chord-info {
+        font-size: 1.1em;
+        opacity: 0.8;
+        margin-bottom: 15px;
+      }
+
+      .chord-progression {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+      }
+
+      .chord-item {
+        padding: 8px 16px;
+        background: rgba(50, 50, 80, 0.5);
+        border-radius: 8px;
+        font-size: 1.2em;
+        font-family: "Georgia", serif;
+        transition: all 0.3s;
+      }
+
+      .chord-item.current {
+        background: rgba(100, 150, 255, 0.6);
+        transform: scale(1.2);
+        box-shadow: 0 0 20px rgba(100, 150, 255, 0.8);
+      }
+
+      .weather-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+      }
+
+      .weather-item {
+        background: rgba(50, 50, 80, 0.5);
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        transition: all 0.4s;
+        border: 2px solid rgba(100, 150, 255, 0.2);
+      }
+
+      .weather-item.updating {
+        background: rgba(100, 150, 255, 0.4);
+        transform: scale(1.05);
+        border-color: rgba(100, 150, 255, 0.8);
+        box-shadow: 0 0 25px rgba(100, 150, 255, 0.6);
+      }
+
+      .weather-label {
+        font-size: 0.9em;
+        opacity: 0.7;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .weather-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .weather-unit {
+        font-size: 0.5em;
+        opacity: 0.8;
+      }
+
+      .weather-mapping {
+        font-size: 0.8em;
+        opacity: 0.6;
+        margin-top: 8px;
+        font-style: italic;
+      }
+
+      .data-source {
+        background: rgba(100, 200, 100, 0.2);
+        padding: 8px 12px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        font-size: 0.8em;
+        border-left: 4px solid rgba(100, 200, 100, 0.8);
+      }
+
+      .console {
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 12px;
+        font-family: "Courier New", monospace;
+        font-size: 0.85em;
+        max-height: 200px;
+        overflow-y: auto;
+        line-height: 1.5;
+      }
+
+      .console-line {
+        margin-bottom: 4px;
+        opacity: 0.9;
+      }
+
+      .console.hidden {
+        display: none;
+      }
+
+      .console-toggle-btn {
+        background: rgba(100, 150, 255, 0.2);
+        border: 1px solid rgba(100, 150, 255, 0.4);
+        color: rgba(255, 255, 255, 0.9);
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        margin-bottom: 10px;
+        transition: all 0.2s;
+      }
+
+      .console-toggle-btn:hover {
+        background: rgba(100, 150, 255, 0.3);
+        border-color: rgba(100, 150, 255, 0.6);
+      }
+
+      .hint {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(20, 20, 40, 0.9);
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 0.9em;
+        opacity: 0.7;
+        border: 1px solid rgba(100, 150, 255, 0.3);
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+
+      .hint.hidden {
+        opacity: 0;
+      }
+
+      /* Visualization Controls */
+      .viz-toggles {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+
+      .viz-toggle-btn {
+        padding: 8px 16px;
+        background: rgba(50, 50, 80, 0.5);
+        border: 2px solid rgba(100, 150, 255, 0.3);
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 13px;
+      }
+
+      .viz-toggle-btn:hover {
+        background: rgba(70, 70, 100, 0.7);
+      }
+
+      .viz-toggle-btn.active {
+        background: rgba(100, 150, 255, 0.4);
+        border-color: rgba(100, 150, 255, 0.8);
+      }
+
+      /* Solo/Mute Buttons */
+      /* Audio Visualizer Canvas */
+      #audio-viz-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      #particles-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      #waterfall-canvas,
+      #sonogram-canvas,
+      #chord-canvas,
+      #weather-graph-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      @media (max-width: 768px) {
+        .controls {
+          grid-template-columns: 1fr;
+        }
+        .mode-select {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .advanced-controls {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Dedicated Visualization Frame at Top -->
+    <div id="viz-frame">
+      <div id="viz-title">🌦️ Weather Sonification <span>Modal Harmony &amp; Real-Time Data Visualization</span></div>
+      <div id="viz-tabs">
+        <button class="viz-tab active" data-viz-panel="spectrum">🎵 Spectrum</button>
+        <button class="viz-tab" data-viz-panel="waterfall">🌊 Waterfall</button>
+        <button class="viz-tab" data-viz-panel="sonogram">📈 Sonogram</button>
+        <button class="viz-tab" data-viz-panel="particles">✨ Particles</button>
+        <button class="viz-tab" data-viz-panel="chord">🎵 Chord</button>
+        <button class="viz-tab" data-viz-panel="graphs">📊 Graphs</button>
+      </div>
+      <div id="viz-display">
+        <!-- Audio Spectrum Panel -->
+        <div id="spectrum-panel" class="viz-panel active">
+          <canvas id="audio-viz-canvas"></canvas>
+        </div>
+
+        <!-- Weather Graphs Panel -->
+        <div id="graphs-panel" class="viz-panel">
+          <canvas id="weather-graph-canvas"></canvas>
+        </div>
+
+        <!-- Particles Panel -->
+        <div id="particles-panel" class="viz-panel">
+          <canvas id="particles-canvas"></canvas>
+        </div>
+
+        <!-- Waterfall FFT Panel -->
+        <div id="waterfall-panel" class="viz-panel">
+          <canvas id="waterfall-canvas"></canvas>
+        </div>
+
+        <!-- Sonogram Panel -->
+        <div id="sonogram-panel" class="viz-panel">
+          <canvas id="sonogram-canvas"></canvas>
+        </div>
+
+        <!-- Chord Diagram Panel -->
+        <div id="chord-panel" class="viz-panel">
+          <canvas id="chord-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvas-container" style="display: none">
+      <canvas id="viz-canvas"></canvas>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="container">
+
+        <!-- Weather Statistics Section -->
+        <div
+          id="weather-stats-section"
+          style="
+            padding: 15px;
+            background: rgba(20, 20, 40, 0.95);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+          "
+        >
+          <div
+            style="text-align: center; margin-bottom: 15px; font-size: 1.2em; color: rgba(100, 150, 255, 0.9)"
+            id="localTimeDisplay"
+          ></div>
+          <div class="weather-grid" id="weatherDisplay"></div>
+        </div>
+
+        <div class="card">
+          <div class="data-source" id="dataSource">
+            🌍 <strong>Open-Meteo API</strong> - Real-time weather data
+            &nbsp;•&nbsp; <kbd style="background:rgba(100,150,255,0.3);padding:2px 6px;border-radius:3px;border:1px solid rgba(100,150,255,0.5)">TAB</kbd> hide/show controls
+            &nbsp;•&nbsp; <kbd style="background:rgba(100,150,255,0.3);padding:2px 6px;border-radius:3px;border:1px solid rgba(100,150,255,0.5)">ESC</kbd> hide/show visualizers
+          </div>
+
+          <div class="controls">
+            <select id="locationSelect">
+              <option value="local">📍 My Location (GPS)</option>
+              <option value="64.1466,-21.9426">Reykjavik, Iceland</option>
+              <option value="35.6762,139.6503">Tokyo, Japan</option>
+              <option value="30.0444,31.2357">Cairo, Egypt</option>
+              <option value="47.6062,-122.3321">Seattle, USA</option>
+              <option value="19.0760,72.8777">Mumbai, India</option>
+              <option value="-33.8688,151.2093">Sydney, Australia</option>
+              <option value="55.7558,37.6173">Moscow, Russia</option>
+              <option value="-22.9068,-43.1729">Rio de Janeiro, Brazil</option>
+              <option value="51.5074,-0.1278">London, UK</option>
+              <option value="31.2304,121.4737">Shanghai, China</option>
+              <option value="39.9042,116.4074">Beijing, China</option>
+              <option value="33.6846,-117.8265">Irvine, California</option>
+              <option value="37.4419,-122.1430">Palo Alto, California</option>
+              <option value="42.3601,-71.0589" selected>Boston, Massachusetts</option>
+              <option value="40.7128,-74.0060">New York, New York</option>
+              <option value="53.3847,-6.5931">Maynooth, Ireland</option>
+              <option value="51.3751,-2.3597">Bath, England</option>
+            </select>
+            <button id="playBtn">▶ Start</button>
+            <button id="stopBtn" disabled>⏹ Stop</button>
+            <button id="saveSettingsBtn">💾 Save Settings</button>
+          </div>
+
+          <div class="advanced-controls">
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">Master Volume</label>
+                <div class="slider-value" id="volumeValue">75%</div>
+              </div>
+              <input type="range" id="volumeSlider" min="0" max="100" value="75" />
+            </div>
+
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">Speed</label>
+                <div class="slider-value" id="speedValue">1.0x</div>
+              </div>
+              <input type="range" id="speedSlider" min="25" max="200" value="100" />
+            </div>
+
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">Transpose</label>
+                <div class="slider-value" id="transposeValue">0</div>
+              </div>
+              <input type="number" id="transposeInput" min="-24" max="24" value="0" />
+            </div>
+
+            <div class="control-group">
+              <label class="control-label">Phrase Mode</label>
+              <div style="display: flex; gap: 12px; align-items: flex-start">
+                <!-- Checkbox on left -->
+                <label
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    cursor: pointer;
+                    padding: 6px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 4px;
+                    flex-shrink: 0;
+                  "
+                >
+                  <input type="checkbox" id="phraseModeCheckbox" style="width: 16px; height: 16px; cursor: pointer" />
+                  <span style="font-size: 0.75em; opacity: 0.9">Enable</span>
+                </label>
+
+                <!-- Fade Indicators always visible on right -->
+                <div
+                  id="fadeIndicators"
+                  style="
+                    flex: 1;
+                    padding: 6px 8px;
+                    background: rgba(0, 0, 0, 0.2);
+                    border-radius: 4px;
+                    border: 1px solid rgba(100, 150, 255, 0.15);
+                  "
+                >
+                  <div style="font-size: 0.65em; opacity: 0.5; margin-bottom: 4px">Layer Activity</div>
+
+                  <div style="display: flex; flex-direction: column; gap: 3px">
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="font-size: 0.65em; width: 38px; opacity: 0.7">🎹 Chd</span>
+                      <div
+                        style="
+                          flex: 1;
+                          height: 10px;
+                          background: rgba(255, 255, 255, 0.08);
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          id="fadeBar-chord"
+                          style="
+                            height: 100%;
+                            background: linear-gradient(90deg, rgba(100, 150, 255, 0.6), rgba(150, 200, 255, 0.8));
+                            width: 100%;
+                            transition: width 0.2s ease;
+                          "
+                        ></div>
+                      </div>
+                      <span
+                        id="fadeVal-chord"
+                        style="font-size: 0.6em; width: 26px; text-align: right; font-family: monospace; opacity: 0.6"
+                        >100%</span
+                      >
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="font-size: 0.65em; width: 38px; opacity: 0.7">🎼 Arp</span>
+                      <div
+                        style="
+                          flex: 1;
+                          height: 10px;
+                          background: rgba(255, 255, 255, 0.08);
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          id="fadeBar-arp"
+                          style="
+                            height: 100%;
+                            background: linear-gradient(90deg, rgba(150, 100, 255, 0.6), rgba(200, 150, 255, 0.8));
+                            width: 100%;
+                            transition: width 0.2s ease;
+                          "
+                        ></div>
+                      </div>
+                      <span
+                        id="fadeVal-arp"
+                        style="font-size: 0.6em; width: 26px; text-align: right; font-family: monospace; opacity: 0.6"
+                        >100%</span
+                      >
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="font-size: 0.65em; width: 38px; opacity: 0.7">🎸 Bass</span>
+                      <div
+                        style="
+                          flex: 1;
+                          height: 10px;
+                          background: rgba(255, 255, 255, 0.08);
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          id="fadeBar-bass"
+                          style="
+                            height: 100%;
+                            background: linear-gradient(90deg, rgba(255, 150, 50, 0.6), rgba(255, 200, 100, 0.8));
+                            width: 100%;
+                            transition: width 0.2s ease;
+                          "
+                        ></div>
+                      </div>
+                      <span
+                        id="fadeVal-bass"
+                        style="font-size: 0.6em; width: 26px; text-align: right; font-family: monospace; opacity: 0.6"
+                        >100%</span
+                      >
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="font-size: 0.65em; width: 38px; opacity: 0.7">🌊 Drn</span>
+                      <div
+                        style="
+                          flex: 1;
+                          height: 10px;
+                          background: rgba(255, 255, 255, 0.08);
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          id="fadeBar-drone"
+                          style="
+                            height: 100%;
+                            background: linear-gradient(90deg, rgba(255, 100, 150, 0.6), rgba(255, 150, 200, 0.8));
+                            width: 100%;
+                            transition: width 0.2s ease;
+                          "
+                        ></div>
+                      </div>
+                      <span
+                        id="fadeVal-drone"
+                        style="font-size: 0.6em; width: 26px; text-align: right; font-family: monospace; opacity: 0.6"
+                        >100%</span
+                      >
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="font-size: 0.65em; width: 38px; opacity: 0.7">🎵 Mel</span>
+                      <div
+                        style="
+                          flex: 1;
+                          height: 10px;
+                          background: rgba(255, 255, 255, 0.08);
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          id="fadeBar-melody"
+                          style="
+                            height: 100%;
+                            background: linear-gradient(90deg, rgba(100, 255, 150, 0.6), rgba(150, 255, 200, 0.8));
+                            width: 100%;
+                            transition: width 0.2s ease;
+                          "
+                        ></div>
+                      </div>
+                      <span
+                        id="fadeVal-melody"
+                        style="font-size: 0.6em; width: 26px; text-align: right; font-family: monospace; opacity: 0.6"
+                        >100%</span
+                      >
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="font-size: 0.65em; width: 38px; opacity: 0.7">🎶 Cntr</span>
+                      <div
+                        style="
+                          flex: 1;
+                          height: 10px;
+                          background: rgba(255, 255, 255, 0.08);
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          id="fadeBar-counterMelody"
+                          style="
+                            height: 100%;
+                            background: linear-gradient(90deg, rgba(200, 100, 255, 0.6), rgba(220, 150, 255, 0.8));
+                            width: 100%;
+                            transition: width 0.2s ease;
+                          "
+                        ></div>
+                      </div>
+                      <span
+                        id="fadeVal-counterMelody"
+                        style="font-size: 0.6em; width: 26px; text-align: right; font-family: monospace; opacity: 0.6"
+                        >100%</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phrase Mode Settings -->
+              <div
+                id="phraseModeSettings"
+                style="
+                  display: none;
+                  margin-top: 8px;
+                  padding: 6px 8px;
+                  background: rgba(0, 0, 0, 0.15);
+                  border-radius: 4px;
+                  border: 1px solid rgba(100, 150, 255, 0.1);
+                "
+              >
+                <div style="margin-bottom: 6px">
+                  <label style="font-size: 0.7em; opacity: 0.8; display: block; margin-bottom: 2px"
+                    >Change Frequency</label
+                  >
+                  <input type="range" id="phraseBusyness" min="10" max="100" value="50" style="width: 100%" />
+                  <div class="slider-value" id="phraseBusynessValue" style="font-size: 0.65em">50%</div>
+                </div>
+
+                <div style="margin-bottom: 6px">
+                  <label style="font-size: 0.7em; opacity: 0.8; display: block; margin-bottom: 2px"
+                    >Silence Duration (sec)</label
+                  >
+                  <input type="range" id="phraseSilence" min="2" max="30" value="12" style="width: 100%" />
+                  <div class="slider-value" id="phraseSilenceValue" style="font-size: 0.65em">12s</div>
+                </div>
+
+                <label
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    cursor: pointer;
+                    padding: 4px;
+                    background: rgba(255, 255, 255, 0.04);
+                    border-radius: 3px;
+                    font-size: 0.7em;
+                  "
+                >
+                  <input type="checkbox" id="phraseKeepOneVoice" style="width: 14px; height: 14px; cursor: pointer" />
+                  <span style="opacity: 0.85">Always keep one voice sounding</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label">Auto Location Change</label>
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                  padding: 8px;
+                  background: rgba(255, 255, 255, 0.05);
+                  border-radius: 4px;
+                  margin-bottom: 8px;
+                "
+              >
+                <input type="checkbox" id="locationChangeCheckbox" style="width: 20px; height: 20px; cursor: pointer" />
+                <span style="font-size: 0.9em; opacity: 0.9">Change location automatically</span>
+              </label>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <label style="font-size: 0.85em; opacity: 0.7; white-space: nowrap">Change every:</label>
+                <input
+                  type="number"
+                  id="locationChangeInterval"
+                  min="30"
+                  max="600"
+                  value="120"
+                  style="
+                    flex: 1;
+                    padding: 6px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(100, 150, 255, 0.3);
+                    border-radius: 4px;
+                    color: white;
+                    text-align: center;
+                  "
+                />
+                <span style="font-size: 0.85em; opacity: 0.7">seconds</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layer Controls: Two Rows -->
+          <div class="advanced-controls" style="grid-template-columns: repeat(4, 1fr)">
+            <!-- Row 1: Chords, Arpeggio, Bass, Drone -->
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">🎹 Chords</label>
+                <div class="slider-value" id="chordVolVal">70%</div>
+              </div>
+              <input type="range" id="chordVol" min="0" max="100" value="70" />
+            </div>
+
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">🎼 Arpeggio</label>
+                <div class="slider-value" id="arpVolVal">60%</div>
+              </div>
+              <input type="range" id="arpVol" min="0" max="100" value="60" />
+            </div>
+
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">🎸 Bass</label>
+                <div class="slider-value" id="bassVolVal">75%</div>
+              </div>
+              <input type="range" id="bassVol" min="0" max="100" value="75" />
+            </div>
+
+            <div class="control-group">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label class="control-label">🌊 Drone</label>
+                <div class="slider-value" id="droneVolVal">40%</div>
+              </div>
+              <input type="range" id="droneVol" min="0" max="100" value="40" />
+            </div>
+          </div>
+
+          <!-- Row 2: Melody (Horizontal Layout) -->
+          <div class="control-group" style="margin-top: -10px">
+            <label class="control-label" style="display: block; margin-bottom: 6px">🎵 Melody</label>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap">
+              <!-- ON/OFF -->
+              <button id="melodyBtn" class="toggle-btn" style="font-size: 0.8em; padding: 5px 12px; min-width: 50px">
+                ON
+              </button>
+
+              <!-- Type Buttons -->
+              <div style="display: flex; gap: 3px">
+                <button class="mode-btn active" data-melody-type="bell" style="font-size: 0.75em; padding: 5px 10px">
+                  Bell
+                </button>
+                <button class="mode-btn" data-melody-type="legato" style="font-size: 0.75em; padding: 5px 10px">
+                  Legato
+                </button>
+              </div>
+
+              <!-- Octave Buttons (3 options) -->
+              <div style="display: flex; gap: 3px">
+                <button class="mode-btn" data-melody-octave="-1" style="font-size: 0.75em; padding: 5px 6px">-1</button>
+                <button class="mode-btn active" data-melody-octave="0" style="font-size: 0.75em; padding: 5px 6px">
+                  0
+                </button>
+                <button class="mode-btn" data-melody-octave="+1" style="font-size: 0.75em; padding: 5px 6px">+1</button>
+              </div>
+
+              <!-- Volume Slider -->
+              <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
+                <label style="font-size: 0.75em; opacity: 0.8; white-space: nowrap">Vol:</label>
+                <input type="range" id="melodyVol" min="0" max="100" value="50" style="flex: 1; min-width: 60px" />
+                <div class="slider-value" id="melodyVolVal" style="font-size: 0.75em; min-width: 35px">50%</div>
+              </div>
+
+              <!-- Speed Slider -->
+              <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
+                <label style="font-size: 0.75em; opacity: 0.8; white-space: nowrap">Spd:</label>
+                <input type="range" id="melodySpeed" min="25" max="400" value="100" style="flex: 1; min-width: 60px" />
+                <div class="slider-value" id="melodySpeedVal" style="font-size: 0.75em; min-width: 35px">1.0x</div>
+              </div>
+
+              <!-- Busyness Slider -->
+              <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
+                <label style="font-size: 0.75em; opacity: 0.8; white-space: nowrap">Busy:</label>
+                <input
+                  type="range"
+                  id="melodyBusyness"
+                  min="10"
+                  max="100"
+                  value="60"
+                  style="flex: 1; min-width: 60px"
+                />
+                <div class="slider-value" id="melodyBusynessVal" style="font-size: 0.75em; min-width: 35px">60%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Counter Melody (Horizontal Layout) -->
+          <div class="control-group" style="margin-top: 8px">
+            <label class="control-label" style="display: block; margin-bottom: 6px">🎶 Counter Melody</label>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap">
+              <!-- ON/OFF -->
+              <button
+                id="counterMelodyBtn"
+                class="toggle-btn"
+                style="font-size: 0.8em; padding: 5px 12px; min-width: 50px"
+              >
+                ON
+              </button>
+
+              <!-- Type Buttons -->
+              <div style="display: flex; gap: 3px">
+                <button
+                  class="mode-btn active"
+                  data-countermelody-type="fm"
+                  style="font-size: 0.75em; padding: 5px 8px"
+                >
+                  FM Pad
+                </button>
+                <button
+                  class="mode-btn"
+                  data-countermelody-type="waveguide"
+                  style="font-size: 0.75em; padding: 5px 8px"
+                >
+                  Wave
+                </button>
+              </div>
+
+              <!-- Octave Buttons (3 options) -->
+              <div style="display: flex; gap: 3px">
+                <button class="mode-btn" data-countermelody-octave="-1" style="font-size: 0.75em; padding: 5px 6px">
+                  -1
+                </button>
+                <button
+                  class="mode-btn active"
+                  data-countermelody-octave="0"
+                  style="font-size: 0.75em; padding: 5px 6px"
+                >
+                  0
+                </button>
+                <button class="mode-btn" data-countermelody-octave="+1" style="font-size: 0.75em; padding: 5px 6px">
+                  +1
+                </button>
+              </div>
+
+              <!-- Volume Slider -->
+              <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
+                <label style="font-size: 0.75em; opacity: 0.8; white-space: nowrap">Vol:</label>
+                <input
+                  type="range"
+                  id="counterMelodyVol"
+                  min="0"
+                  max="100"
+                  value="40"
+                  style="flex: 1; min-width: 60px"
+                />
+                <div class="slider-value" id="counterMelodyVolVal" style="font-size: 0.75em; min-width: 35px">40%</div>
+              </div>
+
+              <!-- Speed Slider -->
+              <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
+                <label style="font-size: 0.75em; opacity: 0.8; white-space: nowrap">Spd:</label>
+                <input
+                  type="range"
+                  id="counterMelodySpeed"
+                  min="25"
+                  max="400"
+                  value="85"
+                  style="flex: 1; min-width: 60px"
+                />
+                <div class="slider-value" id="counterMelodySpeedVal" style="font-size: 0.75em; min-width: 35px">
+                  0.85x
+                </div>
+              </div>
+
+              <!-- Busyness Slider -->
+              <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
+                <label style="font-size: 0.75em; opacity: 0.8; white-space: nowrap">Busy:</label>
+                <input
+                  type="range"
+                  id="counterMelodyBusyness"
+                  min="10"
+                  max="100"
+                  value="50"
+                  style="flex: 1; min-width: 60px"
+                />
+                <div class="slider-value" id="counterMelodyBusynessVal" style="font-size: 0.75em; min-width: 35px">
+                  50%
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px">
+            <label class="control-label" style="display: block; margin-bottom: 10px">Orchestra</label>
+            <div class="mode-select" style="grid-template-columns: repeat(4, 1fr)">
+              <button class="mode-btn active" data-orchestra="warm">Warm Pads</button>
+              <button class="mode-btn" data-orchestra="textural">Warm Choral</button>
+              <button class="mode-btn" data-orchestra="bells">Crystal Bells</button>
+              <button class="mode-btn" data-orchestra="breathy">Dark FM</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px">
+            <label class="control-label" style="display: block; margin-bottom: 10px">Modal Scale</label>
+            <div class="mode-select">
+              <button class="mode-btn active" data-mode="ionian">Ionian (Major)</button>
+              <button class="mode-btn" data-mode="dorian">Dorian</button>
+              <button class="mode-btn" data-mode="phrygian">Phrygian</button>
+              <button class="mode-btn" data-mode="lydian">Lydian</button>
+              <button class="mode-btn" data-mode="mixolydian">Mixolydian</button>
+              <button class="mode-btn" data-mode="aeolian">Aeolian (Minor)</button>
+              <button class="mode-btn" data-mode="locrian">Locrian</button>
+            </div>
+          </div>
+
+          <div class="status" id="status">Select a location and press Start</div>
+
+          <div class="chord-display">
+            <div class="current-chord" id="currentChord">—</div>
+            <div class="chord-info" id="chordInfo">Select mode and start playback</div>
+            <div class="chord-progression" id="chordProgression"></div>
+          </div>
+        </div>
+
+        <!-- Parameter Mapping Section -->
+        <div class="card">
+          <h3 style="margin-bottom: 15px; text-align: center">🎛️ Parameter Mapping</h3>
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; font-size: 0.85em">
+            <div
+              style="
+                padding: 12px;
+                background: rgba(255, 100, 100, 0.15);
+                border-radius: 6px;
+                border: 1px solid rgba(255, 100, 100, 0.3);
+              "
+            >
+              <strong style="font-size: 1.1em">🌡️ Temperature</strong><br />
+              <span style="opacity: 0.9; font-size: 0.95em"
+                >→ Melody octave<br />
+                → Chord voicing</span
+              >
+            </div>
+            <div
+              style="
+                padding: 12px;
+                background: rgba(100, 150, 255, 0.15);
+                border-radius: 6px;
+                border: 1px solid rgba(100, 150, 255, 0.3);
+              "
+            >
+              <strong style="font-size: 1.1em">💧 Humidity</strong><br />
+              <span style="opacity: 0.9; font-size: 0.95em"
+                >→ Reverb depth<br />
+                → Articulation</span
+              >
+            </div>
+            <div
+              style="
+                padding: 12px;
+                background: rgba(150, 255, 150, 0.15);
+                border-radius: 6px;
+                border: 1px solid rgba(150, 255, 150, 0.3);
+              "
+            >
+              <strong style="font-size: 1.1em">💨 Wind Speed</strong><br />
+              <span style="opacity: 0.9; font-size: 0.95em"
+                >→ Bass walk rate<br />
+                → Vibrato<br />
+                → Rhythm</span
+              >
+            </div>
+            <div
+              style="
+                padding: 12px;
+                background: rgba(255, 200, 100, 0.15);
+                border-radius: 6px;
+                border: 1px solid rgba(255, 200, 100, 0.3);
+              "
+            >
+              <strong style="font-size: 1.1em">🌊 Pressure</strong><br />
+              <span style="opacity: 0.9; font-size: 0.95em"
+                >→ Bass octave<br />
+                → Harmonic density</span
+              >
+            </div>
+            <div
+              style="
+                padding: 12px;
+                background: rgba(200, 150, 255, 0.15);
+                border-radius: 6px;
+                border: 1px solid rgba(200, 150, 255, 0.3);
+              "
+            >
+              <strong style="font-size: 1.1em">☁️ Cloud Cover</strong><br />
+              <span style="opacity: 0.9; font-size: 0.95em"
+                >→ Filter brightness<br />
+                → Harmonic</span
+              >
+            </div>
+            <div
+              style="
+                padding: 12px;
+                background: rgba(100, 255, 255, 0.15);
+                border-radius: 6px;
+                border: 1px solid rgba(100, 255, 255, 0.3);
+              "
+            >
+              <strong style="font-size: 1.1em">🌧️ Precipitation</strong><br />
+              <span style="opacity: 0.9; font-size: 0.95em"
+                >→ Texture density<br />
+                → Pluck frequency</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom: 10px">Console Output</h3>
+          <div style="display: flex; gap: 8px; margin-bottom: 8px">
+            <button class="console-toggle-btn" id="consoleToggleBtn">🖥️ Hide Console</button>
+            <button class="console-toggle-btn" id="consoleClearBtn">🗑️ Clear Console</button>
+          </div>
+          <div class="console" id="console"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // ==================== CONFIGURATION ====================
+
+      const CITY_KEYS = {
+        "64.1466,-21.9426": {
+          name: "Reykjavik",
+          key: "C",
+          rootNote: 48,
+          colors: [200, 220, 250],
+          timbre: { bright: 0.3, detune: 0.2, chorus: 0.4, pluck: 0.6 },
+        },
+        "35.6762,139.6503": {
+          name: "Tokyo",
+          key: "D",
+          rootNote: 50,
+          colors: [255, 100, 150],
+          timbre: { bright: 0.8, detune: 0.5, chorus: 0.7, pluck: 0.8 },
+        },
+        "30.0444,31.2357": {
+          name: "Cairo",
+          key: "E",
+          rootNote: 52,
+          colors: [255, 200, 100],
+          timbre: { bright: 0.9, detune: 0.1, chorus: 0.2, pluck: 0.4 },
+        },
+        "47.6062,-122.3321": {
+          name: "Seattle",
+          key: "F",
+          rootNote: 53,
+          colors: [100, 180, 120],
+          timbre: { bright: 0.4, detune: 0.6, chorus: 0.8, pluck: 0.3 },
+        },
+        "19.0760,72.8777": {
+          name: "Mumbai",
+          key: "G",
+          rootNote: 55,
+          colors: [255, 150, 50],
+          timbre: { bright: 0.85, detune: 0.7, chorus: 0.6, pluck: 0.7 },
+        },
+        "-33.8688,151.2093": {
+          name: "Sydney",
+          key: "A",
+          rootNote: 57,
+          colors: [100, 200, 255],
+          timbre: { bright: 0.75, detune: 0.4, chorus: 0.5, pluck: 0.5 },
+        },
+        "55.7558,37.6173": {
+          name: "Moscow",
+          key: "Bb",
+          rootNote: 58,
+          colors: [150, 100, 180],
+          timbre: { bright: 0.2, detune: 0.3, chorus: 0.5, pluck: 0.2 },
+        },
+        "-22.9068,-43.1729": {
+          name: "Rio",
+          key: "B",
+          rootNote: 59,
+          colors: [50, 255, 150],
+          timbre: { bright: 0.8, detune: 0.8, chorus: 0.9, pluck: 0.9 },
+        },
+        "51.5074,-0.1278": {
+          name: "London",
+          key: "C",
+          rootNote: 48,
+          colors: [180, 180, 200],
+          timbre: { bright: 0.5, detune: 0.3, chorus: 0.4, pluck: 0.4 },
+        },
+        "31.2304,121.4737": {
+          name: "Shanghai",
+          key: "D",
+          rootNote: 50,
+          colors: [255, 80, 80],
+          timbre: { bright: 0.7, detune: 0.6, chorus: 0.6, pluck: 0.7 },
+        },
+        "39.9042,116.4074": {
+          name: "Beijing",
+          key: "E",
+          rootNote: 52,
+          colors: [200, 100, 100],
+          timbre: { bright: 0.6, detune: 0.5, chorus: 0.5, pluck: 0.6 },
+        },
+        "33.6846,-117.8265": {
+          name: "Irvine",
+          key: "F",
+          rootNote: 53,
+          colors: [255, 180, 100],
+          timbre: { bright: 0.8, detune: 0.4, chorus: 0.5, pluck: 0.5 },
+        },
+        "37.4419,-122.1430": {
+          name: "Palo Alto",
+          key: "G",
+          rootNote: 55,
+          colors: [100, 255, 200],
+          timbre: { bright: 0.9, detune: 0.6, chorus: 0.7, pluck: 0.6 },
+        },
+        "42.3601,-71.0589": {
+          name: "Boston",
+          key: "A",
+          rootNote: 57,
+          colors: [100, 150, 255],
+          timbre: { bright: 0.6, detune: 0.4, chorus: 0.5, pluck: 0.5 },
+        },
+        "40.7128,-74.0060": {
+          name: "New York",
+          key: "Bb",
+          rootNote: 58,
+          colors: [255, 255, 100],
+          timbre: { bright: 0.85, detune: 0.7, chorus: 0.8, pluck: 0.8 },
+        },
+        "53.3847,-6.5931": {
+          name: "Maynooth",
+          key: "Db",
+          rootNote: 49,
+          colors: [80, 200, 120],
+          timbre: { bright: 0.5, detune: 0.5, chorus: 0.6, pluck: 0.4 },
+        },
+        "51.3751,-2.3597": {
+          name: "Bath",
+          key: "F#",
+          rootNote: 54,
+          colors: [200, 180, 140],
+          timbre: { bright: 0.65, detune: 0.35, chorus: 0.45, pluck: 0.35 },
+        },
+      }
+
+      const MODES = {
+        ionian: [0, 2, 4, 5, 7, 9, 11],
+        dorian: [0, 2, 3, 5, 7, 9, 10],
+        phrygian: [0, 1, 3, 5, 7, 8, 10],
+        lydian: [0, 2, 4, 6, 7, 9, 11],
+        mixolydian: [0, 2, 4, 5, 7, 9, 10],
+        aeolian: [0, 2, 3, 5, 7, 8, 10],
+        locrian: [0, 1, 3, 5, 6, 8, 10],
+      }
+
+      const MARKOV_CHAINS = {
+        ionian: {
+          1: [
+            [4, 3],
+            [5, 2],
+            [6, 2],
+          ],
+          2: [
+            [5, 3],
+            [1, 1],
+          ],
+          3: [
+            [6, 2],
+            [4, 1],
+          ],
+          4: [
+            [5, 2],
+            [1, 2],
+            [2, 1],
+          ],
+          5: [
+            [1, 3],
+            [6, 2],
+          ],
+          6: [
+            [2, 2],
+            [4, 2],
+            [5, 1],
+          ],
+        },
+        dorian: {
+          1: [
+            [4, 3],
+            [7, 2],
+          ],
+          2: [
+            [5, 2],
+            [1, 1],
+          ],
+          3: [
+            [6, 2],
+            [1, 1],
+          ],
+          4: [
+            [1, 2],
+            [5, 2],
+          ],
+          5: [
+            [1, 2],
+            [4, 1],
+          ],
+          6: [
+            [2, 1],
+            [5, 1],
+          ],
+          7: [
+            [1, 2],
+            [4, 1],
+          ],
+        },
+        phrygian: {
+          1: [
+            [2, 3],
+            [6, 2],
+          ],
+          2: [
+            [1, 2],
+            [3, 1],
+          ],
+          3: [
+            [6, 2],
+            [7, 1],
+          ],
+          6: [
+            [7, 2],
+            [1, 1],
+          ],
+          7: [
+            [1, 3],
+            [6, 1],
+          ],
+        },
+        lydian: {
+          1: [
+            [2, 2],
+            [5, 2],
+          ],
+          2: [
+            [5, 3],
+            [1, 1],
+          ],
+          4: [
+            [5, 2],
+            [1, 1],
+          ],
+          5: [
+            [1, 3],
+            [2, 1],
+          ],
+        },
+        mixolydian: {
+          1: [
+            [4, 2],
+            [5, 2],
+            [7, 2],
+          ],
+          4: [
+            [5, 2],
+            [1, 1],
+          ],
+          5: [
+            [1, 2],
+            [7, 1],
+          ],
+          7: [
+            [1, 3],
+            [4, 1],
+          ],
+        },
+        aeolian: {
+          1: [
+            [4, 2],
+            [6, 2],
+          ],
+          4: [
+            [5, 2],
+            [1, 1],
+          ],
+          5: [
+            [1, 2],
+            [6, 1],
+          ],
+          6: [
+            [4, 2],
+            [5, 1],
+            [7, 1],
+          ],
+          7: [[1, 2]],
+        },
+        locrian: {
+          1: [
+            [2, 2],
+            [5, 1],
+          ],
+          2: [
+            [1, 2],
+            [5, 1],
+          ],
+          5: [
+            [1, 2],
+            [6, 1],
+          ],
+          6: [[7, 1]],
+          7: [[1, 2]],
+        },
+      }
+
+      // ==================== STATE ====================
+
+      let csound = null
+      let isPlaying = false
+      let currentMode = "ionian"
+      let currentLocation = "42.3601,-71.0589"
+      let currentChordIndex = 0
+      let chordProgression = []
+      let weatherData = null
+      let visualParticles = []
+      let animationId = null
+      let chordTimeoutId = null
+      let masterVolume = 0.75
+      let globalSpeed = 1.0
+      let transpose = 0
+      let chordVol = 0.7
+      let arpVol = 0.6
+      let bassVol = 0.75
+      let droneVol = 0.4
+      let melodyVol = 0.5
+      let currentOrchestra = "warm"
+      let melodyEnabled = false
+      let melodyType = "bell"
+      let melodyOctave = 0
+      let melodySpeed = 1.0
+      let melodyBusyness = 0.6
+      let melodyTimeoutId = null
+      let melodyPhraseIndex = 0
+
+      let counterMelodyEnabled = false
+      let counterMelodyType = "fm"
+      let counterMelodyOctave = 0
+      let counterMelodySpeed = 0.85
+      let counterMelodyBusyness = 0.5
+
+      let userLocation = null
+      let cityColors = [200, 150, 255]
+
+      // Phrase Mode State
+      let phraseModeEnabled = false
+      let phraseTimeoutId = null
+      let phraseBusyness = 0.5 // How often values change (0.1 to 1.0)
+      let phraseSilenceDuration = 12 // Silence duration in seconds (2 to 30)
+      let phraseKeepOneVoice = false // Always keep at least one voice sounding
+      let currentFades = {
+        chord: 1.0,
+        arp: 1.0,
+        bass: 1.0,
+        drone: 1.0,
+        melody: 1.0,
+        counterMelody: 1.0,
+      }
+      let targetFades = {
+        chord: 1.0,
+        arp: 1.0,
+        bass: 1.0,
+        drone: 1.0,
+        melody: 1.0,
+        counterMelody: 1.0,
+      }
+
+      // Location Change State
+      let locationChangeEnabled = false
+      let locationChangeInterval = 120 // seconds
+      let locationChangeTimeoutId = null
+
+      // ==================== DOM ELEMENTS ====================
+
+      const playBtn = document.getElementById("playBtn")
+      const stopBtn = document.getElementById("stopBtn")
+      const saveSettingsBtn = document.getElementById("saveSettingsBtn")
+      const locationSelect = document.getElementById("locationSelect")
+      const status = document.getElementById("status")
+      const weatherDisplay = document.getElementById("weatherDisplay")
+      const localTimeDisplay = document.getElementById("localTimeDisplay")
+      const consoleDiv = document.getElementById("console")
+      const currentChordEl = document.getElementById("currentChord")
+      const chordInfoEl = document.getElementById("chordInfo")
+      const chordProgressionEl = document.getElementById("chordProgression")
+      const canvas = document.getElementById("viz-canvas")
+      const ctx = canvas.getContext("2d")
+      const overlay = document.getElementById("overlay")
+      const hint = document.getElementById("hint")
+      const volumeSlider = document.getElementById("volumeSlider")
+      const volumeValue = document.getElementById("volumeValue")
+      const speedSlider = document.getElementById("speedSlider")
+      const speedValue = document.getElementById("speedValue")
+      const transposeInput = document.getElementById("transposeInput")
+      const transposeValue = document.getElementById("transposeValue")
+      const melodyBtn = document.getElementById("melodyBtn")
+      const chordVolSlider = document.getElementById("chordVol")
+      const chordVolValue = document.getElementById("chordVolVal")
+      const arpVolSlider = document.getElementById("arpVol")
+      const arpVolValue = document.getElementById("arpVolVal")
+      const bassVolSlider = document.getElementById("bassVol")
+      const bassVolValue = document.getElementById("bassVolVal")
+      const droneVolSlider = document.getElementById("droneVol")
+      const droneVolValue = document.getElementById("droneVolVal")
+      const melodyVolSlider = document.getElementById("melodyVol")
+      const melodyVolValue = document.getElementById("melodyVolVal")
+      const melodySpeedSlider = document.getElementById("melodySpeed")
+      const melodySpeedValue = document.getElementById("melodySpeedVal")
+      const melodyBusynessSlider = document.getElementById("melodyBusyness")
+      const melodyBusynessValue = document.getElementById("melodyBusynessVal")
+      const counterMelodyBtn = document.getElementById("counterMelodyBtn")
+      const counterMelodyVolSlider = document.getElementById("counterMelodyVol")
+      const counterMelodyVolValue = document.getElementById("counterMelodyVolVal")
+      const counterMelodySpeedSlider = document.getElementById("counterMelodySpeed")
+      const counterMelodySpeedValue = document.getElementById("counterMelodySpeedVal")
+      const counterMelodyBusynessSlider = document.getElementById("counterMelodyBusyness")
+      const counterMelodyBusynessValue = document.getElementById("counterMelodyBusynessVal")
+      const consoleToggleBtn = document.getElementById("consoleToggleBtn")
+      const consoleClearBtn = document.getElementById("consoleClearBtn")
+      const phraseModeCheckbox = document.getElementById("phraseModeCheckbox")
+      const phraseBusynessSlider = document.getElementById("phraseBusyness")
+      const phraseBusynessValue = document.getElementById("phraseBusynessValue")
+      const phraseSilenceSlider = document.getElementById("phraseSilence")
+      const phraseSilenceValue = document.getElementById("phraseSilenceValue")
+      const phraseKeepOneVoiceCheckbox = document.getElementById("phraseKeepOneVoice")
+      const phraseModeSettings = document.getElementById("phraseModeSettings")
+      const locationChangeCheckbox = document.getElementById("locationChangeCheckbox")
+      const locationChangeIntervalInput = document.getElementById("locationChangeInterval")
+
+      // Audio Visualizer Setup
+      const audioVizCanvas = document.getElementById("audio-viz-canvas")
+      const audioVizCtx = audioVizCanvas.getContext("2d")
+      let audioAnalyser = null
+      let audioDataArray = null
+      let vizEnabled = { particles: true, audio: false, weather: false }
+
+      // Particles Visualizer Setup
+      const particlesCanvas = document.getElementById("particles-canvas")
+      const particlesCtx = particlesCanvas.getContext("2d")
+      let particlesAnimationId = null
+      let vizParticles = []
+
+      // Sonogram Canvas
+      const sonogramCanvas = document.getElementById("sonogram-canvas")
+      const sonogramCtx = sonogramCanvas.getContext("2d")
+      let sonogramHistory = []
+      const sonogramMaxColumns = 200
+
+      // Chord Diagram Canvas
+      const chordCanvas = document.getElementById("chord-canvas")
+      const chordCtx = chordCanvas.getContext("2d")
+
+      // Waterfall FFT Canvas
+      const waterfallCanvas = document.getElementById("waterfall-canvas")
+      const waterfallCtx = waterfallCanvas.getContext("2d")
+      let waterfallHistory = []
+      const waterfallMaxFrames = 100
+
+      // ==================== UTILITIES ====================
+
+      function log(message) {
+        const line = document.createElement("div")
+        line.className = "console-line"
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`
+        consoleDiv.appendChild(line)
+        consoleDiv.scrollTop = consoleDiv.scrollHeight
+      }
+
+      function flashDisplay(elementId) {
+        const el = document.getElementById(elementId)
+        if (el) {
+          el.classList.add("updating")
+          setTimeout(() => el.classList.remove("updating"), 600)
+        }
+      }
+
+      // ==================== VISUALIZATION ====================
+
+      function resizeAudioVizCanvas() {
+        const vizDisplay = document.getElementById("viz-display")
+        if (vizDisplay) {
+          audioVizCanvas.width = vizDisplay.clientWidth
+          audioVizCanvas.height = vizDisplay.clientHeight
+
+          const graphCanvas = document.getElementById("weather-graph-canvas")
+          if (graphCanvas) {
+            graphCanvas.width = vizDisplay.clientWidth
+            graphCanvas.height = vizDisplay.clientHeight
+          }
+        }
+      }
+
+      function drawWeatherGraphs() {
+        if (!weatherData || !weatherData.hourly) {
+          log("Cannot draw weather graphs: missing data")
+          return
+        }
+
+        const canvas = document.getElementById("weather-graph-canvas")
+        if (!canvas) {
+          log("Cannot draw weather graphs: canvas not found")
+          return
+        }
+        const ctx = canvas.getContext("2d")
+
+        log(`Drawing weather graphs with ${weatherData.hourly.time.length} data points`)
+
+        ctx.fillStyle = "rgba(10, 10, 30, 1)"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        const hourly = weatherData.hourly
+        const numPoints = Math.min(24, hourly.time.length)
+        const padding = 60
+        const topPadding = 50
+        const graphWidth = canvas.width - padding * 2
+        const graphHeight = canvas.height - padding - topPadding
+        const pointSpacing = graphWidth / (numPoints - 1)
+
+        // Helper to normalize data
+        function normalize(data, min, max) {
+          const range = max - min
+          return data.map((v) => (v - min) / range)
+        }
+
+        // Draw grid lines
+        ctx.strokeStyle = "rgba(100, 100, 120, 0.2)"
+        ctx.lineWidth = 1
+        for (let i = 0; i <= 4; i++) {
+          const y = topPadding + (graphHeight * i) / 4
+          ctx.beginPath()
+          ctx.moveTo(padding, y)
+          ctx.lineTo(padding + graphWidth, y)
+          ctx.stroke()
+        }
+
+        // Draw temperature
+        const temps = hourly.temperature.slice(0, numPoints)
+        const tempMin = Math.min(...temps)
+        const tempMax = Math.max(...temps)
+        const tempNorm = normalize(temps, tempMin, tempMax)
+
+        ctx.strokeStyle = "rgba(255, 100, 100, 0.9)"
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        tempNorm.forEach((v, i) => {
+          const x = padding + i * pointSpacing
+          const y = topPadding + graphHeight - v * graphHeight
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        })
+        ctx.stroke()
+
+        // Draw humidity
+        const humidity = hourly.humidity.slice(0, numPoints)
+        const humidNorm = humidity.map((v) => v / 100)
+
+        ctx.strokeStyle = "rgba(100, 150, 255, 0.9)"
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        humidNorm.forEach((v, i) => {
+          const x = padding + i * pointSpacing
+          const y = topPadding + graphHeight - v * graphHeight
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        })
+        ctx.stroke()
+
+        // Draw wind speed
+        const wind = hourly.windSpeed.slice(0, numPoints)
+        const windMax = Math.max(...wind)
+        const windNorm = wind.map((v) => v / windMax)
+
+        ctx.strokeStyle = "rgba(150, 255, 150, 0.9)"
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        windNorm.forEach((v, i) => {
+          const x = padding + i * pointSpacing
+          const y = topPadding + graphHeight - v * graphHeight
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        })
+        ctx.stroke()
+
+        // Title
+        ctx.font = "bold 18px sans-serif"
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+        ctx.textAlign = "center"
+        ctx.fillText("24-Hour Weather History", canvas.width / 2, 25)
+
+        // Legend with colored boxes
+        const legendY = 25
+        const legendStartX = padding
+        ctx.textAlign = "left"
+        ctx.font = "14px sans-serif"
+
+        // Temperature
+        ctx.fillStyle = "rgba(255, 100, 100, 0.9)"
+        ctx.fillRect(legendStartX, legendY + 15, 15, 15)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+        ctx.fillText(`Temperature (${tempMin.toFixed(1)}°C - ${tempMax.toFixed(1)}°C)`, legendStartX + 20, legendY + 27)
+
+        // Humidity
+        ctx.fillStyle = "rgba(100, 150, 255, 0.9)"
+        ctx.fillRect(legendStartX + 250, legendY + 15, 15, 15)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+        ctx.fillText("Humidity (%)", legendStartX + 270, legendY + 27)
+
+        // Wind Speed
+        ctx.fillStyle = "rgba(150, 255, 150, 0.9)"
+        ctx.fillRect(legendStartX + 400, legendY + 15, 15, 15)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+        ctx.fillText(`Wind (max ${windMax.toFixed(1)} m/s)`, legendStartX + 420, legendY + 27)
+
+        // Y-axis labels
+        ctx.font = "12px sans-serif"
+        ctx.fillStyle = "rgba(200, 200, 220, 0.7)"
+        ctx.textAlign = "right"
+        for (let i = 0; i <= 4; i++) {
+          const y = topPadding + (graphHeight * i) / 4
+          const percent = 100 - (i * 100) / 4
+          ctx.fillText(`${percent.toFixed(0)}%`, padding - 10, y + 5)
+        }
+
+        // X-axis labels (time)
+        ctx.textAlign = "center"
+        for (let i = 0; i < numPoints; i += 4) {
+          const x = padding + i * pointSpacing
+          const timeStr = hourly.time[i].split("T")[1].substring(0, 5)
+          ctx.fillText(timeStr, x, topPadding + graphHeight + 20)
+        }
+
+        // Axis labels
+        ctx.font = "bold 14px sans-serif"
+        ctx.fillStyle = "rgba(220, 220, 255, 0.8)"
+        ctx.textAlign = "center"
+        ctx.fillText("Time (24h)", canvas.width / 2, topPadding + graphHeight + 40)
+
+        ctx.save()
+        ctx.translate(20, canvas.height / 2)
+        ctx.rotate(-Math.PI / 2)
+        ctx.fillText("Normalized Scale", 0, 0)
+        ctx.restore()
+      }
+
+      function updateWeatherVizIcons() {
+        if (!weatherData) return
+
+        // Update weather icon elements in visualization frame
+        const tempIcon = document.getElementById("weather-icon-temp")
+        const windIcon = document.getElementById("weather-icon-wind")
+        const cloudIcon = document.getElementById("weather-icon-cloud")
+        const humidIcon = document.getElementById("weather-icon-humid")
+
+        // Update icons based on weather data
+        if (tempIcon) {
+          if (weatherData.temperature > 25) tempIcon.textContent = "🌡️☀️"
+          else if (weatherData.temperature > 15) tempIcon.textContent = "🌡️⛅"
+          else if (weatherData.temperature > 5) tempIcon.textContent = "🌡️☁️"
+          else tempIcon.textContent = "🌡️❄️"
+          tempIcon.title = `${weatherData.temperature.toFixed(1)}°C`
+        }
+
+        if (windIcon) {
+          if (weatherData.windSpeed > 20) windIcon.textContent = "💨💨💨"
+          else if (weatherData.windSpeed > 10) windIcon.textContent = "💨💨"
+          else if (weatherData.windSpeed > 5) windIcon.textContent = "💨"
+          else windIcon.textContent = "🍃"
+          windIcon.title = `${weatherData.windSpeed.toFixed(1)} m/s`
+        }
+
+        if (cloudIcon) {
+          if (weatherData.cloudCover > 80) cloudIcon.textContent = "☁️☁️☁️"
+          else if (weatherData.cloudCover > 50) cloudIcon.textContent = "⛅☁️"
+          else if (weatherData.cloudCover > 20) cloudIcon.textContent = "⛅"
+          else cloudIcon.textContent = "☀️"
+          cloudIcon.title = `${weatherData.cloudCover}% clouds`
+        }
+
+        if (humidIcon) {
+          if (weatherData.humidity > 80) humidIcon.textContent = "💧💧💧"
+          else if (weatherData.humidity > 60) humidIcon.textContent = "💧💧"
+          else if (weatherData.humidity > 40) humidIcon.textContent = "💧"
+          else humidIcon.textContent = "🌵"
+          humidIcon.title = `${weatherData.humidity}% humidity`
+        }
+      }
+
+      async function initAudioVisualizer() {
+        if (!csound) return
+
+        try {
+          // Get the audio context from Csound
+          const audioContext = await csound.getAudioContext()
+
+          // Create analyser node
+          audioAnalyser = audioContext.createAnalyser()
+          audioAnalyser.fftSize = 2048
+          audioAnalyser.smoothingTimeConstant = 0.8
+
+          const bufferLength = audioAnalyser.frequencyBinCount
+          audioDataArray = new Uint8Array(bufferLength)
+
+          // Connect Csound output to analyser
+          const csoundNode = await csound.getNode()
+          csoundNode.connect(audioAnalyser)
+
+          log("Audio visualizer initialized")
+        } catch (error) {
+          log(`Audio visualizer error: ${error.message}`)
+        }
+      }
+
+      function drawAudioSpectrum() {
+        if (!audioAnalyser) return
+
+        audioAnalyser.getByteFrequencyData(audioDataArray)
+
+        audioVizCtx.fillStyle = "rgba(10, 10, 10, 0.4)"
+        audioVizCtx.fillRect(0, 0, audioVizCanvas.width, audioVizCanvas.height)
+
+        const barWidth = (audioVizCanvas.width / audioDataArray.length) * 2.5
+        let barHeight
+        let x = 0
+
+        for (let i = 0; i < audioDataArray.length; i++) {
+          barHeight = (audioDataArray[i] / 255) * audioVizCanvas.height * 0.85
+
+          // Color based on frequency and amplitude
+          const hue = (i / audioDataArray.length) * 180 + cityColors[0]
+          const saturation = 70 + (audioDataArray[i] / 255) * 30
+          const lightness = 40 + (audioDataArray[i] / 255) * 20
+
+          audioVizCtx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.9)`
+          audioVizCtx.fillRect(x, audioVizCanvas.height - barHeight, barWidth, barHeight)
+
+          x += barWidth + 1
+        }
+      }
+
+      function drawWeatherOverlay() {
+        if (!vizEnabled.weather || !weatherData) return
+
+        // Draw weather icons/text overlay on main canvas
+        ctx.save()
+        ctx.font = "48px Arial"
+        ctx.textAlign = "center"
+
+        // Temperature icon
+        const tempIcon = weatherData.temperature > 20 ? "☀️" : weatherData.temperature > 10 ? "⛅" : "❄️"
+        ctx.fillText(tempIcon, canvas.width * 0.15, canvas.height * 0.2)
+
+        // Wind icon
+        if (weatherData.windSpeed > 15) {
+          ctx.fillText("💨", canvas.width * 0.85, canvas.height * 0.2)
+        }
+
+        // Rain/cloud icon
+        if (weatherData.cloudCover > 70) {
+          ctx.fillText("☁️", canvas.width * 0.5, canvas.height * 0.15)
+        }
+
+        // Humidity icon
+        if (weatherData.humidity > 80) {
+          ctx.fillText("💧", canvas.width * 0.5, canvas.height * 0.85)
+        }
+
+        ctx.restore()
+      }
+
+      // ==================== PARTICLES VISUALIZER ====================
+
+      function initVizParticles() {
+        vizParticles = []
+        // Fewer particles, but each is meaningful
+        // They'll spawn based on musical events
+      }
+
+      // Spawn particle for a musical event
+      function spawnParticle(type, intensity) {
+        if (!particlesCanvas || !weatherData) return
+
+        const w = particlesCanvas.width
+        const h = particlesCanvas.height
+
+        // Map weather data to particle properties
+        const tempNorm = Math.max(0, Math.min(1, (weatherData.temperature + 20) / 60)) // -20°C to 40°C
+        const humidNorm = weatherData.humidity / 100
+        const windNorm = Math.min(1, weatherData.windSpeed / 50)
+        const cloudNorm = weatherData.cloudCover / 100
+        const pressureNorm = (weatherData.pressure - 950) / 100 // 950-1050 hPa range
+
+        let x, y, vx, vy, size, hue, lifetime, label
+
+        switch (type) {
+          case "temperature":
+            // Temperature: warm colors (red/orange) vs cool colors (blue/cyan)
+            x = w * 0.2 + Math.random() * (w * 0.6)
+            y = h * (1 - tempNorm) // Warmer = higher
+            vx = (Math.random() - 0.5) * 2
+            vy = (tempNorm - 0.5) * 1.5 // Warm rises, cold falls
+            size = 8 + tempNorm * 12
+            hue = tempNorm * 60 // 0=cyan, 60=yellow/orange
+            lifetime = 150
+            label = `${weatherData.temperature.toFixed(1)}°C`
+            break
+
+          case "humidity":
+            // Humidity: larger, glowing particles
+            x = w * 0.3 + Math.random() * (w * 0.4)
+            y = h * 0.3 + Math.random() * (h * 0.4)
+            vx = (Math.random() - 0.5) * 1
+            vy = humidNorm * 0.5 // Humid = slowly falling
+            size = 6 + humidNorm * 18 // Very visible when humid
+            hue = 200 // Blue
+            lifetime = 120
+            label = `${weatherData.humidity}%`
+            break
+
+          case "wind":
+            // Wind: fast moving particles, quantity increases with wind
+            x = Math.random() * w
+            y = Math.random() * h
+            vx = (Math.random() - 0.5) * windNorm * 8
+            vy = (Math.random() - 0.5) * windNorm * 8
+            size = 4 + windNorm * 8
+            hue = 120 // Green
+            lifetime = 60 + windNorm * 40
+            label = `${weatherData.windSpeed.toFixed(1)}m/s`
+            break
+
+          case "pressure":
+            // Pressure: vertical position (high = top, low = bottom)
+            x = w * 0.1 + Math.random() * (w * 0.8)
+            y = h * (1 - pressureNorm) // High pressure = top
+            vx = (Math.random() - 0.5) * 0.5
+            vy = (pressureNorm - 0.5) * 1 // High sinks, low rises
+            size = 10 + Math.abs(pressureNorm - 0.5) * 10
+            hue = 280 // Purple
+            lifetime = 180
+            label = `${weatherData.pressure}hPa`
+            break
+
+          case "cloud":
+            // Cloud cover: opacity and quantity
+            x = Math.random() * w
+            y = Math.random() * h * 0.5 // Upper half
+            vx = (Math.random() - 0.5) * 1.5
+            vy = (Math.random() - 0.5) * 0.5
+            size = 15 + cloudNorm * 20
+            hue = 0 // White/gray
+            lifetime = 100 + cloudNorm * 80
+            label = `${weatherData.cloudCover}%`
+            break
+
+          default:
+            x = Math.random() * w
+            y = Math.random() * h
+            vx = (Math.random() - 0.5) * 2
+            vy = (Math.random() - 0.5) * 2
+            size = 5
+            hue = cityColors[0] || 200
+            lifetime = 60
+            label = ""
+        }
+
+        vizParticles.push({
+          x,
+          y,
+          vx,
+          vy,
+          size,
+          hue,
+          sat: type === "cloud" ? 20 : 80,
+          light: type === "cloud" ? 85 : 60,
+          opacity: type === "cloud" ? cloudNorm * 0.6 + 0.2 : 0.9,
+          lifetime,
+          maxLifetime: lifetime,
+          type,
+          label,
+        })
+      }
+
+      function resizeParticlesCanvas() {
+        const parent = particlesCanvas.parentElement
+        particlesCanvas.width = parent.clientWidth
+        particlesCanvas.height = parent.clientHeight
+      }
+
+      function drawParticlesViz() {
+        if (!particlesCanvas || !particlesCtx) return
+
+        particlesCtx.fillStyle = "rgba(10, 10, 20, 0.2)"
+        particlesCtx.fillRect(0, 0, particlesCanvas.width, particlesCanvas.height)
+
+        // Get audio energy for spawning particles
+        let bassEnergy = 0,
+          midEnergy = 0,
+          highEnergy = 0
+
+        if (audioAnalyser && audioDataArray) {
+          audioAnalyser.getByteFrequencyData(audioDataArray)
+
+          // Bass (0-150 Hz)
+          for (let i = 0; i < 8; i++) bassEnergy += audioDataArray[i]
+          bassEnergy = bassEnergy / 8 / 255
+
+          // Mid (150-2000 Hz) - chords and arpeggios
+          for (let i = 8; i < 100; i++) midEnergy += audioDataArray[i]
+          midEnergy = midEnergy / 92 / 255
+
+          // High (2000+ Hz) - melody
+          for (let i = 100; i < Math.min(400, audioDataArray.length); i++) highEnergy += audioDataArray[i]
+          highEnergy = highEnergy / Math.min(300, audioDataArray.length - 100) / 255
+        }
+
+        // Spawn particles based on audio events (threshold-based)
+        if (bassEnergy > 0.3 && Math.random() < bassEnergy * 0.15) {
+          spawnParticle("bass", bassEnergy)
+        }
+        if (midEnergy > 0.25 && Math.random() < midEnergy * 0.1) {
+          spawnParticle(Math.random() > 0.5 ? "chord" : "arp", midEnergy)
+        }
+        if (highEnergy > 0.2 && Math.random() < highEnergy * 0.12) {
+          spawnParticle("melody", highEnergy)
+        }
+
+        // Wind affects all particles (if weather data available)
+        const windFactor = weatherData ? weatherData.windSpeed / 20 : 0
+
+        // Update and draw particles
+        vizParticles = vizParticles.filter((p) => {
+          // Update physics
+          p.x += p.vx
+          p.y += p.vy + windFactor * 0.5
+          p.vy += 0.05 // Gentle gravity
+
+          // Apply wind drift
+          p.vx += (Math.random() - 0.5) * 0.1 * windFactor
+
+          // Fade out over lifetime
+          p.lifetime--
+          p.opacity = p.lifetime / p.maxLifetime
+
+          // Remove if dead or out of bounds
+          if (p.lifetime <= 0 || p.y > particlesCanvas.height + 50) return false
+
+          // Draw particle with glow
+          const glowSize = p.size * 2
+          const grd = particlesCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize)
+          grd.addColorStop(0, `hsla(${p.hue}, ${p.sat}%, ${p.light + 20}%, ${p.opacity})`)
+          grd.addColorStop(0.4, `hsla(${p.hue}, ${p.sat}%, ${p.light}%, ${p.opacity * 0.6})`)
+          grd.addColorStop(1, "transparent")
+
+          particlesCtx.fillStyle = grd
+          particlesCtx.beginPath()
+          particlesCtx.arc(p.x, p.y, glowSize, 0, Math.PI * 2)
+          particlesCtx.fill()
+
+          // Core
+          particlesCtx.fillStyle = `hsla(${p.hue}, ${p.sat}%, ${p.light + 30}%, ${p.opacity})`
+          particlesCtx.beginPath()
+          particlesCtx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2)
+          particlesCtx.fill()
+
+          return true // Keep particle
+        })
+
+        particlesAnimationId = requestAnimationFrame(drawParticlesViz)
+      }
+
+      function startParticlesViz() {
+        if (!vizParticles.length) initVizParticles()
+        resizeParticlesCanvas()
+        if (particlesAnimationId) cancelAnimationFrame(particlesAnimationId)
+        drawParticlesViz()
+        log("Particles visualizer started")
+      }
+
+      function stopParticlesViz() {
+        if (particlesAnimationId) {
+          cancelAnimationFrame(particlesAnimationId)
+          particlesAnimationId = null
+        }
+      }
+
+      // ==================== NEW VISUALIZATIONS ====================
+
+      function resizeChordCanvas() {
+        const vizDisplay = document.getElementById("viz-display")
+        if (vizDisplay) {
+          chordCanvas.width = vizDisplay.clientWidth
+          chordCanvas.height = vizDisplay.clientHeight
+        }
+      }
+
+      function resizeWaterfallCanvas() {
+        const vizDisplay = document.getElementById("viz-display")
+        if (vizDisplay) {
+          waterfallCanvas.width = vizDisplay.clientWidth
+          waterfallCanvas.height = vizDisplay.clientHeight
+          // Clear history on resize to avoid distortion
+          waterfallHistory = []
+        }
+      }
+
+      function resizeSonogramCanvas() {
+        const vizDisplay = document.getElementById("viz-display")
+        if (vizDisplay) {
+          sonogramCanvas.width = vizDisplay.clientWidth
+          sonogramCanvas.height = vizDisplay.clientHeight
+          // Clear history on resize to avoid distortion
+          sonogramHistory = []
+        }
+      }
+
+      // Sonogram visualization (spectrogram scrolling horizontally)
+      function drawSonogram() {
+        if (!audioDataArray || !sonogramCanvas) return
+
+        const w = sonogramCanvas.width
+        const h = sonogramCanvas.height
+
+        // Get current frequency data
+        audioAnalyser.getByteFrequencyData(audioDataArray)
+
+        // Store current column (only first half of spectrum for musical range)
+        const numBins = Math.floor(audioDataArray.length / 3)
+        const columnData = Array.from(audioDataArray.slice(0, numBins))
+        sonogramHistory.push(columnData)
+
+        // Keep only recent columns
+        if (sonogramHistory.length > sonogramMaxColumns) {
+          sonogramHistory.shift()
+        }
+
+        // Clear canvas
+        sonogramCtx.fillStyle = "rgba(10, 10, 30, 1)"
+        sonogramCtx.fillRect(0, 0, w, h)
+
+        if (sonogramHistory.length === 0) return
+
+        const columnWidth = Math.max(2, w / sonogramMaxColumns)
+        const pixelHeight = h / numBins
+
+        // Draw sonogram columns from left to right (newest at right)
+        for (let col = 0; col < sonogramHistory.length; col++) {
+          const column = sonogramHistory[col]
+          const x = col * columnWidth
+
+          for (let row = 0; row < column.length; row++) {
+            const value = column[row] / 255
+            const y = h - (row + 1) * pixelHeight // Bottom to top (low to high freq)
+
+            // Color based on amplitude
+            let hue, saturation, lightness
+            if (value < 0.1) {
+              // Very dark for silence
+              hue = 240
+              saturation = 60
+              lightness = value * 30
+            } else if (value < 0.3) {
+              // Blue for low amplitudes
+              hue = 240
+              saturation = 80
+              lightness = 20 + value * 40
+            } else if (value < 0.6) {
+              // Cyan to green
+              hue = 180 - (value - 0.3) * 200
+              saturation = 85
+              lightness = 35 + value * 35
+            } else if (value < 0.85) {
+              // Yellow to orange
+              hue = 60 - (value - 0.6) * 120
+              saturation = 95
+              lightness = 50 + value * 20
+            } else {
+              // Red for high amplitudes
+              hue = 0
+              saturation = 100
+              lightness = 60 + value * 20
+            }
+
+            sonogramCtx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`
+            sonogramCtx.fillRect(x, y, columnWidth + 1, pixelHeight + 1)
+          }
+        }
+
+        // Draw frequency labels
+        sonogramCtx.fillStyle = "rgba(200, 200, 255, 0.6)"
+        sonogramCtx.font = "10px monospace"
+        sonogramCtx.textAlign = "left"
+        sonogramCtx.fillText("High Freq", 5, 15)
+        sonogramCtx.fillText("Low Freq", 5, h - 5)
+        sonogramCtx.textAlign = "right"
+        sonogramCtx.fillText("← Time", w - 5, h - 5)
+      }
+
+      // Waterfall FFT visualization (frequency over time)
+      function drawWaterfallFFT() {
+        if (!audioDataArray || !waterfallCanvas) return
+
+        const w = waterfallCanvas.width
+        const h = waterfallCanvas.height
+
+        // Get current frequency data
+        audioAnalyser.getByteFrequencyData(audioDataArray)
+
+        // Store current frame in history (only first 1/4 of spectrum for better spread and focus on musical range)
+        const numBins = Math.floor(audioDataArray.length / 4)
+        const frameData = Array.from(audioDataArray.slice(0, numBins))
+        waterfallHistory.push(frameData)
+
+        // Keep only recent frames
+        if (waterfallHistory.length > waterfallMaxFrames) {
+          waterfallHistory.shift()
+        }
+
+        // Clear canvas
+        waterfallCtx.fillStyle = "rgba(10, 10, 30, 1)"
+        waterfallCtx.fillRect(0, 0, w, h)
+
+        if (waterfallHistory.length === 0) return
+
+        const rowHeight = h / waterfallMaxFrames
+        const barWidth = Math.max(2, w / frameData.length) // Minimum 2px width for better visibility
+
+        // Draw waterfall from bottom to top (newest at top)
+        for (let row = 0; row < waterfallHistory.length; row++) {
+          const frame = waterfallHistory[waterfallHistory.length - 1 - row]
+          const y = row * rowHeight
+
+          for (let i = 0; i < frame.length; i++) {
+            const value = frame[i] / 255
+            const x = i * barWidth
+
+            // Color based on amplitude (blue to red gradient)
+            let hue, saturation, lightness
+            if (value < 0.2) {
+              // Dark blue for low amplitudes
+              hue = 240
+              saturation = 80
+              lightness = value * 50
+            } else if (value < 0.5) {
+              // Cyan to green
+              hue = 180 - (value - 0.2) * 200
+              saturation = 80
+              lightness = 30 + value * 40
+            } else if (value < 0.8) {
+              // Yellow to orange
+              hue = 60 - (value - 0.5) * 100
+              saturation = 90
+              lightness = 50 + value * 20
+            } else {
+              // Red for high amplitudes
+              hue = 0
+              saturation = 100
+              lightness = 60 + value * 20
+            }
+
+            waterfallCtx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`
+            waterfallCtx.fillRect(x, y, barWidth + 1, rowHeight + 1)
+          }
+        }
+
+        // Draw frequency labels at bottom
+        waterfallCtx.fillStyle = "rgba(200, 200, 255, 0.6)"
+        waterfallCtx.font = "10px monospace"
+        waterfallCtx.fillText("0 Hz", 5, h - 5)
+        waterfallCtx.fillText("~11 kHz", w - 60, h - 5)
+      }
+
+      // Chord diagram - simple text display
+      function drawChordDiagram() {
+        if (!chordProgression || currentChordIndex === undefined || currentChordIndex === null || !chordCanvas) return
+
+        const w = chordCanvas.width
+        const h = chordCanvas.height
+
+        chordCtx.fillStyle = "rgba(10, 10, 30, 1)"
+        chordCtx.fillRect(0, 0, w, h)
+
+        const chord = chordProgression[currentChordIndex]
+        if (!chord) return
+
+        const cityInfo = CITY_KEYS[currentLocation]
+        if (!cityInfo) return
+
+        // Center content vertically
+        const centerY = h / 2
+
+        // Chord name (large and readable)
+        chordCtx.font = "bold 54px Arial, Helvetica, sans-serif"
+        chordCtx.fillStyle = `rgba(${cityColors[0]}, ${cityColors[1]}, ${cityColors[2]}, 1)`
+        chordCtx.textAlign = "center"
+        chordCtx.fillText(chord.name, w / 2, centerY - 35)
+
+        // Key and Mode
+        chordCtx.font = "20px Arial, Helvetica, sans-serif"
+        chordCtx.fillStyle = "rgba(200, 220, 255, 0.9)"
+        chordCtx.fillText(`Key: ${cityInfo.key}  •  Mode: ${currentMode}`, w / 2, centerY)
+
+        // Note names
+        const noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+        const chordPitchClasses = chord.notes.map((note) => note % 12)
+        const chordNoteNames = chordPitchClasses.map((pc) => noteNames[pc]).join("  •  ")
+
+        chordCtx.font = "22px Arial, Helvetica, sans-serif"
+        chordCtx.fillStyle = "rgba(180, 200, 255, 0.8)"
+        chordCtx.fillText(`Notes: ${chordNoteNames}`, w / 2, centerY + 28)
+
+        // Degree info
+        chordCtx.font = "18px Arial, Helvetica, sans-serif"
+        chordCtx.fillStyle = "rgba(160, 180, 220, 0.7)"
+        chordCtx.fillText(`Scale Degree: ${chord.degree}`, w / 2, centerY + 52)
+      }
+
+      // ==================== MARKOV CHORD GENERATION ====================
+
+      function generateChordProgression(mode, rootNote, length = 8) {
+        const chain = MARKOV_CHAINS[mode]
+        const scale = MODES[mode]
+        const progression = []
+
+        let currentDegree = 1
+
+        for (let i = 0; i < length; i++) {
+          const scaleIndex = currentDegree - 1
+          const chordRoot = rootNote + scale[scaleIndex] + transpose
+
+          const third = scale[(scaleIndex + 2) % 7]
+          const fifth = scale[(scaleIndex + 4) % 7]
+          const seventh = scale[(scaleIndex + 6) % 7]
+          const ninth = scale[(scaleIndex + 1) % 7] + 12
+          const eleventh = scale[(scaleIndex + 3) % 7] + 12
+          const thirteenth = scale[(scaleIndex + 5) % 7] + 12
+
+          // Jazz harmony selection (weighted probabilities)
+          const harmonyType = Math.random()
+          let notes = []
+          let chordType = ""
+
+          if (harmonyType < 0.15) {
+            // 13th chords (15%)
+            notes = [
+              chordRoot,
+              rootNote + third + transpose,
+              rootNote + fifth + transpose,
+              rootNote + seventh + transpose,
+              rootNote + ninth + transpose,
+              rootNote + thirteenth + transpose,
+            ]
+            chordType = "13th"
+          } else if (harmonyType < 0.3) {
+            // 11th chords (15%)
+            notes = [
+              chordRoot,
+              rootNote + third + transpose,
+              rootNote + fifth + transpose,
+              rootNote + seventh + transpose,
+              rootNote + ninth + transpose,
+              rootNote + eleventh + transpose,
+            ]
+            chordType = "11th"
+          } else if (harmonyType < 0.5) {
+            // 9th chords (20%)
+            notes = [
+              chordRoot,
+              rootNote + third + transpose,
+              rootNote + fifth + transpose,
+              rootNote + seventh + transpose,
+              rootNote + ninth + transpose,
+            ]
+            chordType = "9th"
+          } else if (harmonyType < 0.65) {
+            // sus chords (15%)
+            const fourth = scale[(scaleIndex + 3) % 7]
+            notes = [
+              chordRoot,
+              rootNote + fourth + transpose,
+              rootNote + fifth + transpose,
+              rootNote + seventh + transpose,
+            ]
+            chordType = "sus"
+          } else if (harmonyType < 0.85) {
+            // 7th chords (20%)
+            notes = [
+              chordRoot,
+              rootNote + third + transpose,
+              rootNote + fifth + transpose,
+              rootNote + seventh + transpose,
+            ]
+            chordType = "7th"
+          } else {
+            // Triad (15%)
+            notes = [chordRoot, rootNote + third + transpose, rootNote + fifth + transpose]
+            chordType = "triad"
+          }
+
+          // Voicing variations - spread notes across octaves
+          if (notes.length >= 4) {
+            // Drop 2 voicing (common jazz voicing)
+            if (Math.random() > 0.6) {
+              notes[1] -= 12 // Drop second note down an octave
+            }
+
+            // Occasional inversions
+            if (Math.random() > 0.7) {
+              notes[0] += 12 // Bass note up an octave
+            }
+          }
+
+          progression.push({
+            degree: currentDegree,
+            notes: notes,
+            name: getChordName(currentDegree, mode, chordType),
+          })
+
+          const transitions = chain[currentDegree]
+          if (transitions && i < length - 1) {
+            const totalWeight = transitions.reduce((sum, [, w]) => sum + w, 0)
+            let rand = Math.random() * totalWeight
+
+            for (const [nextDegree, weight] of transitions) {
+              rand -= weight
+              if (rand <= 0) {
+                currentDegree = nextDegree
+                break
+              }
+            }
+          } else {
+            currentDegree = 1
+          }
+        }
+
+        return progression
+      }
+
+      function getChordName(degree, mode, chordType) {
+        const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII"]
+        const numeral = romanNumerals[degree - 1]
+
+        const qualityMap = {
+          ionian: ["", "m", "m", "", "", "m", "dim"],
+          dorian: ["m", "m", "", "", "m", "dim", ""],
+          phrygian: ["m", "", "", "m", "dim", "", "m"],
+          lydian: ["", "", "m", "dim", "", "m", "m"],
+          mixolydian: ["", "m", "dim", "", "m", "m", ""],
+          aeolian: ["m", "dim", "", "m", "m", "", ""],
+          locrian: ["dim", "", "m", "m", "", "", "m"],
+        }
+
+        const quality = qualityMap[mode][degree - 1]
+        let name = numeral.toLowerCase() + quality
+
+        // Add jazz extensions
+        if (chordType === "13th") {
+          name += "13"
+        } else if (chordType === "11th") {
+          name += "11"
+        } else if (chordType === "9th") {
+          name += "9"
+        } else if (chordType === "7th") {
+          name += "7"
+        } else if (chordType === "sus") {
+          name += "sus7"
+        }
+
+        return name
+      }
+
+      // ==================== WEATHER API ====================
+
+      async function fetchWeatherData(latLon) {
+        let lat, lon
+
+        if (!latLon || latLon === "null" || latLon === "undefined") {
+          throw new Error("Invalid location coordinates")
+        }
+
+        if (latLon === "local") {
+          if (!userLocation) {
+            throw new Error("Geolocation not available. Please allow location access.")
+          }
+          lat = userLocation.latitude
+          lon = userLocation.longitude
+        } else {
+          const parts = latLon.split(",")
+          if (parts.length !== 2) {
+            throw new Error(`Invalid location format: ${latLon}`)
+          }
+          lat = parts[0].trim()
+          lon = parts[1].trim()
+        }
+
+        if (!lat || !lon) {
+          throw new Error(`Missing coordinates: lat=${lat}, lon=${lon}`)
+        }
+
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,cloud_cover,precipitation,weather_code,visibility&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,cloud_cover&forecast_days=1&timezone=auto`
+
+        try {
+          const response = await fetch(url)
+          if (!response.ok) {
+            throw new Error(`Weather API returned ${response.status}: ${response.statusText}`)
+          }
+          const data = await response.json()
+
+          if (!data.current) {
+            throw new Error("Weather API returned invalid data")
+          }
+
+          return {
+            temperature: data.current.temperature_2m,
+            humidity: data.current.relative_humidity_2m,
+            windSpeed: data.current.wind_speed_10m,
+            windDirection: data.current.wind_direction_10m,
+            windGusts: data.current.wind_gusts_10m,
+            pressure: data.current.surface_pressure,
+            cloudCover: data.current.cloud_cover,
+            precipitation: data.current.precipitation || 0,
+            weatherCode: data.current.weather_code,
+            visibility: data.current.visibility,
+            timezone: data.timezone,
+            timezoneAbbreviation: data.timezone_abbreviation,
+            utcOffsetSeconds: data.utc_offset_seconds,
+            hourly: {
+              time: data.hourly.time,
+              temperature: data.hourly.temperature_2m,
+              humidity: data.hourly.relative_humidity_2m,
+              windSpeed: data.hourly.wind_speed_10m,
+              pressure: data.hourly.surface_pressure,
+              cloudCover: data.hourly.cloud_cover,
+            },
+          }
+        } catch (error) {
+          log(`Weather API error: ${error.message}`)
+          throw error
+        }
+      }
+
+      async function getUserLocation() {
+        return new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error("Geolocation not supported"))
+            return
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              userLocation = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              }
+              const locationKey = `${userLocation.latitude.toFixed(4)},${userLocation.longitude.toFixed(4)}`
+              CITY_KEYS[locationKey] = {
+                name: "Your Location",
+                key: "C",
+                rootNote: 48,
+                colors: [150, 255, 150],
+                timbre: { bright: 0.6, detune: 0.5, chorus: 0.5, pluck: 0.5 },
+              }
+              log(`Location: ${userLocation.latitude.toFixed(4)}, ${userLocation.longitude.toFixed(4)}`)
+              resolve(userLocation)
+            },
+            (error) => {
+              reject(error)
+            },
+          )
+        })
+      }
+
+      // ==================== VISUALIZATION ====================
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+      }
+
+      function initParticles() {
+        visualParticles = []
+        for (let i = 0; i < 150; i++) {
+          visualParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
+            size: Math.random() * 3 + 1,
+            opacity: Math.random() * 0.5 + 0.2,
+            hue: cityColors[0],
+            sat: 70,
+            light: 60,
+          })
+        }
+      }
+
+      function updateParticles() {
+        if (!weatherData) return
+
+        const windFactor = weatherData.windSpeed / 15
+        const tempFactor = (weatherData.temperature + 20) / 60
+
+        visualParticles.forEach((p) => {
+          p.x += p.vx * (1 + windFactor)
+          p.y += p.vy * (1 + windFactor * 0.5)
+
+          if (p.x < 0) p.x = canvas.width
+          if (p.x > canvas.width) p.x = 0
+          if (p.y < 0) p.y = canvas.height
+          if (p.y > canvas.height) p.y = 0
+
+          // Smoothly interpolate hue toward city color
+          const targetHue = cityColors[0] + tempFactor * 60
+          p.hue += (targetHue - p.hue) * 0.02
+        })
+      }
+
+      function drawVisualization() {
+        ctx.fillStyle = "rgba(10, 10, 10, 0.1)"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        if (!weatherData) return
+
+        const humidityFactor = weatherData.humidity / 100
+        const cloudFactor = weatherData.cloudCover / 100
+
+        // Draw particles if enabled
+        if (vizEnabled.particles) {
+          visualParticles.forEach((p) => {
+            const glowSize = p.size * (2 + humidityFactor * 4)
+            const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize)
+            grd.addColorStop(0, `hsla(${p.hue}, ${p.sat}%, ${p.light}%, ${p.opacity * (1 - cloudFactor * 0.5)})`)
+            grd.addColorStop(1, "transparent")
+
+            ctx.fillStyle = grd
+            ctx.fillRect(p.x - glowSize, p.y - glowSize, glowSize * 2, glowSize * 2)
+          })
+        }
+
+        // Draw weather icons overlay
+        drawWeatherOverlay()
+
+        animationId = requestAnimationFrame(animate)
+      }
+
+      function animate() {
+        updateParticles()
+        drawVisualization()
+
+        // Always draw audio visualizations (if audio data available)
+        drawAudioSpectrum()
+        drawWaterfallFFT()
+        drawSonogram()
+
+        // Update weather icons periodically
+        if (Math.random() < 0.01) {
+          // Update ~1% of frames
+          updateWeatherVizIcons()
+        }
+      }
+
+      // ==================== WEATHER DISPLAY ====================
+
+      function updateWeatherDisplay(data, cityInfo) {
+        weatherData = data
+        cityColors = cityInfo.colors
+
+        weatherDisplay.innerHTML = `
+                <div class="weather-item" id="temp-display">
+                  <div class="weather-label">Temperature</div>
+                  <div class="weather-value">${data.temperature.toFixed(1)}<span class="weather-unit">°C</span></div>
+                  <div class="weather-mapping">→ Melody range</div>
+                </div>
+                <div class="weather-item" id="humid-display">
+                  <div class="weather-label">Humidity</div>
+                  <div class="weather-value">${data.humidity}<span class="weather-unit">%</span></div>
+                  <div class="weather-mapping">→ Reverb & glow</div>
+                </div>
+                <div class="weather-item" id="wind-display">
+                  <div class="weather-label">Wind Speed</div>
+                  <div class="weather-value">${data.windSpeed.toFixed(1)}<span class="weather-unit">m/s</span></div>
+                  <div class="weather-mapping">→ Rhythm & motion</div>
+                </div>
+                <div class="weather-item" id="press-display">
+                  <div class="weather-label">Pressure</div>
+                  <div class="weather-value">${data.pressure.toFixed(0)}<span class="weather-unit">hPa</span></div>
+                  <div class="weather-mapping">→ Bass depth</div>
+                </div>
+                <div class="weather-item" id="cloud-display">
+                  <div class="weather-label">Cloud Cover</div>
+                  <div class="weather-value">${data.cloudCover}<span class="weather-unit">%</span></div>
+                  <div class="weather-mapping">→ Brightness</div>
+                </div>
+              `
+
+        Object.keys(data).forEach((key) => {
+          flashDisplay(`${key.replace(/([A-Z])/g, "-$1").toLowerCase()}-display`)
+        })
+
+        // Update weather viz frame icons
+        updateWeatherVizIcons()
+
+        // Update local time display
+        updateLocalTime(cityInfo)
+
+        // Debug: log hourly data structure
+        if (data.hourly) {
+          log(`Hourly data available: ${data.hourly.time ? data.hourly.time.length : 0} points`)
+        }
+      }
+
+      let timeUpdateInterval = null
+
+      function updateLocalTime(cityInfo) {
+        // Clear any existing interval
+        if (timeUpdateInterval) {
+          clearInterval(timeUpdateInterval)
+        }
+
+        if (!weatherData || !weatherData.utcOffsetSeconds) {
+          localTimeDisplay.textContent = "Local time unavailable"
+          return
+        }
+
+        const offsetHours = weatherData.utcOffsetSeconds / 3600
+        const timezoneName = weatherData.timezone || "Unknown"
+
+        function displayTime() {
+          const now = new Date()
+          const utc = now.getTime() + now.getTimezoneOffset() * 60000
+          const localTime = new Date(utc + weatherData.utcOffsetSeconds * 1000)
+
+          const hours = localTime.getHours().toString().padStart(2, "0")
+          const minutes = localTime.getMinutes().toString().padStart(2, "0")
+          const seconds = localTime.getSeconds().toString().padStart(2, "0")
+
+          const hour = localTime.getHours()
+          const period = hour >= 18 || hour < 6 ? "🌙" : hour >= 6 && hour < 12 ? "🌅" : "☀️"
+
+          const offsetStr = offsetHours >= 0 ? `+${offsetHours}` : `${offsetHours}`
+          localTimeDisplay.textContent = `${period} ${cityInfo.name} Local Time: ${hours}:${minutes}:${seconds} (${timezoneName}, UTC${offsetStr})`
+        }
+
+        displayTime()
+        timeUpdateInterval = setInterval(displayTime, 1000)
+      }
+
+      // ==================== CHORD PROGRESSION DISPLAY ====================
+
+      function displayChordProgression() {
+        chordProgressionEl.innerHTML = chordProgression
+          .map(
+            (chord, idx) => `<div class="chord-item ${idx === currentChordIndex ? "current" : ""}">${chord.name}</div>`,
+          )
+          .join("")
+      }
+
+      function updateCurrentChord() {
+        const chord = chordProgression[currentChordIndex]
+        const cityInfo =
+          CITY_KEYS[currentLocation] ||
+          CITY_KEYS[Object.keys(CITY_KEYS).find((k) => CITY_KEYS[k].name === "Your Location")]
+        currentChordEl.textContent = chord.name
+        chordInfoEl.textContent = `${cityInfo.name} in ${cityInfo.key} ${currentMode} • Degree ${chord.degree}${transpose !== 0 ? ` (${transpose > 0 ? "+" : ""}${transpose})` : ""}`
+        displayChordProgression()
+
+        // Update chord diagram visualization
+        drawChordDiagram()
+      }
+
+      // ==================== CSOUND PLAYBACK ====================
+
+      async function playChord(chordIndex) {
+        if (!csound || !weatherData) return
+
+        currentChordIndex = chordIndex
+        updateCurrentChord()
+
+        const chord = chordProgression[chordIndex]
+        const cityInfo =
+          CITY_KEYS[currentLocation] ||
+          CITY_KEYS[Object.keys(CITY_KEYS).find((k) => CITY_KEYS[k].name === "Your Location")]
+
+        const baseDuration = 4.0 + weatherData.windSpeed / 10
+        const duration = baseDuration / globalSpeed
+        const velocity = (0.12 + (weatherData.temperature + 20) / 300) * masterVolume
+        const reverbAmount = weatherData.humidity / 150
+
+        // Update city-specific timbral parameters
+        if (cityInfo && cityInfo.timbre) {
+          await csound.setControlChannel("bright", cityInfo.timbre.bright)
+          await csound.setControlChannel("detune", cityInfo.timbre.detune)
+          await csound.setControlChannel("chorus", cityInfo.timbre.chorus)
+          await csound.setControlChannel("pluck", cityInfo.timbre.pluck)
+        }
+
+        // Mix levels are now continuously updated by slider event listeners
+        // (removed redundant chnset calls to prevent overwriting user adjustments)
+
+        // Determine instrument numbers based on orchestra
+        const orchestraOffset =
+          currentOrchestra === "warm"
+            ? 20
+            : currentOrchestra === "breathy"
+              ? 100
+              : currentOrchestra === "bells"
+                ? 200
+                : 300
+        const chordInstr = orchestraOffset
+        const arpInstr = orchestraOffset + 1
+
+        // Play chord notes
+        for (let i = 0; i < chord.notes.length; i++) {
+          await csound.inputMessage(`i ${chordInstr} 0 ${duration} ${chord.notes[i]} ${velocity} ${reverbAmount}`)
+        }
+
+        // Play independent walking bass (2x louder, more active)
+        const bassRootNote = chord.notes[0]
+        const windNorm = Math.min(1, weatherData.windSpeed / 50)
+        const pressureNorm = (weatherData.pressure - 950) / 100
+
+        // Main bass note (2x louder)
+        await csound.inputMessage(`i 60 0 ${duration} ${bassRootNote} ${velocity * 2.4} ${windNorm} ${pressureNorm}`)
+
+        // Add occasional passing notes for more activity (50% chance)
+        if (Math.random() > 0.5) {
+          const midPoint = duration / 2
+          const passingNote = Math.random() > 0.5 ? chord.notes[1] || bassRootNote : bassRootNote + 7 // 5th or 3rd
+          await csound.inputMessage(
+            `i 60 ${midPoint} ${duration / 2} ${passingNote} ${velocity * 1.8} ${windNorm} ${pressureNorm}`,
+          )
+        }
+
+        // Add arpeggio
+        const arpDelay = (0.15 - weatherData.windSpeed / 200) / globalSpeed
+        chord.notes.forEach((note, idx) => {
+          setTimeout(
+            async () => {
+              await csound.inputMessage(`i ${arpInstr} 0 1.5 ${note + 12} ${velocity * 0.6} ${reverbAmount}`)
+            },
+            idx * arpDelay * 1000,
+          )
+        })
+
+        // Trigger generative plucked textures (based on wind speed)
+        if (weatherData.windSpeed > 10) {
+          const numPlucks = Math.floor(weatherData.windSpeed / 10)
+          for (let i = 0; i < numPlucks; i++) {
+            const delay = Math.random() * duration * 1000
+            const note = chord.notes[Math.floor(Math.random() * chord.notes.length)]
+            const octave = Math.random() > 0.5 ? 12 : 24
+            setTimeout(async () => {
+              await csound.inputMessage(`i 31 0 0.3 ${note + octave} ${velocity * 0.4} ${Math.random() * 0.3 + 0.2}`)
+            }, delay)
+          }
+        }
+
+        // Weather-responsive phrasal melody generator (with busyness control)
+        const melodyRoll = Math.random()
+        log(`🎵 Melody check: enabled=${melodyEnabled}, busyness=${melodyBusyness}, roll=${melodyRoll.toFixed(2)}`)
+
+        if (melodyEnabled && melodyRoll < melodyBusyness) {
+          const tempNorm = Math.max(0, Math.min(1, (weatherData.temperature + 20) / 60))
+          const windNorm = Math.min(1, weatherData.windSpeed / 50)
+          const humidNorm = weatherData.humidity / 100
+
+          // Longer duration for phrasal melodies (spans entire chord)
+          const melodyDuration = duration * 0.95
+          const melodyDelay = 0.05
+
+          // Select melody instrument based on type
+          const melodyInstrMap = { bell: 52, legato: 53 }
+          const melodyInstr = melodyInstrMap[melodyType] || 52
+
+          setTimeout(async () => {
+            // Melody instruments only handle up to 4 notes (p11-p14)
+            const numNotes = Math.min(chord.notes.length, 4)
+            const noteParams = chord.notes.slice(0, 4).join(" ")
+            const octaveShift = melodyOctave * 12
+
+            // Pass mode scale intervals (7 values: p15-p21)
+            const modeScale = MODES[currentMode].join(" ")
+
+            const melodyMsg = `i ${melodyInstr} 0 ${melodyDuration} ${cityInfo.rootNote} ${velocity * 0.45} ${numNotes} ${tempNorm} ${windNorm} ${humidNorm} ${octaveShift} ${noteParams} ${modeScale}`
+            log(`🎵 Melody trigger: ${melodyMsg}`)
+
+            await csound.inputMessage(melodyMsg)
+          }, melodyDelay * 1000)
+        }
+
+        // Counter melody (if enabled, with busyness control)
+        const counterMelodyRoll = Math.random()
+        log(
+          `🎶 Counter melody check: enabled=${counterMelodyEnabled}, busyness=${counterMelodyBusyness}, roll=${counterMelodyRoll.toFixed(2)}`,
+        )
+
+        if (counterMelodyEnabled && counterMelodyRoll < counterMelodyBusyness) {
+          const tempNorm = Math.max(0, Math.min(1, (weatherData.temperature + 20) / 60))
+          const windNorm = Math.min(1, weatherData.windSpeed / 50)
+          const humidNorm = weatherData.humidity / 100
+
+          const counterMelodyDuration = duration * 0.95
+          const counterMelodyDelay = 0.1 // Slightly offset from main melody
+
+          // Select counter melody instrument based on type
+          const counterInstrMap = { fm: 54, waveguide: 55 }
+          const counterInstr = counterInstrMap[counterMelodyType] || 54
+
+          setTimeout(async () => {
+            // Counter melody instruments only handle up to 4 notes (p11-p14)
+            const numNotes = Math.min(chord.notes.length, 4)
+            const noteParams = chord.notes.slice(0, 4).join(" ")
+            const octaveShift = counterMelodyOctave * 12
+
+            // Pass mode scale intervals (7 values: p15-p21)
+            const modeScale = MODES[currentMode].join(" ")
+
+            const counterMsg = `i ${counterInstr} 0 ${counterMelodyDuration} ${cityInfo.rootNote} ${velocity * 0.35} ${numNotes} ${tempNorm} ${windNorm} ${humidNorm} ${octaveShift} ${noteParams} ${modeScale}`
+            log(`🎶 Counter melody trigger: ${counterMsg}`)
+
+            await csound.inputMessage(counterMsg)
+          }, counterMelodyDelay * 1000)
+        }
+
+        log(`Playing ${chord.name} (${currentOrchestra}) - Notes: ${chord.notes.join(", ")} - ${cityInfo.name}`)
+
+        // Schedule next chord
+        chordTimeoutId = setTimeout(() => {
+          const nextIndex = (chordIndex + 1) % chordProgression.length
+          playChord(nextIndex)
+        }, duration * 1000)
+      }
+
+      async function startSonification() {
+        const cityInfo =
+          CITY_KEYS[currentLocation] ||
+          CITY_KEYS[Object.keys(CITY_KEYS).find((k) => CITY_KEYS[k].name === "Your Location")]
+
+        chordProgression = generateChordProgression(currentMode, cityInfo.rootNote, 8)
+        log(
+          `Generated ${currentMode} progression in ${cityInfo.key}: ${chordProgression.map((c) => c.name).join(" → ")}`,
+        )
+
+        displayChordProgression()
+
+        // Initialize all volume channels using setControlChannel
+        await csound.setControlChannel("masterVol", masterVolume)
+        await csound.setControlChannel("chordVol", chordVol)
+        await csound.setControlChannel("arpVol", arpVol)
+        await csound.setControlChannel("bassVol", bassVol)
+        await csound.setControlChannel("droneVol", droneVol)
+        await csound.setControlChannel("melodyVol", melodyVol)
+        await csound.setControlChannel("counterMelodyVol", counterMelodyVolSlider.value / 100)
+        await csound.setControlChannel("melodySpeed", melodySpeed)
+        await csound.setControlChannel("counterMelodySpeed", counterMelodySpeed)
+        await csound.setControlChannel("counterMelodyFade", 1.0)
+        await csound.setControlChannel("melodyFade", 1.0)
+
+        log(
+          `✅ Initialized counter melody: vol=${counterMelodyVolSlider.value}%, speed=${counterMelodySpeed.toFixed(2)}x, type=${counterMelodyType}, enabled=${counterMelodyEnabled}`,
+        )
+
+        // Start continuous generative drone layer
+        const droneAmp = 0.15 * masterVolume
+        await csound.inputMessage(`i 30 0 -1 ${cityInfo.rootNote} ${droneAmp}`)
+        log(`Started generative drone on root ${cityInfo.key}`)
+
+        currentChordIndex = 0
+        await playChord(0)
+      }
+
+      // ==================== PHRASE MODE ====================
+
+      async function updatePhaseFades() {
+        if (!phraseModeEnabled || !csound) return
+
+        // Smoothly interpolate current fades toward targets
+        const fadeSpeed = 0.05 // Slow gradual changes
+        let anyChanges = false
+
+        for (const layer of ["chord", "arp", "bass", "drone", "melody", "counterMelody"]) {
+          const diff = targetFades[layer] - currentFades[layer]
+          if (Math.abs(diff) > 0.01) {
+            currentFades[layer] += diff * fadeSpeed
+            anyChanges = true
+
+            // Send to Csound
+            const channelName =
+              layer === "chord"
+                ? "chordFade"
+                : layer === "arp"
+                  ? "arpFade"
+                  : layer === "bass"
+                    ? "bassFade"
+                    : layer === "drone"
+                      ? "droneFade"
+                      : layer === "melody"
+                        ? "melodyFade"
+                        : "counterMelodyFade"
+            await csound.setControlChannel(channelName, currentFades[layer])
+          } else {
+            currentFades[layer] = targetFades[layer]
+          }
+        }
+
+        // Update visual fade indicators
+        updateFadeIndicators()
+
+        return anyChanges
+      }
+
+      function updateFadeIndicators() {
+        // Update the visual fade bars to show current layer activity
+        for (const layer of ["chord", "arp", "bass", "drone", "melody", "counterMelody"]) {
+          const fadeBar = document.getElementById(`fadeBar-${layer}`)
+          const fadeVal = document.getElementById(`fadeVal-${layer}`)
+
+          if (fadeBar && fadeVal) {
+            const percentage = Math.round(currentFades[layer] * 100)
+            fadeBar.style.width = `${percentage}%`
+            fadeVal.textContent = `${percentage}%`
+
+            // Dim the bar when fade is low
+            fadeBar.style.opacity = 0.3 + currentFades[layer] * 0.7
+          }
+        }
+      }
+
+      function schedulePhraseEvent() {
+        if (!phraseModeEnabled) return
+
+        // Use busyness to determine event timing (scaled by busyness: more busy = faster changes)
+        const minTime = phraseSilenceDuration * 1000 * 0.5 // Half of silence duration
+        const maxTime = phraseSilenceDuration * 1000 * 2 // Double silence duration
+        const timeRange = maxTime - minTime
+        const nextEventTime = minTime + Math.random() * timeRange * (1.0 / phraseBusyness)
+
+        phraseTimeoutId = setTimeout(async () => {
+          // Choose random action: fade in, fade out, or silence
+          const action = Math.random()
+
+          if (action < 0.3 && !phraseKeepOneVoice) {
+            // Complete silence (all layers fade out) - only if phraseKeepOneVoice is false
+            log("🎼 Phrase: Silence")
+            targetFades.chord = 0
+            targetFades.arp = 0
+            targetFades.bass = 0
+            targetFades.drone = 0
+            targetFades.melody = 0
+            targetFades.counterMelody = 0
+          } else if (action < 0.6) {
+            // Partial layers (random selection)
+            const layers = ["chord", "arp", "bass", "drone", "melody", "counterMelody"]
+            const minActive = phraseKeepOneVoice ? 1 : 0 // At least 1 if keeping one voice
+            const numActive = minActive + Math.floor(Math.random() * (6 - minActive)) // 1-5 layers active (or 0-5 if no keep)
+
+            layers.forEach((layer) => {
+              targetFades[layer] = 0
+            })
+
+            for (let i = 0; i < numActive; i++) {
+              const randomLayer = layers[Math.floor(Math.random() * layers.length)]
+              targetFades[randomLayer] = 0.6 + Math.random() * 0.4 // 0.6-1.0
+            }
+
+            log(`🎼 Phrase: ${numActive} layers active`)
+          } else {
+            // Full ensemble (all layers with varied levels)
+            targetFades.chord = 0.7 + Math.random() * 0.3
+            targetFades.arp = 0.5 + Math.random() * 0.5
+            targetFades.bass = 0.6 + Math.random() * 0.4
+            targetFades.drone = 0.3 + Math.random() * 0.5
+            targetFades.melody = melodyEnabled ? 0.5 + Math.random() * 0.5 : 0
+            targetFades.counterMelody = counterMelodyEnabled ? 0.5 + Math.random() * 0.5 : 0
+
+            log("🎼 Phrase: Full ensemble")
+          }
+
+          schedulePhraseEvent()
+        }, nextEventTime)
+      }
+
+      function startPhraseMode() {
+        if (phraseModeEnabled && isPlaying && csound) {
+          log("🎼 Phrase Mode: Started")
+          schedulePhraseEvent()
+
+          // Start fade interpolation loop
+          const fadeLoop = setInterval(async () => {
+            if (!phraseModeEnabled) {
+              clearInterval(fadeLoop)
+              // Reset all fades to 1.0 when disabled
+              await csound.setControlChannel("chordFade", 1.0)
+              await csound.setControlChannel("arpFade", 1.0)
+              await csound.setControlChannel("bassFade", 1.0)
+              await csound.setControlChannel("droneFade", 1.0)
+              await csound.setControlChannel("melodyFade", 1.0)
+              await csound.setControlChannel("counterMelodyFade", 1.0)
+              return
+            }
+            await updatePhaseFades()
+          }, 100) // Update 10 times per second for smooth fades
+        }
+      }
+
+      function stopPhraseMode() {
+        if (phraseTimeoutId) {
+          clearTimeout(phraseTimeoutId)
+          phraseTimeoutId = null
+        }
+
+        // Reset all fades to full
+        targetFades = {
+          chord: 1.0,
+          arp: 1.0,
+          bass: 1.0,
+          drone: 1.0,
+          melody: 1.0,
+          counterMelody: 1.0,
+        }
+        currentFades = { ...targetFades }
+
+        // Update visual indicators
+        updateFadeIndicators()
+
+        log("🎼 Phrase Mode: Stopped")
+      }
+
+      // ==================== LOCATION CHANGER ====================
+
+      async function scheduleLocationChange() {
+        if (!locationChangeEnabled || !isPlaying) return
+
+        locationChangeTimeoutId = setTimeout(async () => {
+          const locations = Object.keys(CITY_KEYS).filter((k) => k !== "local" && k !== currentLocation)
+          const nextLocation = locations[Math.floor(Math.random() * locations.length)]
+
+          locationSelect.value = nextLocation
+          currentLocation = nextLocation
+          const cityInfo = CITY_KEYS[currentLocation]
+
+          log(`🌍 Auto location change: ${cityInfo.name}`)
+          weatherData = await fetchWeatherData(currentLocation)
+          updateWeatherDisplay(weatherData, cityInfo)
+
+          if (chordTimeoutId) clearTimeout(chordTimeoutId)
+
+          chordProgression = generateChordProgression(currentMode, cityInfo.rootNote, 8)
+          currentChordIndex = 0
+          await playChord(0)
+
+          status.textContent = `🎵 Playing ${cityInfo.name} in ${cityInfo.key} ${currentMode}`
+
+          // Schedule next change
+          scheduleLocationChange()
+        }, locationChangeInterval * 1000)
+      }
+
+      function stopLocationChanger() {
+        if (locationChangeTimeoutId) {
+          clearTimeout(locationChangeTimeoutId)
+          locationChangeTimeoutId = null
+        }
+      }
+
+      // ==================== CSOUND ORCHESTRA ====================
+
+      const orchestraCode = `
+      sr = 44100
+      ksmps = 64
+      nchnls = 2
+      0dbfs = 1
+      seed 0
+
+      ; Global audio buses
+      gaReverb init 0
+      gaChorus init 0
+      gaDrone init 0
+
+      ; Control channels for timbre
+      chnset 0.5, "bright"
+      chnset 0.5, "detune"
+      chnset 0.5, "chorus"
+      chnset 0.5, "pluck"
+      chnset 1, "orchestra"  ; 1=warm, 2=breathy, 3=bells, 4=textural
+
+      ; Control channels for mix levels
+      chnset 0.7, "chordVol"
+      chnset 0.6, "arpVol"
+      chnset 0.55, "bassVol"
+      chnset 0.4, "droneVol"
+      chnset 0.5, "melodyVol"
+      chnset 0.4, "counterMelodyVol"
+      
+      ; Control channels for melody speeds
+      chnset 1.0, "melodySpeed"
+      chnset 0.85, "counterMelodySpeed"
+
+      ; Control channels for phrase mode fades (0.0 to 1.0)
+      chnset 1.0, "chordFade"
+      chnset 1.0, "arpFade"
+      chnset 1.0, "bassFade"
+      chnset 1.0, "droneFade"
+      chnset 1.0, "melodyFade"
+      chnset 1.0, "counterMelodyFade"
+
+      ; =================================================================
+      ; ORCHESTRA 1: WARM PADS (20-29)
+      ; =================================================================
+
+      ; Instr 20: Warm pad chords
+      instr 20
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+
+          kBright = chnget:k("bright")
+          kDetune = chnget:k("detune")
+          kChordVol = chnget:k("chordVol")
+          kChordFade = portk(chnget:k("chordFade"), 0.5)
+
+          iFreq = cpsmidinn(iNote)
+
+          kEnv = linsegr(0, 1.5, iVel, 1, iVel * 0.8, 0.5, 0)
+
+          kDetAmt = 0.002 + (kDetune * 0.006)
+          aOsc1 = oscili(kEnv, iFreq * (1 - kDetAmt))
+          aOsc2 = oscili(kEnv * 0.5, iFreq * (1 + kDetAmt))
+          aOsc3 = oscili(kEnv * 0.3, iFreq)
+          aOsc4 = oscili(kEnv * 0.2, iFreq * 2.01)
+
+          aMix = (aOsc1 + aOsc2 + aOsc3 + aOsc4) * 0.25
+
+          kCutoff = 800 + (kBright * 6000)
+          aFilt = moogladder(aMix, kCutoff, 0.1)
+
+          aOut = aFilt * kChordVol * kChordFade
+
+          gaReverb = gaReverb + (aOut * iRvb)
+          gaChorus = gaChorus + (aOut * 0.3)
+          out(aOut, aOut)
+      endin
+
+      ; Instr 21: Warm arpeggio
+      instr 21
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+
+          kArpVol = chnget:k("arpVol")
+          kArpFade = portk(chnget:k("arpFade"), 0.5)
+          kPluck = chnget:k("pluck")
+
+          iFreq = cpsmidinn(iNote)
+
+          kEnv = expsegr(iVel, 0.01, iVel, 0.3, iVel * 0.1, 0.8, 0.001, 0.1, 0.001)
+
+          aOsc = oscili(kEnv, iFreq)
+          aPlk = pluck(kEnv * 0.8, iFreq, iFreq, 0, 1)
+          aMix = ntrpol(aOsc, aPlk, kPluck)
+
+          aOut = aMix * kArpVol * kArpFade
+
+          gaReverb = gaReverb + (aOut * iRvb * 1.5)
+          out(aOut, aOut)
+      endin
+
+      ; =================================================================
+      ; BASS INSTRUMENT (60)
+      ; =================================================================
+
+      ; Instr 60: Sustained bass with half-note rhythm (not walking bass)
+      instr 60
+          iRootNote = p4
+          iVel = p5
+          iDur = p3
+          iWindFactor = p6
+          iPressureFactor = p7
+
+          kBassVol = chnget:k("bassVol")
+          kBassFade = portk(chnget:k("bassFade"), 0.5)
+
+          ; Half-note rhythm - very slow, sustained bass
+          kNoteRate = 0.4 + iWindFactor * 0.2
+          kTrig = metro(kNoteRate)
+
+          ; Simple pattern: mostly root, occasionally 5th or octave
+          kDegree init 0
+          kNewDegree init 0
+          if kTrig == 1 then
+            kRand = random:k(0, 1)
+            if kRand < 0.7 then
+              kNewDegree = 0
+            elseif kRand < 0.9 then
+              kNewDegree = 7
+            else
+              kNewDegree = 0
+            endif
+          endif
+          kDegree = (kTrig == 1) ? kNewDegree : kDegree
+
+          ; Calculate bass note - 2 octaves below chord root
+          kNote = iRootNote - 24 + kDegree
+          kFreq = cpsmidinn(kNote)
+
+          ; DISTINCT NOTES - Smooth envelope with longer release
+          kPrevDegree init -1
+          kNoteChange = (kDegree != kPrevDegree) ? 1 : 0
+          kPrevDegree = kDegree
+
+          ; Gate opens on note change, decays slowly
+          kGate init 0
+          if kNoteChange == 1 then
+            kGate = 1
+          endif
+
+          ; Even slower decay for longer sustain (0.975 = ~4s decay)
+          kGate = kGate * 0.975
+
+          ; Smoother attack envelope (80ms attack)
+          kAttackTime = 0.08
+          kAttack init 0
+          if kNoteChange == 1 then
+            kAttack = 0
+          endif
+          kAttack = portk(kGate, kAttackTime)
+
+          kEnv = iVel * kAttack
+
+          ; Warm bass timbre with more sub-bass, less harmonics
+          aSub = oscili(kEnv * 0.5, kFreq * 0.5)
+          aFund = oscili(kEnv * 0.7, kFreq)
+          a2nd = oscili(kEnv * 0.08, kFreq * 2.01)
+          a3rd = oscili(kEnv * 0.03, kFreq * 3.02)
+
+          aBass = aSub + aFund + a2nd + a3rd
+
+          ; Double lowpass for extra warmth
+          kCutoff = kFreq * 4
+          aFilt = butterlp(aBass, kCutoff)
+          aFilt = butterlp(aFilt, kCutoff * 1.5)
+
+          aOut = aFilt * kBassVol * kBassFade * 5.0
+
+          ; Stereo
+          aL, aR pan2 aOut, 0.5
+
+          gaReverb = gaReverb + (aL + aR) * 0.15
+          out(aL, aR)
+      endin
+
+      ; =================================================================
+      ; ORCHESTRA 2: BREATHY FM (100-109)
+      ; =================================================================
+
+      ; Instr 100: Breathy FM chords
+      instr 100
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+          iDur = p3
+
+          iBright = chnget:i("bright")
+          iDetune = chnget:i("detune")
+          kChordVol = chnget:k("chordVol")
+
+          iFreq = cpsmidinn(iNote)
+
+          ; FM synthesis
+          aEnv = linsegr(0, 0.3*p3, 1, 0.24*p3, 0.8, 0.26*p3, 0)
+          iModFreq = iFreq * (2.02 + iDetune * 0.5)
+          aIndx = linsegr(0, 0.1, 1 + iBright * 2, 0.4*p3, 1.5, 0.05*p3, 0.5)
+          aMod = oscili(aIndx * iModFreq, iModFreq)
+          aCar = oscili(iVel * aEnv, iFreq + aMod)
+
+          ; Breath noise
+          kBreathCf = rspline:k(2000 + iBright * 3000, 7000, 0.1, 4)
+          aBreath = pinker()
+          aBreath = butterlp(aBreath, kBreathCf)
+          aBreath = butterhp(aBreath, 1000)
+
+          aMix = (aCar + aBreath * 0.15) * 0.3
+          aOut = butterlp(aMix, 6000 + iBright * 2000)
+          aOut = aOut * kChordVol
+
+          gaReverb = gaReverb + (aOut * iRvb)
+          out(aOut, aOut)
+      endin
+
+      ; Instr 101: Breathy FM arpeggio
+      instr 101
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+          iDur = p3
+
+          kArpVol = chnget:k("arpVol")
+          kBright = chnget:k("bright")
+
+          iFreq = cpsmidinn(iNote)
+
+          aEnv = expsegr(iVel, 0.01, iVel, 0.2, iVel * 0.2, 0.5, 0.001)
+          kModFreq = iFreq * 3
+          aIndx = linseg(0, 0.05, 4, 0.1, 2, iDur-0.15, 1)
+          aMod = oscili(aIndx * kModFreq, kModFreq)
+          aCar = oscili(aEnv, iFreq + aMod)
+
+          aOut = aCar * 0.5 * kArpVol
+
+          iPan = random(0.3, 0.7)
+          aL, aR pan2 aOut, iPan
+
+          gaReverb = gaReverb + (aL + aR) * iRvb
+          out(aL, aR)
+      endin
+
+      ; =================================================================
+      ; ORCHESTRA 3: CRYSTAL BELLS (200-209)
+      ; =================================================================
+
+      ; Instr 200: Crystal bell chords
+      instr 200
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+          iDur = p3
+
+          kChordVol = chnget:k("chordVol")
+          kBright = chnget:k("bright")
+          kDetune = chnget:k("detune")
+
+          iFreq = cpsmidinn(iNote)
+
+          ; Bell-like FM with randomization
+          kC1 = 2 + random:k(0, 3) * kDetune
+          kC2 = 1 + random:k(0, 2) * kDetune
+          kVDepth = 0.2 + kBright * 0.3
+          kVRate = 2.5 + random:k(0, 2)
+
+          aSig = fmbell(iVel * 0.4, iFreq, kC1, kC2, kVDepth, kVRate)
+
+          aOut = aSig * kChordVol
+
+          kPan = rspline:k(-0.6, 0.6, 0.5, 4)
+          aL, aR pan2 aOut, kPan + 0.5
+
+          gaReverb = gaReverb + (aL + aR) * iRvb
+          out(aL, aR)
+      endin
+
+      ; Instr 201: Crystal bell arpeggio
+      instr 201
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+
+          kArpVol = chnget:k("arpVol")
+          kBright = chnget:k("bright")
+
+          iFreq = cpsmidinn(iNote)
+
+          kC1 = 3 + kBright * 2
+          kC2 = 1.5
+          kVDepth = 0.4
+          kVRate = 4
+
+          aSig = fmbell(iVel * 0.5, iFreq, kC1, kC2, kVDepth, kVRate)
+
+          aOut = aSig * kArpVol
+
+          iPan = random(0.2, 0.8)
+          aL, aR pan2 aOut, iPan
+
+          gaReverb = gaReverb + (aL + aR) * iRvb * 1.8
+          out(aL, aR)
+      endin
+
+      ; =================================================================
+      ; ORCHESTRA 4: TEXTURAL GRANULAR (300-309) - Inspired by Haiku examples
+      ; =================================================================
+
+      ; Instr 300: Textural granular chords
+      instr 300
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+          iDur = p3
+
+          kChordVol = chnget:k("chordVol")
+          iBright = chnget:i("bright")
+          iDetune = chnget:i("detune")
+
+          iFreq = cpsmidinn(iNote)
+
+          ; Granular-like texture with gbuzz
+          kEnv = linsegr(0, p3*0.3, iVel, p3*0.4, iVel*0.7, p3*0.3, 0)
+          kMul = rspline:k(0.01 + iDetune*0.15, 0.3, 0.1, 1)
+          aGrain = gbuzz(kEnv, iFreq, 8, 1, kMul, -1)
+
+          ; Add breath-like noise
+          aNoise = pinker()
+          aNoise = butterlp(aNoise, 1000 + iBright*2000)
+          aNoise = aNoise * kEnv * 0.15
+
+          aMix = (aGrain + aNoise) * 0.4
+
+          ; Randomized delay for texture
+          aDlt = rspline:a(0.01, 0.05, 0.3, 0.7)
+          aDel = vdelay(aMix, aDlt*1000, 100)
+
+          aOut = (aMix + aDel*0.3) * kChordVol
+
+          kPan = rspline:k(0.2, 0.8, 0.4, 2)
+          aL, aR pan2 aOut, kPan
+
+          gaReverb = gaReverb + (aL + aR) * iRvb
+          out(aL, aR)
+      endin
+
+      ; Instr 301: Textural granular arpeggio
+      instr 301
+          iNote = p4
+          iVel = p5
+          iRvb = p6
+
+          kArpVol = chnget:k("arpVol")
+          iBright = chnget:i("bright")
+
+          iFreq = cpsmidinn(iNote)
+
+          ; Quick percussive grain
+          kEnv = expsegr(iVel, 0.005, iVel, 0.1, iVel*0.3, 0.3, 0.001, 0.1, 0.001)
+          kJitter = jspline:k(iFreq * 0.02, 20, 40)
+          aOsc = oscili(kEnv, iFreq + kJitter)
+
+          ; Filter sweep
+          kCf = expsegr(iFreq*4, 0.05, iFreq*2, 0.2, iFreq*0.8, 0.3, iFreq*0.5)
+          aFilt = butterlp(aOsc, kCf + iBright*1000)
+
+          aOut = aFilt * kArpVol * 0.6
+
+          iPan = random(0.2, 0.8)
+          aL, aR pan2 aOut, iPan
+
+          gaReverb = gaReverb + (aL + aR) * iRvb * 1.2
+          out(aL, aR)
+      endin
+
+      ; =================================================================
+      ; SHARED INSTRUMENTS
+      ; =================================================================
+
+      ; Instr 30: Haiku-style evolving drone (inspired by Haiku 7)
+      instr 30
+          iRootNote = p4
+          iAmp = p5
+
+          kDroneVol = chnget:k("droneVol")
+          kDroneFade = portk(chnget:k("droneFade"), 0.5)
+          kMasterVol = chnget:k("masterVol")
+          kDetune = chnget:k("detune")
+          kBright = chnget:k("bright")
+
+          ; Base frequency (sub-octave)
+          iBaseFreq = cpsmidinn(iRootNote - 24)
+
+          ; Jspline for continuous pitch modulation (like Haiku 7)
+          kNoiseDep = linseg(0, 2, 0.3, 10, 0.1, 5, 0.3)
+          kPitchJitter = jspline:k(kNoiseDep * iBaseFreq * 0.02, 0.3, 0.8)
+
+          ; Gbuzz with evolving brightness (5-15 harmonics)
+          kNumHarms = rspline:k(5, 15, 0.1, 0.5)
+          kMul = rspline:k(0.3 + kDetune, 0.8, 0.2, 1.2)
+          kMul = kMul ^ 1.5
+
+          aDrone1 = gbuzz(iAmp * 0.4, iBaseFreq + kPitchJitter, int(kNumHarms), 1, kMul, -1)
+          aDrone2 = gbuzz(iAmp * 0.3, iBaseFreq * 1.003 - kPitchJitter * 0.5, int(kNumHarms) + 2, 1, kMul * 0.9, -1)
+
+          ; Add shimmering upper octave layer
+          kShimmer = rspline:k(0.1, 0.3, 0.15, 0.6)
+          aShimmer = oscili(iAmp * kShimmer * kBright, iBaseFreq * 4.01)
+
+          aMix = aDrone1 + aDrone2 + aShimmer
+
+          ; Slowly evolving lowpass filter
+          kCutoff = rspline:k(200, 800, 0.1, 0.3)
+          kCutoff = kCutoff + (kBright * 600)
+          aFilt = butterlp(aMix, kCutoff)
+          aFilt = butterlp(aFilt, kCutoff * 1.5)
+
+          ; Stereo spread with slow panning
+          kPan = oscili:k(0.3, 0.07) + 0.5
+
+          aOut = aFilt * kDroneVol * kDroneFade * kMasterVol * 1.2
+          aL, aR pan2 aOut, kPan
+
+          gaDrone = gaDrone + aOut
+          gaReverb = gaReverb + (aOut * 0.9)
+          out(aL, aR)
+      endin
+
+      ; Instr 31: Plucked textures
+      instr 31
+          iNote = p4
+          iAmp = p5
+          iPluckPos = p6
+
+          kBalance = chnget:k("balance")
+          kPluck = chnget:k("pluck")
+
+          iFreq = cpsmidinn(iNote)
+
+          kEnv = expsegr(iAmp, 0.001, iAmp, 0.2, iAmp * 0.3, 0.5, 0.001, 0.1, 0.001)
+
+          aPlk = pluck(kEnv, iFreq, iFreq, 0, 1, iPluckPos, 10)
+
+          aOut = aPlk * kBalance * (0.5 + kPluck * 0.5)
+
+          iPan = random(0.2, 0.8)
+          aL, aR pan2 aOut, iPan
+
+          gaReverb = gaReverb + (aL + aR) * 0.4
+          out(aL, aR)
+      endin
+
+      ; Instr 51: Pluck Melody (3-note, 4-note phrases)
+      instr 51
+          iRootNote = p4
+          iAmp = p5
+          iNumChordNotes = p6
+          iTempFactor = p7
+          iWindFactor = p8
+          iHumidFactor = p9
+          iOctaveShift = p10
+
+          ; Chord notes from p11 onwards
+          iChordNote1 = p11
+          iChordNote2 = (iNumChordNotes >= 2) ? p12 : iChordNote1
+          iChordNote3 = (iNumChordNotes >= 3) ? p13 : iChordNote1
+          iChordNote4 = (iNumChordNotes >= 4) ? p14 : iChordNote1
+
+          kMelodyVol = chnget:k("melodyVol")
+
+          ; Phrase: 2 notes, 3 notes, 4 notes, 2 notes with rests between
+          kMelodyPattern[] fillarray 0, 2, -1, -1, -1, 0, 4, 7, -1, -1, -1, 0, 2, 5, 7, -1, -1, -1, -1, 4, 2, -1, -1, -1
+
+          kPhraseRate = 0.7 + iWindFactor * 0.4
+          kNoteTrig = metro(kPhraseRate)
+
+          kStep init 0
+          kStep = (kNoteTrig == 1) ? (kStep + 1) % 24 : kStep
+
+          kInterval = kMelodyPattern[int(kStep)]
+          kIsRest = (kInterval < 0) ? 1 : 0
+
+          iBaseIdx = int(iTempFactor * (iNumChordNotes - 0.01))
+          iBaseNote = (iBaseIdx == 0) ? iChordNote1 : (iBaseIdx == 1) ? iChordNote2 : (iBaseIdx == 2) ? iChordNote3 : iChordNote4
+
+          kMelodyNote = (kIsRest == 1) ? iBaseNote : iBaseNote + kInterval
+          kOctave = (iTempFactor > 0.6) ? 12 : (iTempFactor < 0.4) ? 0 : 6
+          kMelodyNote = kMelodyNote + kOctave + iOctaveShift
+
+          ; NO glissando - direct frequency
+          kFreq = cpsmidinn(kMelodyNote)
+
+          kPrevStep init -1
+          kNoteChanged = (kStep != kPrevStep) ? 1 : 0
+          kPrevStep = kStep
+
+          ; Store initial frequency for pluck
+          iInitFreq init 440
+          if kNoteChanged == 1 && kIsRest == 0 then
+            iInitFreq = kFreq
+          endif
+
+          ; Sharp pluck envelope
+          kGate init 0
+          if kNoteChanged == 1 && kIsRest == 0 then
+            kGate = 1
+          endif
+          kGate = kGate * 0.94
+
+          kEnv = (kIsRest == 1) ? 0 : iAmp * kGate
+
+          ; Pluck timbre with percussive envelope
+          aOsc1 = oscili(kEnv, kFreq)
+          aOsc2 = oscili(kEnv * 0.3, kFreq * 2.01)
+          aOsc3 = oscili(kEnv * 0.15, kFreq * 0.5)
+          aPlk = aOsc1 + aOsc2 + aOsc3
+
+          aOut = aPlk * kMelodyVol * 2.0
+
+          aL, aR pan2 aOut, 0.5
+          gaReverb = gaReverb + (aL + aR) * 0.4
+          out(aL, aR)
+      endin
+
+      ; Instr 52: Bell Melody (phrase-based with silences)
+      instr 52
+          iRootNote = p4
+          iAmp = p5
+          iNumChordNotes = p6
+          iTempFactor = p7
+          iWindFactor = p8
+          iHumidFactor = p9
+          iOctaveShift = p10
+
+          ; Handle variable number of chord notes (3-4 notes)
+          iChordNote1 = (p11 != 0) ? p11 : iRootNote
+          iChordNote2 = (p12 != 0 && iNumChordNotes >= 2) ? p12 : iChordNote1
+          iChordNote3 = (p13 != 0 && iNumChordNotes >= 3) ? p13 : iChordNote1
+          iChordNote4 = (p14 != 0 && iNumChordNotes >= 4) ? p14 : iChordNote1
+          
+          ; Read mode scale intervals from p15-p21
+          iScale[] fillarray p15, p16, p17, p18, p19, p20, p21
+
+          kMelodyVol = chnget:k("melodyVol")
+          kMelodyFade = portk(chnget:k("melodyFade"), 0.5)
+          kMelodySpeed = chnget:k("melodySpeed")
+
+          ; Pattern now uses scale degrees (0-6) instead of semitone offsets
+          ; -99 = short rest, -999 = long rest
+          kPattern[] fillarray 0,2,4, -99, 5,4,6,5, -999, 2,3, -99, 4,5,6, -999
+
+          kBaseRate = 0.5 + iWindFactor * 0.3
+          kNoteRate = kBaseRate * kMelodySpeed
+          kNoteTrig = metro(kNoteRate)
+
+          kStep init 0
+          kRestCounter init 0
+
+          ; Handle rest timing
+          if kRestCounter > 0 then
+            kRestCounter = kRestCounter - 1
+          elseif kNoteTrig == 1 then
+            kStep = (kStep + 1) % lenarray(kPattern)
+            kScaleDegree = kPattern[int(kStep)]
+            
+            ; Check for rest tokens
+            if kScaleDegree == -99 then
+              kRestCounter = int(2 / kMelodySpeed)  ; Short rest
+            elseif kScaleDegree == -999 then
+              kRestCounter = int(4 / kMelodySpeed)  ; Long rest
+            endif
+          endif
+
+          kScaleDegree = kPattern[int(kStep)]
+          kIsRest = (kRestCounter > 0 || kScaleDegree < 0) ? 1 : 0
+
+          ; Map scale degree to interval (k-rate)
+          kDegree = int(abs(kScaleDegree)) % 7
+          kInterval = iScale[int(kDegree)]
+          
+          ; Add octaves for higher scale degrees
+          kExtraOctaves = int(abs(kScaleDegree) / 7) * 12
+          kInterval = kInterval + kExtraOctaves
+
+          kMelodyNote = (kIsRest == 1) ? iRootNote : iRootNote + kInterval
+          kOctave = (iTempFactor > 0.6) ? 12 : (iTempFactor < 0.4) ? 0 : 6
+          kMelodyNote = kMelodyNote + kOctave + 12 + iOctaveShift
+
+          kFreq = cpsmidinn(kMelodyNote)
+
+          kPrevStep init -1
+          kNoteChanged = (kStep != kPrevStep && kIsRest == 0) ? 1 : 0
+          kPrevStep = kStep
+
+          kGate init 0
+          if kNoteChanged == 1 then
+            kGate = 1
+          endif
+          kGate = kGate * 0.96
+
+          kEnv = (kIsRest == 1) ? 0 : iAmp * kGate
+
+          ; Bell timbre with FM
+          kModIdx = 2
+          aMod = oscili(kEnv * kModIdx, kFreq * 2.76)
+          aBell = oscili(kEnv, kFreq + aMod)
+          a2 = oscili(kEnv * 0.3, kFreq * 4.07)
+          a3 = oscili(kEnv * 0.15, kFreq * 6.02)
+
+          aMix = aBell + a2 + a3
+          aOut = aMix * kMelodyVol * kMelodyFade * 2.2
+
+          aL, aR pan2 aOut, 0.5
+          gaReverb = gaReverb + (aL + aR) * 0.8
+          out(aL, aR)
+      endin
+
+      ; Instr 53: Legato Melody (phrase-based with silences)
+      instr 53
+          iRootNote = p4
+          iAmp = p5
+          iNumChordNotes = p6
+          iTempFactor = p7
+          iWindFactor = p8
+          iHumidFactor = p9
+          iOctaveShift = p10
+
+          ; Handle variable number of chord notes (3-4 notes)
+          iChordNote1 = (p11 != 0) ? p11 : iRootNote
+          iChordNote2 = (p12 != 0 && iNumChordNotes >= 2) ? p12 : iChordNote1
+          iChordNote3 = (p13 != 0 && iNumChordNotes >= 3) ? p13 : iChordNote1
+          iChordNote4 = (p14 != 0 && iNumChordNotes >= 4) ? p14 : iChordNote1
+          
+          ; Read mode scale intervals from p15-p21
+          iScale[] fillarray p15, p16, p17, p18, p19, p20, p21
+
+          kMelodyVol = chnget:k("melodyVol")
+          kMelodyFade = portk(chnget:k("melodyFade"), 0.5)
+          kMelodySpeed = chnget:k("melodySpeed")
+          kBright = chnget:k("bright")
+
+          ; Pattern uses scale degrees (0-6), -99 = short rest, -999 = long rest
+          kPattern[] fillarray 0,1,2, -99, 4,3,5,4, -999, 1,2, -99, 3,4,5, -999
+
+          kBaseRate = 0.5 + iWindFactor * 0.3
+          kNoteRate = kBaseRate * kMelodySpeed
+          kNoteTrig = metro(kNoteRate)
+
+          kStep init 0
+          kRestCounter init 0
+
+          if kRestCounter > 0 then
+            kRestCounter = kRestCounter - 1
+          elseif kNoteTrig == 1 then
+            kStep = (kStep + 1) % lenarray(kPattern)
+            kScaleDegree = kPattern[int(kStep)]
+            
+            if kScaleDegree == -99 then
+              kRestCounter = int(2 / kMelodySpeed)
+            elseif kScaleDegree == -999 then
+              kRestCounter = int(4 / kMelodySpeed)
+            endif
+          endif
+
+          kScaleDegree = kPattern[int(kStep)]
+          kIsRest = (kRestCounter > 0 || kScaleDegree < 0) ? 1 : 0
+
+          ; Map scale degree to interval (k-rate)
+          kDegree = int(abs(kScaleDegree)) % 7
+          kInterval = iScale[int(kDegree)]
+          
+          ; Add octaves for higher scale degrees
+          kExtraOctaves = int(abs(kScaleDegree) / 7) * 12
+          kInterval = kInterval + kExtraOctaves
+
+          kMelodyNote = (kIsRest == 1) ? iRootNote : iRootNote + kInterval
+          kOctave = (iTempFactor > 0.6) ? 12 : (iTempFactor < 0.4) ? 0 : 6
+          kMelodyNote = kMelodyNote + kOctave + iOctaveShift
+
+          kFreq = cpsmidinn(kMelodyNote)
+
+          kPrevStep init -1
+          kNoteChanged = (kStep != kPrevStep && kIsRest == 0) ? 1 : 0
+          kPrevStep = kStep
+
+          kGate init 0
+          if kNoteChanged == 1 then
+            kGate = 1
+          endif
+          kGate = kGate * 0.98
+
+          kAttack init 0
+          if kNoteChanged == 1 then
+            kAttack = 0
+          endif
+          kAttack = portk(kGate, 0.12)
+
+          kEnv = (kIsRest == 1) ? 0 : iAmp * kAttack
+
+          ; Warm legato timbre
+          aSaw = vco2(kEnv * 0.5, kFreq, 0)
+          aSine1 = oscili(kEnv * 0.5, kFreq)
+          aSine2 = oscili(kEnv * 0.15, kFreq * 2.01)
+
+          aMix = aSaw + aSine1 + aSine2
+          kCutoff = kFreq * (3 + kBright * 2)
+          aFilt = butterlp(aMix, kCutoff)
+          aFilt = butterlp(aFilt, kCutoff * 1.5)
+
+          aOut = aFilt * kMelodyVol * kMelodyFade * 4.8
+
+          aL, aR pan2 aOut, 0.5
+          gaReverb = gaReverb + (aL + aR) * 0.7
+          out(aL, aR)
+      endin
+
+      ; Instr 54: Warm FM Pad Counter Melody (phrase-based)
+      instr 54
+          iRootNote = p4
+          iAmp = p5
+          iNumChordNotes = p6
+          iTempFactor = p7
+          iWindFactor = p8
+          iHumidFactor = p9
+          iOctaveShift = p10
+
+          ; Handle variable number of chord notes (3-4 notes)
+          iChordNote1 = (p11 != 0) ? p11 : iRootNote
+          iChordNote2 = (p12 != 0 && iNumChordNotes >= 2) ? p12 : iChordNote1
+          iChordNote3 = (p13 != 0 && iNumChordNotes >= 3) ? p13 : iChordNote1
+          iChordNote4 = (p14 != 0 && iNumChordNotes >= 4) ? p14 : iChordNote1
+          
+          ; Read mode scale intervals from p15-p21
+          iScale[] fillarray p15, p16, p17, p18, p19, p20, p21
+
+          kCounterVol = chnget:k("counterMelodyVol")
+          kCounterFade = portk(chnget:k("counterMelodyFade"), 0.5)
+          kCounterSpeed = chnget:k("counterMelodySpeed")
+          kBright = chnget:k("bright")
+
+          ; Pattern uses scale degrees (0-6), -99 = short rest, -999 = long rest
+          ; Different pattern than melody for independence
+          kPattern[] fillarray 6,4,3, -99, 1,2,4, -999, 5,3, -99, 2,0,1, -999
+
+          kBaseRate = 0.45 + iWindFactor * 0.25
+          kNoteRate = kBaseRate * kCounterSpeed
+          kNoteTrig = metro(kNoteRate)
+
+          kStep init 0
+          kRestCounter init 0
+
+          if kRestCounter > 0 then
+            kRestCounter = kRestCounter - 1
+          elseif kNoteTrig == 1 then
+            kStep = (kStep + 1) % lenarray(kPattern)
+            kScaleDegree = kPattern[int(kStep)]
+            
+            if kScaleDegree == -99 then
+              kRestCounter = int(2 / kCounterSpeed)
+            elseif kScaleDegree == -999 then
+              kRestCounter = int(4 / kCounterSpeed)
+            endif
+          endif
+
+          kScaleDegree = kPattern[int(kStep)]
+          kIsRest = (kRestCounter > 0 || kScaleDegree < 0) ? 1 : 0
+
+          ; Map scale degree to interval (k-rate)
+          kDegree = int(abs(kScaleDegree)) % 7
+          kInterval = iScale[int(kDegree)]
+          
+          ; Add octaves for higher scale degrees
+          kExtraOctaves = int(abs(kScaleDegree) / 7) * 12
+          kInterval = kInterval + kExtraOctaves
+
+          kCounterNote = (kIsRest == 1) ? iRootNote : iRootNote + kInterval
+          iOctave = (iTempFactor < 0.4) ? 12 : (iTempFactor > 0.6) ? 0 : 6
+          kCounterNote = kCounterNote + iOctave + iOctaveShift
+
+          kFreq = cpsmidinn(kCounterNote)
+
+          kPrevStep init -1
+          kNoteChanged = (kStep != kPrevStep && kIsRest == 0) ? 1 : 0
+          kPrevStep = kStep
+
+          ; Slow bowed envelope for pad character
+          kEnvTarget init 0
+          if kNoteChanged == 1 then
+            kEnvTarget = 1
+          endif
+          if kIsRest == 1 then
+            kEnvTarget = 0
+          endif
+          
+          ; Very smooth portamento for pad character
+          kEnv = portk(kEnvTarget, 0.3)  ; Slow 300ms attack/release
+          kAmp = kEnv * iAmp * 0.4
+
+          ; Warm FM pad with multiple detuned FM pairs
+          ; Lower modulation index for warmth (not bell-like)
+          kModIdx = 0.5 + (kBright * 0.4)  ; Lower index = warmer, less bright
+          
+          ; Three detuned FM pairs for thick pad sound
+          ; FM pair 1 - center
+          aMod1 = oscili(kAmp * kModIdx, kFreq * 1.002)
+          aCarrier1 = oscili(kAmp, kFreq + aMod1)
+          
+          ; FM pair 2 - detuned up
+          aMod2 = oscili(kAmp * kModIdx * 0.8, kFreq * 1.007)
+          aCarrier2 = oscili(kAmp * 0.7, kFreq * 1.004 + aMod2)
+          
+          ; FM pair 3 - detuned down
+          aMod3 = oscili(kAmp * kModIdx * 0.8, kFreq * 0.998)
+          aCarrier3 = oscili(kAmp * 0.7, kFreq * 0.996 + aMod3)
+          
+          aMix = (aCarrier1 + aCarrier2 + aCarrier3) * 0.35
+          
+          ; Warm moogladder filter with moderate resonance
+          kCutoff = kFreq * (2.8 + kBright * 1.5)
+          kResonance = 0.12 + (iWindFactor * 0.1)
+          aFilt = moogladder(aMix, kCutoff, kResonance)
+
+          aOut = aFilt * kCounterVol * kCounterFade * 16.0
+
+          kPan = 0.35 + (iTempFactor * 0.3)
+          aL, aR pan2 aOut, kPan
+          
+          ; Send to chorus and reverb
+          gaChorus = gaChorus + (aL + aR) * 0.4
+          gaReverb = gaReverb + (aL + aR) * 0.85
+          out(aL, aR)
+      endin
+
+      ; Instr 55: Warm Waveguide Pad Counter Melody (Haiku-inspired, phrase-based)
+      instr 55
+          iRootNote = p4
+          iAmp = p5
+          iNumChordNotes = p6
+          iTempFactor = p7
+          iWindFactor = p8
+          iHumidFactor = p9
+          iOctaveShift = p10
+
+          ; Handle variable number of chord notes (3-4 notes)
+          iChordNote1 = (p11 != 0) ? p11 : iRootNote
+          iChordNote2 = (p12 != 0 && iNumChordNotes >= 2) ? p12 : iChordNote1
+          iChordNote3 = (p13 != 0 && iNumChordNotes >= 3) ? p13 : iChordNote1
+          iChordNote4 = (p14 != 0 && iNumChordNotes >= 4) ? p14 : iChordNote1
+          
+          ; Read mode scale intervals from p15-p21
+          iScale[] fillarray p15, p16, p17, p18, p19, p20, p21
+
+          kCounterVol = chnget:k("counterMelodyVol")
+          kCounterFade = portk(chnget:k("counterMelodyFade"), 0.5)
+          kCounterSpeed = chnget:k("counterMelodySpeed")
+          kDetune = chnget:k("detune")
+
+          ; Pattern uses scale degrees (0-6), different from FM pad
+          kPattern[] fillarray 5,3,2, -99, 0,1,3, -999, 4,2, -99, 1,0,2, -999
+
+          kBaseRate = 0.45 + iWindFactor * 0.25
+          kNoteRate = kBaseRate * kCounterSpeed
+          kNoteTrig = metro(kNoteRate)
+
+          kStep init 0
+          kRestCounter init 0
+
+          if kRestCounter > 0 then
+            kRestCounter = kRestCounter - 1
+          elseif kNoteTrig == 1 then
+            kStep = (kStep + 1) % lenarray(kPattern)
+            kScaleDegree = kPattern[int(kStep)]
+            
+            if kScaleDegree == -99 then
+              kRestCounter = int(2 / kCounterSpeed)
+            elseif kScaleDegree == -999 then
+              kRestCounter = int(4 / kCounterSpeed)
+            endif
+          endif
+
+          kScaleDegree = kPattern[int(kStep)]
+          kIsRest = (kRestCounter > 0 || kScaleDegree < 0) ? 1 : 0
+
+          ; Map scale degree to interval (k-rate)
+          kDegree = int(abs(kScaleDegree)) % 7
+          kInterval = iScale[int(kDegree)]
+          
+          ; Add octaves for higher scale degrees
+          kExtraOctaves = int(abs(kScaleDegree) / 7) * 12
+          kInterval = kInterval + kExtraOctaves
+
+          kCounterNote = (kIsRest == 1) ? iRootNote : iRootNote + kInterval
+          iOctave = (iTempFactor < 0.4) ? 12 : (iTempFactor > 0.6) ? 0 : 6
+          kCounterNote = kCounterNote + iOctave + iOctaveShift
+
+          kFreq = cpsmidinn(kCounterNote)
+
+          kPrevStep init -1
+          kNoteChanged = (kStep != kPrevStep && kIsRest == 0) ? 1 : 0
+          kPrevStep = kStep
+
+          ; Bowed envelope - slow attack, sustained, slow release
+          kEnvTarget init 0
+          if kNoteChanged == 1 then
+            kEnvTarget = 1
+          endif
+          if kIsRest == 1 then
+            kEnvTarget = 0
+          endif
+          
+          ; Smooth portamento for bowed character
+          kEnv = portk(kEnvTarget, 0.25)  ; Slow attack/release (250ms)
+          kAmp = kEnv * iAmp * 0.35
+
+          ; Warm pad synthesis with multiple detuned VCO2 oscillators
+          kDetAmt = kDetune * 0.015
+          
+          ; 5 detuned sawtooth oscillators for rich warmth
+          aVco1 = vco2(kAmp, kFreq * (1 - kDetAmt * 2), 0)      ; Saw, detuned down
+          aVco2 = vco2(kAmp * 0.8, kFreq * (1 - kDetAmt), 0)    ; Saw, slightly down
+          aVco3 = vco2(kAmp, kFreq, 0)                          ; Saw, center
+          aVco4 = vco2(kAmp * 0.8, kFreq * (1 + kDetAmt), 0)    ; Saw, slightly up
+          aVco5 = vco2(kAmp * 0.7, kFreq * (1 + kDetAmt * 2), 0) ; Saw, detuned up
+          
+          aMix = (aVco1 + aVco2 + aVco3 + aVco4 + aVco5) * 0.25
+          
+          ; Warm moogladder filter with brightness control
+          kCutoff = kFreq * (2.2 + iTempFactor * 1.8)
+          kResonance = 0.18 + (iHumidFactor * 0.15)
+          aFilt = moogladder(aMix, kCutoff, kResonance)
+
+          aOut = aFilt * kCounterVol * kCounterFade * 8.8
+
+          kPan = 0.55 + (iTempFactor * 0.2)
+          aL, aR pan2 aOut, kPan
+          
+          ; Send to chorus and reverb
+          gaChorus = gaChorus + (aL + aR) * 0.5
+          gaReverb = gaReverb + (aL + aR) * 0.8
+          out(aL, aR)
+      endin
+
+      ; Instr 40: Chorus
+      instr 40
+          kChorusAmt = chnget:k("chorus")
+
+          kMod1 = oscili:k(8 * kChorusAmt, 0.37)
+          kMod2 = oscili:k(8 * kChorusAmt, 0.43)
+
+          aDelL = vdelay(gaChorus, 10 + kMod1, 30)
+          aDelR = vdelay(gaChorus, 10 + kMod2, 30)
+
+          aOut = (aDelL + aDelR) * 0.5 * kChorusAmt
+
+          gaReverb = gaReverb + aOut * 0.3
+          out(aDelL, aDelR)
+          clear(gaChorus)
+      endin
+
+      ; Instr 99: Master reverb
+      instr 99
+          aRvbL, aRvbR reverbsc gaReverb + gaDrone, gaReverb + gaDrone, 0.92, 11000
+          out(aRvbL * 0.7, aRvbR * 0.7)
+          clear(gaReverb, gaDrone)
+      endin
+      `
+
+      // ==================== EVENT HANDLERS ====================
+
+      playBtn.addEventListener("click", async () => {
+        try {
+          currentLocation = locationSelect.value
+          log(`▶️ Play clicked - location from dropdown: "${currentLocation}"`)
+
+          if (!currentLocation || currentLocation === "null" || currentLocation === "undefined") {
+            currentLocation = "42.3601,-71.0589"
+            locationSelect.value = currentLocation
+            log(`⚠️ Invalid location, reset to Boston`)
+          }
+
+          if (currentLocation === "local") {
+            status.textContent = "Getting your location..."
+            await getUserLocation()
+            const locationKey = `${userLocation.latitude.toFixed(4)},${userLocation.longitude.toFixed(4)}`
+            currentLocation = locationKey
+            log(`📍 GPS location: ${currentLocation}`)
+          }
+
+          status.textContent = "Fetching weather data..."
+          const cityInfo = CITY_KEYS[currentLocation]
+
+          if (!cityInfo) {
+            throw new Error(`Unknown location: ${currentLocation}`)
+          }
+
+          log(`🌍 Fetching weather for ${cityInfo.name} (${currentLocation})...`)
+          weatherData = await fetchWeatherData(currentLocation)
+          log(`Fetched weather for ${cityInfo.name}: ${JSON.stringify(weatherData)}`)
+
+          updateWeatherDisplay(weatherData, cityInfo)
+
+          status.textContent = "Initializing Csound..."
+          log("Starting Csound...")
+
+          const { Csound } = await import("https://cdn.jsdelivr.net/npm/@csound/browser@7.0.0-beta26/dist/csound.js")
+          csound = await Csound({
+            useWorker: false,
+            useSPN: false,
+            outputChannelCount: 2,
+          })
+
+          await csound.compileOrc(orchestraCode)
+          await csound.setOption("-odac")
+
+          const audioContext = await csound.getAudioContext()
+          if (audioContext.state === "suspended") {
+            await audioContext.resume()
+          }
+
+          await csound.start()
+
+          // Initialize audio visualizer
+          await initAudioVisualizer()
+
+          // Start master effects
+          await csound.inputMessage("i 99 0 -1") // Reverb
+          await csound.inputMessage("i 40 0 -1") // Chorus
+
+          initParticles()
+          animate()
+
+          await startSonification()
+
+          isPlaying = true
+          playBtn.disabled = true
+          stopBtn.disabled = false
+          locationSelect.disabled = false
+
+          // Start phrase mode if enabled
+          if (phraseModeEnabled) {
+            startPhraseMode()
+          }
+
+          // Start location changer if enabled
+          if (locationChangeEnabled) {
+            scheduleLocationChange()
+          }
+
+          status.textContent = `🎵 Playing ${cityInfo.name} in ${cityInfo.key} ${currentMode}`
+          log("Playback started")
+        } catch (error) {
+          status.textContent = "Error: " + error.message
+          log("ERROR: " + error.message)
+          console.error(error)
+        }
+      })
+
+      stopBtn.addEventListener("click", async () => {
+        if (csound) {
+          await csound.stop()
+          csound = null
+        }
+        if (animationId) {
+          cancelAnimationFrame(animationId)
+          animationId = null
+        }
+        if (chordTimeoutId) clearTimeout(chordTimeoutId)
+        if (randomTimeoutId) clearTimeout(randomTimeoutId)
+        if (timeUpdateInterval) clearInterval(timeUpdateInterval)
+
+        stopPhraseMode()
+        stopLocationChanger()
+
+        isPlaying = false
+        playBtn.disabled = false
+        stopBtn.disabled = true
+        status.textContent = "Stopped"
+        log("Playback stopped")
+      })
+
+      // ==================== SAVE/LOAD SETTINGS ====================
+
+      function saveSettings() {
+        const settings = {
+          // Master controls
+          masterVolume: masterVolume,
+          globalSpeed: globalSpeed,
+          transpose: transpose,
+
+          // Layer volumes
+          chordVol: chordVol,
+          arpVol: arpVol,
+          bassVol: bassVol,
+          droneVol: droneVol,
+          melodyVol: melodyVol,
+
+          // Orchestra and mode
+          currentOrchestra: currentOrchestra,
+          currentMode: currentMode,
+
+          // Layer states
+          melodyEnabled: melodyEnabled,
+          melodyType: melodyType,
+          melodyOctave: melodyOctave,
+          melodySpeed: melodySpeed,
+          melodyBusyness: melodyBusyness,
+          counterMelodyEnabled: counterMelodyEnabled,
+          counterMelodyType: counterMelodyType,
+          counterMelodyOctave: counterMelodyOctave,
+          counterMelodySpeed: counterMelodySpeed,
+          counterMelodyBusyness: counterMelodyBusyness,
+
+          // Phrase mode
+          phraseModeEnabled: phraseModeEnabled,
+          phraseBusyness: phraseBusyness,
+          phraseSilenceDuration: phraseSilenceDuration,
+          phraseKeepOneVoice: phraseKeepOneVoice,
+
+          // Location settings
+          currentLocation: currentLocation,
+          locationChangeEnabled: locationChangeEnabled,
+          locationChangeInterval: locationChangeInterval,
+
+          // Timestamp
+          savedAt: new Date().toISOString(),
+        }
+
+        localStorage.setItem("weatherSonificationSettings", JSON.stringify(settings))
+        log("💾 Settings saved successfully!")
+        status.textContent = "💾 Mix saved!"
+        setTimeout(() => {
+          if (isPlaying) {
+            const cityInfo = CITY_KEYS[currentLocation]
+            status.textContent = `🎵 Playing ${cityInfo.name} in ${cityInfo.key} ${currentMode}`
+          }
+        }, 2000)
+      }
+
+      function loadSettings() {
+        const saved = localStorage.getItem("weatherSonificationSettings")
+        if (!saved) return false
+
+        try {
+          const settings = JSON.parse(saved)
+
+          // Master controls
+          masterVolume = settings.masterVolume || 0.75
+          globalSpeed = settings.globalSpeed || 1.0
+          transpose = settings.transpose || 0
+
+          volumeSlider.value = Math.round(masterVolume * 100)
+          volumeValue.textContent = `${Math.round(masterVolume * 100)}%`
+          speedSlider.value = Math.round(globalSpeed * 100)
+          speedValue.textContent = `${globalSpeed.toFixed(2)}x`
+          transposeInput.value = transpose
+          transposeValue.textContent = `${transpose > 0 ? "+" : ""}${transpose}`
+
+          // Layer volumes
+          chordVol = settings.chordVol || 0.7
+          arpVol = settings.arpVol || 0.6
+          bassVol = settings.bassVol || 0.55
+          droneVol = settings.droneVol || 0.4
+          melodyVol = settings.melodyVol || 0.5
+
+          chordVolSlider.value = Math.round(chordVol * 100)
+          chordVolValue.textContent = `${Math.round(chordVol * 100)}%`
+          arpVolSlider.value = Math.round(arpVol * 100)
+          arpVolValue.textContent = `${Math.round(arpVol * 100)}%`
+          bassVolSlider.value = Math.round(bassVol * 100)
+          bassVolValue.textContent = `${Math.round(bassVol * 100)}%`
+          droneVolSlider.value = Math.round(droneVol * 100)
+          droneVolValue.textContent = `${Math.round(droneVol * 100)}%`
+          melodyVolSlider.value = Math.round(melodyVol * 100)
+          melodyVolValue.textContent = `${Math.round(melodyVol * 100)}%`
+
+          // Orchestra and mode
+          currentOrchestra = settings.currentOrchestra || "warm"
+          currentMode = settings.currentMode || "ionian"
+
+          document.querySelectorAll("[data-orchestra]").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.orchestra === currentOrchestra)
+          })
+
+          document.querySelectorAll("[data-mode]").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.mode === currentMode)
+          })
+
+          // Layer states - Melody
+          melodyEnabled = settings.melodyEnabled !== undefined ? settings.melodyEnabled : false
+          melodyType = settings.melodyType || "bell"
+          if (melodyType === "pluck") melodyType = "bell" // Migration: pluck removed
+          melodyOctave = settings.melodyOctave !== undefined ? settings.melodyOctave : 0
+          melodySpeed = settings.melodySpeed || 1.0
+          melodyBusyness = settings.melodyBusyness !== undefined ? settings.melodyBusyness : 0.6
+          // Clamp octave to -1 to +1
+          if (melodyOctave < -1) melodyOctave = -1
+          if (melodyOctave > 1) melodyOctave = 1
+
+          const melodyBtn = document.getElementById("melodyBtn")
+          if (melodyBtn) {
+            melodyBtn.classList.toggle("active", melodyEnabled)
+          }
+
+          document.querySelectorAll("[data-melody-type]").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.melodyType === melodyType)
+          })
+
+          document.querySelectorAll("[data-melody-octave]").forEach((btn) => {
+            btn.classList.toggle("active", parseInt(btn.dataset.melodyOctave) === melodyOctave)
+          })
+
+          melodySpeedSlider.value = Math.round(melodySpeed * 100)
+          melodySpeedValue.textContent = `${melodySpeed.toFixed(2)}x`
+          melodyBusynessSlider.value = Math.round(melodyBusyness * 100)
+          melodyBusynessValue.textContent = `${Math.round(melodyBusyness * 100)}%`
+
+          // Layer states - Counter Melody
+          counterMelodyEnabled = settings.counterMelodyEnabled !== undefined ? settings.counterMelodyEnabled : false
+          counterMelodyType = settings.counterMelodyType || "fm"
+          counterMelodyOctave = settings.counterMelodyOctave !== undefined ? settings.counterMelodyOctave : 0
+          counterMelodySpeed = settings.counterMelodySpeed || 0.85
+          counterMelodyBusyness = settings.counterMelodyBusyness !== undefined ? settings.counterMelodyBusyness : 0.5
+          // Clamp counter melody octave to -1 to +1
+          if (counterMelodyOctave < -1) counterMelodyOctave = -1
+          if (counterMelodyOctave > 1) counterMelodyOctave = 1
+
+          if (counterMelodyBtn) {
+            counterMelodyBtn.classList.toggle("active", counterMelodyEnabled)
+          }
+
+          document.querySelectorAll("[data-countermelody-type]").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.countermelodyType === counterMelodyType)
+          })
+
+          document.querySelectorAll("[data-countermelody-octave]").forEach((btn) => {
+            btn.classList.toggle("active", parseInt(btn.dataset.countermelodyOctave) === counterMelodyOctave)
+          })
+
+          counterMelodySpeedSlider.value = Math.round(counterMelodySpeed * 100)
+          counterMelodySpeedValue.textContent = `${counterMelodySpeed.toFixed(2)}x`
+          counterMelodyBusynessSlider.value = Math.round(counterMelodyBusyness * 100)
+          counterMelodyBusynessValue.textContent = `${Math.round(counterMelodyBusyness * 100)}%`
+
+          // Phrase mode
+          phraseModeEnabled = settings.phraseModeEnabled !== undefined ? settings.phraseModeEnabled : false
+          phraseModeCheckbox.checked = phraseModeEnabled
+          phraseBusyness = settings.phraseBusyness !== undefined ? settings.phraseBusyness : 0.5
+          phraseSilenceDuration = settings.phraseSilenceDuration !== undefined ? settings.phraseSilenceDuration : 12
+          phraseKeepOneVoice = settings.phraseKeepOneVoice !== undefined ? settings.phraseKeepOneVoice : false
+
+          // Update phrase mode UI
+          phraseBusynessSlider.value = Math.round(phraseBusyness * 100)
+          phraseBusynessValue.textContent = `${Math.round(phraseBusyness * 100)}%`
+          phraseSilenceSlider.value = phraseSilenceDuration
+          phraseSilenceValue.textContent = `${phraseSilenceDuration}s`
+          phraseKeepOneVoiceCheckbox.checked = phraseKeepOneVoice
+
+          // Location settings - DON'T restore location, always start with Boston
+          // Location is set after loadSettings() to always be Boston
+          locationChangeEnabled = settings.locationChangeEnabled !== undefined ? settings.locationChangeEnabled : false
+          locationChangeInterval = settings.locationChangeInterval || 120
+          locationChangeCheckbox.checked = locationChangeEnabled
+          locationChangeIntervalInput.value = locationChangeInterval
+
+          const savedDate = new Date(settings.savedAt)
+          log(`✅ Settings loaded from ${savedDate.toLocaleString()}`)
+          return true
+        } catch (error) {
+          log(`Error loading settings: ${error.message}`)
+          return false
+        }
+      }
+
+      saveSettingsBtn.addEventListener("click", () => {
+        saveSettings()
+      })
+
+      // Phrase Mode toggle
+      phraseModeCheckbox.addEventListener("change", () => {
+        phraseModeEnabled = phraseModeCheckbox.checked
+
+        if (phraseModeEnabled) {
+          log("🎼 Phrase Mode: Enabled")
+          if (phraseModeSettings) phraseModeSettings.style.display = "block"
+          if (isPlaying && csound) {
+            startPhraseMode()
+          }
+        } else {
+          log("🎼 Phrase Mode: Disabled")
+          if (phraseModeSettings) phraseModeSettings.style.display = "none"
+          stopPhraseMode()
+        }
+      })
+
+      // Phrase Mode Busyness slider
+      phraseBusynessSlider.addEventListener("input", () => {
+        phraseBusyness = parseInt(phraseBusynessSlider.value) / 100
+        phraseBusynessValue.textContent = `${phraseBusynessSlider.value}%`
+      })
+
+      // Phrase Mode Silence Duration slider
+      phraseSilenceSlider.addEventListener("input", () => {
+        phraseSilenceDuration = parseInt(phraseSilenceSlider.value)
+        phraseSilenceValue.textContent = `${phraseSilenceDuration}s`
+      })
+
+      // Phrase Mode Keep One Voice checkbox
+      phraseKeepOneVoiceCheckbox.addEventListener("change", () => {
+        phraseKeepOneVoice = phraseKeepOneVoiceCheckbox.checked
+        log(`🎼 Keep one voice: ${phraseKeepOneVoice ? "ON" : "OFF"}`)
+      })
+
+      // Location Change toggle
+      locationChangeCheckbox.addEventListener("change", () => {
+        locationChangeEnabled = locationChangeCheckbox.checked
+
+        if (locationChangeEnabled) {
+          log(`🌍 Auto location change: Enabled (every ${locationChangeInterval}s)`)
+          if (isPlaying && csound) {
+            scheduleLocationChange()
+          }
+        } else {
+          log("🌍 Auto location change: Disabled")
+          stopLocationChanger()
+        }
+      })
+
+      // Location Change interval
+      locationChangeIntervalInput.addEventListener("change", () => {
+        locationChangeInterval = parseInt(locationChangeIntervalInput.value)
+        log(`🌍 Location change interval: ${locationChangeInterval}s`)
+
+        // Restart timer if currently active
+        if (locationChangeEnabled && isPlaying) {
+          stopLocationChanger()
+          scheduleLocationChange()
+        }
+      })
+
+      locationSelect.addEventListener("change", async () => {
+        try {
+          currentLocation = locationSelect.value
+
+          if (currentLocation === "local") {
+            status.textContent = "Getting your location..."
+            await getUserLocation()
+            const locationKey = `${userLocation.latitude.toFixed(4)},${userLocation.longitude.toFixed(4)}`
+            currentLocation = locationKey
+          }
+
+          const cityInfo = CITY_KEYS[currentLocation]
+
+          status.textContent = "Loading weather data..."
+          weatherData = await fetchWeatherData(currentLocation)
+          updateWeatherDisplay(weatherData, cityInfo)
+          log(`Loaded weather for ${cityInfo.name}`)
+
+          // If playing, update the progression and restart from chord 0
+          if (isPlaying && csound) {
+            if (chordTimeoutId) clearTimeout(chordTimeoutId)
+
+            chordProgression = generateChordProgression(currentMode, cityInfo.rootNote, 8)
+            log(`New progression: ${chordProgression.map((c) => c.name).join(" → ")}`)
+
+            currentChordIndex = 0
+            await playChord(0)
+
+            status.textContent = `🎵 Playing ${cityInfo.name} in ${cityInfo.key} ${currentMode}`
+          } else {
+            status.textContent = `Weather loaded for ${cityInfo.name} - press Start to begin`
+          }
+        } catch (error) {
+          status.textContent = `Error: ${error.message}`
+          log(`Location change error: ${error.message}`)
+        }
+      })
+
+      // Orchestra selection
+      document.querySelectorAll("[data-orchestra]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          document.querySelectorAll("[data-orchestra]").forEach((b) => b.classList.remove("active"))
+          btn.classList.add("active")
+          currentOrchestra = btn.dataset.orchestra
+
+          log(`Orchestra changed to ${currentOrchestra}`)
+
+          if (isPlaying && csound) {
+            const orchMap = { warm: 1, breathy: 2, bells: 3 }
+            await csound.setControlChannel("orchestra", orchMap[currentOrchestra])
+          }
+        })
+      })
+
+      // Melody toggle
+      melodyBtn.addEventListener("click", () => {
+        melodyEnabled = !melodyEnabled
+        melodyBtn.classList.toggle("active")
+        log(`Melody ${melodyEnabled ? "enabled" : "disabled"}`)
+
+        // If enabled and playing, trigger melody on current chord immediately
+        if (melodyEnabled && isPlaying && csound && weatherData) {
+          const chord = chordProgression[currentChordIndex]
+          const cityInfo = CITY_KEYS[currentLocation]
+          const velocity = (0.12 + (weatherData.temperature + 20) / 300) * masterVolume
+          const tempNorm = Math.max(0, Math.min(1, (weatherData.temperature + 20) / 60))
+          const windNorm = Math.min(1, weatherData.windSpeed / 50)
+          const humidNorm = weatherData.humidity / 100
+          const numNotes = chord.notes.length
+          const noteParams = chord.notes.join(" ")
+
+          const melodyInstrMap = { bell: 52, legato: 53 }
+          const melodyInstr = melodyInstrMap[melodyType] || 52
+          const octaveShift = melodyOctave * 12
+
+          csound.inputMessage(
+            `i ${melodyInstr} 0 3 ${cityInfo.rootNote} ${velocity * 0.45} ${numNotes} ${tempNorm} ${windNorm} ${humidNorm} ${octaveShift} ${noteParams}`,
+          )
+          log("Melody triggered immediately")
+        }
+      })
+
+      // Melody type selection
+      document.querySelectorAll("[data-melody-type]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-melody-type]").forEach((b) => b.classList.remove("active"))
+          btn.classList.add("active")
+          melodyType = btn.dataset.melodyType
+          log(`Melody type: ${melodyType}`)
+        })
+      })
+
+      // Melody octave selection
+      document.querySelectorAll("[data-melody-octave]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-melody-octave]").forEach((b) => b.classList.remove("active"))
+          btn.classList.add("active")
+          melodyOctave = parseInt(btn.dataset.melodyOctave)
+          log(`Melody octave: ${melodyOctave > 0 ? "+" : ""}${melodyOctave}`)
+        })
+      })
+
+      // Visualization toggles
+      document.querySelectorAll("[data-viz]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const vizType = btn.dataset.viz
+          vizEnabled[vizType] = !vizEnabled[vizType]
+          btn.classList.toggle("active")
+
+          // Show/hide audio viz canvas
+          if (vizType === "audio") {
+            audioVizCanvas.classList.toggle("visible", vizEnabled.audio)
+          }
+
+          log(`Visualization: ${vizType} ${vizEnabled[vizType] ? "enabled" : "disabled"}`)
+        })
+      })
+
+      // Visualization tab switcher - now toggles multiple panels
+      document.querySelectorAll(".viz-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const panelName = tab.dataset.vizPanel
+          let targetPanelId = "spectrum-panel"
+
+          if (panelName === "graphs") targetPanelId = "graphs-panel"
+          else if (panelName === "particles") targetPanelId = "particles-panel"
+          else if (panelName === "sonogram") targetPanelId = "sonogram-panel"
+          else if (panelName === "waterfall") targetPanelId = "waterfall-panel"
+          else if (panelName === "chord") targetPanelId = "chord-panel"
+
+          // Toggle active tab styling
+          tab.classList.toggle("active")
+
+          // Toggle target panel visibility
+          const targetPanel = document.getElementById(targetPanelId)
+          const isVisible = targetPanel.classList.contains("active")
+
+          if (isVisible) {
+            // Hiding the panel
+            targetPanel.classList.remove("active")
+
+            // Stop animations for specific panels
+            if (targetPanelId === "orbs-panel") {
+              stopOrbsViz()
+            }
+            if (targetPanelId === "particles-panel") {
+              stopParticlesViz()
+            }
+          } else {
+            // Showing the panel
+            targetPanel.classList.add("active")
+
+            // Trigger initial render for specific panels
+            if (targetPanelId === "graphs-panel" && weatherData) {
+              drawWeatherGraphs()
+            }
+            if (targetPanelId === "particles-panel") {
+              drawParticlesViz()
+            }
+          }
+
+          // If switching to chord diagram, draw it
+          if (targetPanelId === "chord-panel") {
+            drawChordDiagram()
+          }
+
+          // If switching to orbs, start the visualizer
+          if (targetPanelId === "orbs-panel" && isPlaying) {
+            startOrbsViz()
+          }
+
+          // If switching to particles, start the visualizer
+          if (targetPanelId === "particles-panel") {
+            startParticlesViz()
+          }
+
+          log(`Switched to ${targetPanelId}`)
+        })
+      })
+
+      // Mode selection
+      document.querySelectorAll("[data-mode]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          document.querySelectorAll("[data-mode]").forEach((b) => b.classList.remove("active"))
+          btn.classList.add("active")
+          currentMode = btn.dataset.mode
+
+          log(`Mode changed to ${currentMode}`)
+
+          if (isPlaying && csound) {
+            const cityInfo = CITY_KEYS[currentLocation]
+            chordProgression = generateChordProgression(currentMode, cityInfo.rootNote, 8)
+            log(`New progression: ${chordProgression.map((c) => c.name).join(" → ")}`)
+            displayChordProgression()
+            status.textContent = `🎵 Playing ${cityInfo.name} in ${cityInfo.key} ${currentMode}`
+          }
+        })
+      })
+
+      volumeSlider.addEventListener("input", async (e) => {
+        masterVolume = e.target.value / 100
+        volumeValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("masterVol", masterVolume)
+        }
+        log(`Master Volume: ${e.target.value}%`)
+      })
+
+      speedSlider.addEventListener("input", (e) => {
+        globalSpeed = e.target.value / 100
+        speedValue.textContent = `${globalSpeed.toFixed(2)}x`
+        log(`Speed: ${globalSpeed.toFixed(2)}x`)
+      })
+
+      transposeInput.addEventListener("input", (e) => {
+        transpose = parseInt(e.target.value)
+        transposeValue.textContent = `${transpose > 0 ? "+" : ""}${transpose}`
+        log(`Transpose: ${transpose}`)
+
+        if (isPlaying && csound) {
+          const cityInfo = CITY_KEYS[currentLocation]
+          chordProgression = generateChordProgression(currentMode, cityInfo.rootNote, 8)
+          log(`Transposed progression: ${chordProgression.map((c) => c.name).join(" → ")}`)
+          displayChordProgression()
+        }
+      })
+
+      // Individual layer faders
+      chordVolSlider.addEventListener("input", async (e) => {
+        chordVol = e.target.value / 100
+        chordVolValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("chordVol", chordVol)
+          log(`🎹 Chord volume: ${e.target.value}%`)
+        }
+      })
+
+      arpVolSlider.addEventListener("input", async (e) => {
+        arpVol = e.target.value / 100
+        arpVolValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("arpVol", arpVol)
+          log(`🎼 Arp volume: ${e.target.value}%`)
+        }
+      })
+
+      bassVolSlider.addEventListener("input", async (e) => {
+        bassVol = e.target.value / 100
+        bassVolValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("bassVol", bassVol)
+          log(`🎸 Bass volume: ${e.target.value}%`)
+        }
+      })
+
+      droneVolSlider.addEventListener("input", async (e) => {
+        droneVol = e.target.value / 100
+        droneVolValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("droneVol", droneVol)
+          log(`🌊 Drone volume: ${e.target.value}%`)
+        }
+      })
+
+      melodyVolSlider.addEventListener("input", async (e) => {
+        melodyVol = e.target.value / 100
+        melodyVolValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("melodyVol", melodyVol)
+          log(`🎵 Melody volume: ${e.target.value}%`)
+        }
+      })
+
+      melodySpeedSlider.addEventListener("input", async (e) => {
+        melodySpeed = e.target.value / 100
+        melodySpeedValue.textContent = `${melodySpeed.toFixed(2)}x`
+        if (csound) {
+          await csound.setControlChannel("melodySpeed", melodySpeed)
+          log(`🎵 Melody speed: ${melodySpeed.toFixed(2)}x`)
+        }
+      })
+
+      melodyBusynessSlider.addEventListener("input", (e) => {
+        melodyBusyness = e.target.value / 100
+        melodyBusynessValue.textContent = `${e.target.value}%`
+        log(`🎵 Melody busyness: ${e.target.value}%`)
+      })
+
+      // Counter Melody button (on/off)
+      counterMelodyBtn.addEventListener("click", () => {
+        counterMelodyEnabled = !counterMelodyEnabled
+        counterMelodyBtn.classList.toggle("active")
+        log(`🎶 Counter melody: ${counterMelodyEnabled ? "ON" : "OFF"}`)
+      })
+
+      // Counter Melody volume slider
+      counterMelodyVolSlider.addEventListener("input", async (e) => {
+        const vol = e.target.value / 100
+        counterMelodyVolValue.textContent = `${e.target.value}%`
+        if (csound) {
+          await csound.setControlChannel("counterMelodyVol", vol)
+          log(`🎶 Counter melody volume: ${e.target.value}%`)
+        }
+      })
+
+      // Counter Melody speed slider
+      counterMelodySpeedSlider.addEventListener("input", async (e) => {
+        counterMelodySpeed = e.target.value / 100
+        counterMelodySpeedValue.textContent = `${counterMelodySpeed.toFixed(2)}x`
+        if (csound) {
+          await csound.setControlChannel("counterMelodySpeed", counterMelodySpeed)
+          log(`🎶 Counter melody speed: ${counterMelodySpeed.toFixed(2)}x`)
+        }
+      })
+
+      counterMelodyBusynessSlider.addEventListener("input", (e) => {
+        counterMelodyBusyness = e.target.value / 100
+        counterMelodyBusynessValue.textContent = `${e.target.value}%`
+        log(`🎶 Counter melody busyness: ${e.target.value}%`)
+      })
+
+      // Counter Melody type buttons (fm/waveguide)
+      document.querySelectorAll("[data-countermelody-type]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          counterMelodyType = btn.dataset.countermelodyType
+          document.querySelectorAll("[data-countermelody-type]").forEach((b) => b.classList.remove("active"))
+          btn.classList.add("active")
+          log(`🎶 Counter melody type: ${counterMelodyType}`)
+        })
+      })
+
+      // Counter Melody octave buttons
+      document.querySelectorAll("[data-countermelody-octave]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          counterMelodyOctave = parseInt(btn.dataset.countermelodyOctave)
+          document.querySelectorAll("[data-countermelody-octave]").forEach((b) => b.classList.remove("active"))
+          btn.classList.add("active")
+          log(`🎶 Counter melody octave: ${counterMelodyOctave > 0 ? "+" : ""}${counterMelodyOctave}`)
+        })
+      })
+
+      // Console toggle button
+      consoleToggleBtn.addEventListener("click", () => {
+        consoleDiv.classList.toggle("hidden")
+        consoleToggleBtn.textContent = consoleDiv.classList.contains("hidden") ? "🖥️ Show Console" : "🖥️ Hide Console"
+        log(consoleDiv.classList.contains("hidden") ? "Console hidden" : "Console visible")
+      })
+
+      // Console clear button
+      consoleClearBtn.addEventListener("click", () => {
+        consoleDiv.innerHTML = ""
+        log("Console cleared")
+      })
+
+      // TAB key to toggle UI
+      document.addEventListener("keydown", (e) => {
+        // TAB: Toggle controls (overlay) - keeps visualizers visible
+        if (e.key === "Tab") {
+          e.preventDefault()
+          overlay.classList.toggle("hidden")
+          if (hint) hint.classList.toggle("hidden")
+          document.body.classList.toggle("fullscreen-viz")
+        }
+
+        // ESC: Toggle visualizers only (weather stats always visible)
+        if (e.key === "Escape") {
+          e.preventDefault()
+          const vizFrame = document.getElementById("viz-frame")
+          const isHidden = vizFrame.style.display === "none"
+
+          vizFrame.style.display = isHidden ? "flex" : "none"
+
+          log(isHidden ? "Visualizers shown" : "Visualizers hidden")
+        }
+      })
+
+      // ==================== INITIALIZATION ====================
+
+      window.addEventListener("resize", () => {
+        resizeCanvas()
+        resizeAudioVizCanvas()
+        resizeParticlesCanvas()
+        resizeWaterfallCanvas()
+        resizeSonogramCanvas()
+        resizeChordCanvas()
+      })
+      resizeCanvas()
+      resizeAudioVizCanvas()
+      resizeParticlesCanvas()
+      resizeWaterfallCanvas()
+      resizeSonogramCanvas()
+      resizeChordCanvas()
+
+      // Load saved settings
+      const settingsLoaded = loadSettings()
+
+      // ALWAYS start with Boston - don't use saved location from settings
+      currentLocation = "42.3601,-71.0589"
+      locationSelect.value = currentLocation
+
+      log(`📍 Starting with Boston, Massachusetts`)
+
+      // Initialize melody and counter melody button states (in case no settings were loaded)
+      if (!settingsLoaded) {
+        melodyBtn.classList.toggle("active", melodyEnabled)
+        counterMelodyBtn.classList.toggle("active", counterMelodyEnabled)
+      }
+
+      // Log appropriate message
+      const cityInfo = CITY_KEYS[currentLocation]
+      log("Ready to start")
+      if (settingsLoaded) {
+        log("✅ Previous mix/orchestration loaded (except location - always starts with Boston)")
+      }
+      log(`📍 ${cityInfo.name} selected - press Start to begin`)
+      log("Use TAB to hide/show UI • Adjust volume, speed, and transpose in real-time")
+      log("💾 Click 'Save Settings' to save your current mix")
+
+      // Fetch initial weather data for Boston to populate boxes immediately
+      ;(async () => {
+        try {
+          const initialWeather = await fetchWeatherData(currentLocation)
+          if (initialWeather && cityInfo) {
+            updateWeatherDisplay(initialWeather, cityInfo)
+            log(`🌤️ Weather data loaded for ${cityInfo.name}`)
+          }
+        } catch (error) {
+          log(`⚠️ Could not fetch initial weather data: ${error.message}`)
+        }
+      })()
+    </script>
+  </body>
+</html>

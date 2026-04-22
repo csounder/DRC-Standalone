@@ -1,13 +1,22 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react'
 import { useEditorStore } from '../stores/editorStore'
+
+// Real, self-contained finished apps — bundled at build time so clicking a card
+// shows the actual drum machine / FM bell / etc. interface, not a generated shell.
+import drumMachineHtml from '../assets/apps/drum-machine.html?raw'
+import fmBellHtml from '../assets/apps/fm-bell.html?raw'
+import etude1Html from '../assets/apps/etude1.html?raw'
+import fibonacciFmHtml from '../assets/apps/fibonacci-fm.html?raw'
+import fractalExplorerHtml from '../assets/apps/fractal-explorer.html?raw'
+import weatherSonificationHtml from '../assets/apps/weather-sonification.html?raw'
 
 interface AppTemplate {
   id: string
   name: string
   desc: string
-  icon: string
   tags: string[]
-  csd: string // Embedded CSD sample
+  csd: string  // Snippet for "Open in CSD Editor"
+  html?: string  // Full finished-app HTML (for the Preview iframe)
 }
 
 const REFERENCE_APPS: AppTemplate[] = [
@@ -15,8 +24,8 @@ const REFERENCE_APPS: AppTemplate[] = [
     id: 'drum-machine',
     name: 'Drum Machine',
     desc: '16-step sequencer with 10 synth drums, 6 kits, 12 global effects',
-    icon: '🥁',
     tags: ['sequencer', 'percussion', 'FM synthesis'],
+    html: drumMachineHtml,
     csd: `; Drum Machine - FM Kick
 instr 1  ; kick
   iAmp = p5
@@ -31,8 +40,8 @@ endin`,
     id: 'etude1',
     name: 'Étude #1',
     desc: 'Generative audiovisual piece — 14 autonomous instruments in B Phrygian',
-    icon: '✦',
     tags: ['generative', 'autonomous', 'FOF synthesis', 'Three.js'],
+    html: etude1Html,
     csd: `; Étude #1 - Autonomous composer
 instr 10  ; grain cloud
   iDur = p3
@@ -47,8 +56,8 @@ endin`,
     id: 'fibonacci-fm',
     name: 'Fibonacci FM Explorer',
     desc: 'FM synth with 25 scales (microtonal, Fibonacci, Bohlen-Pierce), ghost mode, 30+ presets',
-    icon: '🌀',
     tags: ['FM synthesis', 'microtonal', 'polyphonic', 'MIDI'],
+    html: fibonacciFmHtml,
     csd: `; Fibonacci FM - Golden ratio FM
 instr 1
   iFreq = p4
@@ -69,8 +78,8 @@ endin`,
     id: 'fm-bell',
     name: 'FM Bell',
     desc: 'Minimal FM synthesis example — clean, focused, under 2KB',
-    icon: '🔔',
     tags: ['FM synthesis', 'beginner', 'minimal'],
+    html: fmBellHtml,
     csd: `; FM Bell
 instr 1
   iFreq = p4
@@ -86,8 +95,8 @@ endin`,
     id: 'fractal-explorer',
     name: 'Fractal Explorer',
     desc: 'L-System music — Algae, Tree, Dragon, Koch, Sierpinski mapped to synthesis',
-    icon: '🌿',
     tags: ['L-system', 'algorithmic', 'fractal', 'ambisonics'],
+    html: fractalExplorerHtml,
     csd: `; Fractal Explorer - L-system note generator
 ; Depth maps to pitch, angle maps to duration
 instr 1
@@ -107,8 +116,8 @@ endin`,
     id: 'weather-sonification',
     name: 'Weather Sonification',
     desc: 'Real-time Open-Meteo API data → Markov chords, 7 scales, 4 orchestral palettes',
-    icon: '🌤',
     tags: ['sonification', 'API', 'Markov chains', 'generative'],
+    html: weatherSonificationHtml,
     csd: `; Weather Sonification - Temperature → pitch
 instr 1  ; warm pad
   iTemp = p4  ; temperature in Celsius
@@ -128,12 +137,48 @@ endin`,
 export default function WebAppsPage() {
   const [selectedApp, setSelectedApp] = useState<AppTemplate | null>(null)
   const [appCode, setAppCode] = useState('')
+  // Fraction of split width given to the code panel. Preview takes the rest.
+  // Default favors the preview since that's what the user actually interacts with.
+  const [codeFrac, setCodeFrac] = useState(0.30)
+  const [fullscreen, setFullscreen] = useState(false)
+  const splitRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef(false)
   const { setCsdContent } = useEditorStore()
 
   const handleSelectApp = (app: AppTemplate) => {
     setSelectedApp(app)
-    setAppCode(buildHtmlApp(app))
+    // Prefer the real finished-app HTML when bundled; fall back to the generated
+    // shell for the "New App" / scratch path.
+    setAppCode(app.html ?? buildHtmlApp(app))
   }
+
+  const onSplitterDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    draggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!draggingRef.current || !splitRef.current) return
+      const rect = splitRef.current.getBoundingClientRect()
+      const frac = (e.clientX - rect.left) / rect.width
+      setCodeFrac(Math.max(0.12, Math.min(0.72, frac)))
+    }
+    const onUp = () => {
+      if (!draggingRef.current) return
+      draggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [])
 
   const handleLoadInEditor = () => {
     if (selectedApp) {
@@ -154,8 +199,8 @@ export default function WebAppsPage() {
           </div>
 
           <div style={styles.gallery}>
-            <button style={styles.newCard} onClick={() => setSelectedApp({
-              id: 'new', name: 'New App', desc: '', icon: '+', tags: [],
+            <button style={styles.newCard} onClick={() => handleSelectApp({
+              id: 'new', name: 'New App', desc: '', tags: [],
               csd: '; Start your instrument here\ninstr 1\n  aOut oscili 0.5, 440\n  outs aOut, aOut\nendin',
             })}>
               <span style={styles.newIcon}>+</span>
@@ -169,9 +214,6 @@ export default function WebAppsPage() {
                 style={styles.card}
                 onClick={() => handleSelectApp(app)}
               >
-                <div style={styles.cardPreview}>
-                  <span style={styles.cardEmoji}>{app.icon}</span>
-                </div>
                 <div style={styles.cardInfo}>
                   <span style={styles.cardName}>{app.name}</span>
                   <span style={styles.cardDesc}>{app.desc}</span>
@@ -190,37 +232,58 @@ export default function WebAppsPage() {
         <div style={styles.editorView}>
           <div style={styles.editorToolbar}>
             <button onClick={() => setSelectedApp(null)} style={styles.backButton}>← Back</button>
-            <span style={styles.appTitle}>{selectedApp.icon} {selectedApp.name}</span>
+            <span style={styles.appTitle}>{selectedApp.name}</span>
             <div style={styles.toolbarActions}>
               <button onClick={handleLoadInEditor} style={styles.toolbarButton}>
                 Open in CSD Editor
               </button>
-              <button style={styles.toolbarButtonPrimary}>
-                ▶ Preview
+              <button
+                onClick={() => setFullscreen((v) => !v)}
+                style={styles.toolbarButton}
+                title={fullscreen ? 'Exit fullscreen' : 'Preview fullscreen'}
+              >
+                {fullscreen ? '↙ Exit Fullscreen' : '⤢ Fullscreen'}
               </button>
             </div>
           </div>
 
-          <div style={styles.editorSplit}>
-            {/* Code */}
-            <div style={styles.codePanel}>
-              <div style={styles.codePanelHeader}>
-                <span style={styles.fileName}>index.html</span>
-              </div>
-              <textarea
-                value={appCode || buildHtmlApp(selectedApp)}
-                onChange={(e) => setAppCode(e.target.value)}
-                style={styles.codeArea}
-                spellCheck={false}
-              />
-            </div>
+          <div ref={splitRef} style={styles.editorSplit}>
+            {!fullscreen && (
+              <>
+                {/* Code */}
+                <div style={{ ...styles.codePanel, flex: `0 0 ${codeFrac * 100}%` }}>
+                  <div style={styles.codePanelHeader}>
+                    <span style={styles.fileName}>index.html</span>
+                  </div>
+                  <textarea
+                    value={appCode || buildHtmlApp(selectedApp)}
+                    onChange={(e) => setAppCode(e.target.value)}
+                    style={styles.codeArea}
+                    spellCheck={false}
+                  />
+                </div>
 
-            {/* Preview / CSD */}
-            <div style={styles.previewPanel}>
+                {/* Draggable splitter */}
+                <div
+                  style={styles.splitter}
+                  onMouseDown={onSplitterDown}
+                  title="Drag to resize"
+                />
+              </>
+            )}
+
+            {/* Live preview */}
+            <div style={{ ...styles.previewPanel, flex: 1 }}>
               <div style={styles.codePanelHeader}>
-                <span style={styles.fileName}>Embedded CSD</span>
+                <span style={styles.fileName}>Preview</span>
               </div>
-              <pre style={styles.csdPreview}>{selectedApp.csd}</pre>
+              <iframe
+                srcDoc={appCode || buildHtmlApp(selectedApp)}
+                style={styles.previewFrame}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+                allow="autoplay; microphone; clipboard-write"
+                title={selectedApp.name}
+              />
             </div>
           </div>
         </div>
@@ -282,7 +345,7 @@ function buildHtmlApp(app: AppTemplate): string {
   </style>
 </head>
 <body>
-  <h1>${app.icon} ${app.name}</h1>
+  <h1>${app.name}</h1>
   <p class="subtitle">${app.desc}</p>
   <div class="controls">
     <button class="play" onclick="startCsound()">▶ Play</button>
@@ -336,20 +399,15 @@ const styles: Record<string, CSSProperties> = {
   newLabel: { fontSize: 14, fontWeight: 500, letterSpacing: '0.04em' },
   newHint: { fontSize: 12, opacity: 0.5 },
   card: {
-    display: 'flex', flexDirection: 'column',
+    display: 'flex', flexDirection: 'column', minHeight: 180,
     border: 'var(--border-width) solid var(--border)', borderRadius: 'var(--panel-radius)',
     background: 'var(--bg-secondary)', overflow: 'hidden', cursor: 'pointer',
     transition: 'all 150ms ease', textAlign: 'left',
   },
-  cardPreview: {
-    height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'var(--bg-tertiary)',
-  },
-  cardEmoji: { fontSize: 40 },
-  cardInfo: { padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6 },
-  cardName: { fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' },
-  cardDesc: { fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 },
-  cardTags: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 },
+  cardInfo: { padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'space-between' },
+  cardName: { fontSize: 17, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em' },
+  cardDesc: { fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.45, flex: 1 },
+  cardTags: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 },
   tag: {
     fontSize: 10, color: 'var(--accent)', background: 'var(--accent-muted)',
     padding: '2px 8px', borderRadius: 6, fontWeight: 500,
@@ -377,10 +435,14 @@ const styles: Record<string, CSSProperties> = {
     background: 'var(--accent)', color: 'var(--bg-primary)', fontSize: 13,
     fontWeight: 500, fontFamily: 'var(--font-primary)', cursor: 'pointer',
   },
-  editorSplit: { flex: 1, display: 'flex', overflow: 'hidden' },
+  editorSplit: { flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 },
   codePanel: {
-    flex: 1, display: 'flex', flexDirection: 'column',
-    borderRight: 'var(--border-width) solid var(--border)',
+    display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden',
+  },
+  splitter: {
+    flex: '0 0 6px', cursor: 'col-resize',
+    background: 'var(--border)',
+    transition: 'background 150ms ease',
   },
   codePanelHeader: {
     padding: '8px 16px', borderBottom: 'var(--border-width) solid var(--border-subtle)',
@@ -393,9 +455,7 @@ const styles: Record<string, CSSProperties> = {
     tabSize: 2,
   },
   previewPanel: { flex: 1, display: 'flex', flexDirection: 'column' },
-  csdPreview: {
-    flex: 1, padding: 16, fontSize: 13, fontFamily: 'var(--font-mono)',
-    lineHeight: 1.6, color: 'var(--accent)', background: 'var(--bg-primary)',
-    overflow: 'auto', whiteSpace: 'pre-wrap',
+  previewFrame: {
+    flex: 1, border: 'none', background: '#111', width: '100%',
   },
 }
