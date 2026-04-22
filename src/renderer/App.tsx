@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import Sidebar from './components/layout/Sidebar'
+import PlaybackBar from './components/PlaybackBar'
 import AgentPage from './pages/AgentPage'
 import WebAppsPage from './pages/WebAppsPage'
 import PlayerPage from './pages/PlayerPage'
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
+      <PlaybackBar />
     </div>
   )
 }

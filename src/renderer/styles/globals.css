@@ -154,3 +154,24 @@ code, pre {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.1); }
+}
+
+@keyframes drc-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(124, 184, 164, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(124, 184, 164, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(124, 184, 164, 0);    }
+}
+
+@keyframes drc-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes drc-shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}

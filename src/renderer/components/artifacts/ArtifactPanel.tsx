@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react'
 import { useArtifactStore, primaryContent, type Artifact, type ArtifactType } from '../../stores/artifactStore'
+import { usePlaybackStore } from '../../stores/playbackStore'
+import { playArtifact, stopPlayback } from '../../lib/playback'
 import FileTabs from './FileTabs'
 import FileEditor from './FileEditor'
 import ConvertMenu from './ConvertMenu'
@@ -27,9 +29,14 @@ export default function ArtifactPanel({ onConvert }: Props) {
   const active = artifacts.find((a) => a.id === activeArtifactId)
   const [tabIndex, setTabIndex] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [playing, setPlaying] = useState(false)
-  const [status, setStatus] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const playbackArtifactId = usePlaybackStore((s) => s.artifactId)
+  const playbackStatus = usePlaybackStore((s) => s.status)
+  const playbackMessage = usePlaybackStore((s) => s.message)
+  const isPlayingThis = active ? playbackArtifactId === active.id : false
+  const playing = isPlayingThis && (playbackStatus === 'playing' || playbackStatus === 'compiling')
+  const status = isPlayingThis ? playbackMessage : ''
 
   useEffect(() => {
     if (!active) return
@@ -46,32 +53,13 @@ export default function ArtifactPanel({ onConvert }: Props) {
     return () => document.removeEventListener('mousedown', handler)
   }, [menuOpen])
 
-  const handlePlay = useCallback(async () => {
-    if (!active || !window.api?.csound) return
-    setPlaying(true)
-    setStatus('Compiling…')
-    try {
-      const csd = primaryContent(active)
-      const { path } = await window.api.csound.writeCsd(csd)
-      const compile = await window.api.csound.compile(path)
-      if (!compile.success) {
-        setStatus(`Compile error: ${String(compile.error ?? '').slice(0, 120)}`)
-        setPlaying(false)
-        return
-      }
-      setStatus('Playing')
-      const res = await window.api.csound.play(path)
-      setStatus(res.success ? 'Done' : `Error: ${String(res.error ?? '').slice(0, 120)}`)
-    } catch (err: any) {
-      setStatus(`Error: ${err.message}`)
-    }
-    setPlaying(false)
+  const handlePlay = useCallback(() => {
+    if (!active) return
+    void playArtifact(active)
   }, [active])
 
-  const handleStop = useCallback(async () => {
-    await window.api?.csound?.stop()
-    setPlaying(false)
-    setStatus('Stopped')
+  const handleStop = useCallback(() => {
+    void stopPlayback()
   }, [])
 
   const handleSave = useCallback(() => {

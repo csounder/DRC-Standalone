@@ -8,6 +8,8 @@ import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
 import { buildConvertPrompt, type ConvertTarget } from '../prompts/convert'
+import { playArtifact, stopPlayback } from '../lib/playback'
+import { usePlaybackStore } from '../stores/playbackStore'
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
@@ -18,8 +20,8 @@ const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
 export default function AgentPage() {
   const [input, setInput] = useState('')
   const [lastUserPrompt, setLastUserPrompt] = useState('')
-  const [playingArtifactId, setPlayingArtifactId] = useState<string | null>(null)
   const [providersAvailable, setProvidersAvailable] = useState<string[] | null>(null)
+  const playingArtifactId = usePlaybackStore((s) => s.artifactId)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID } = useSessionStore()
   const { artifacts, panelOpen, addArtifact, updateInPlace, setActive } = useArtifactStore()
@@ -61,7 +63,8 @@ export default function AgentPage() {
 
     if (!isStreaming && detected.complete && detected.type === 'csd' && !autoPlayedRef.current.has(last.id)) {
       autoPlayedRef.current.add(last.id)
-      autoPlay(detected.code)
+      const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
+      if (artifact) void playArtifact(artifact)
     }
   }, [messages, isStreaming])
 
@@ -98,30 +101,12 @@ export default function AgentPage() {
     }
   }, [sessionID, agentMode])
 
-  const autoPlay = useCallback(async (csd: string) => {
-    if (!window.api?.csound) return
-    try {
-      const { path } = await window.api.csound.writeCsd(csd)
-      const compile = await window.api.csound.compile(path)
-      if (compile.success) {
-        window.api.csound.play(path)
-      }
-    } catch {}
+  const handlePlay = useCallback((artifact: Artifact) => {
+    void playArtifact(artifact)
   }, [])
 
-  const handlePlay = useCallback(async (artifact: Artifact) => {
-    if (!window.api?.csound) return
-    setPlayingArtifactId(artifact.id)
-    try {
-      const { path } = await window.api.csound.writeCsd(primaryContent(artifact))
-      await window.api.csound.play(path)
-    } catch {}
-    setPlayingArtifactId(null)
-  }, [])
-
-  const handleStop = useCallback(async () => {
-    await window.api?.csound?.stop()
-    setPlayingArtifactId(null)
+  const handleStop = useCallback(() => {
+    void stopPlayback()
   }, [])
 
   const handleSend = async () => {
@@ -225,15 +210,26 @@ export default function AgentPage() {
           <>
             <div style={styles.messages}>
               {messages.map(renderMessage)}
-              {isStreaming && (
-                <div style={styles.assistantRow}>
-                  <div style={styles.streamingBubble}>
-                    <div style={styles.dots}>
-                      <span style={styles.dot} /><span style={{ ...styles.dot, animationDelay: '0.15s' }} /><span style={{ ...styles.dot, animationDelay: '0.3s' }} />
+              {isStreaming && (() => {
+                const last = messages[messages.length - 1]
+                const awaitingFirstChunk = !last || last.role === 'user'
+                return (
+                  <div style={styles.assistantRow}>
+                    <div style={styles.streamingBubble}>
+                      <div style={styles.thinkingWrap}>
+                        <div style={styles.dots}>
+                          <span style={styles.dot} />
+                          <span style={{ ...styles.dot, animationDelay: '0.18s' }} />
+                          <span style={{ ...styles.dot, animationDelay: '0.36s' }} />
+                        </div>
+                        <span style={styles.thinkingLabel}>
+                          {awaitingFirstChunk ? 'Thinking…' : 'Composing…'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
               <div ref={messagesEndRef} />
             </div>
             <div style={styles.inputArea}>
@@ -299,11 +295,21 @@ const styles: Record<string, CSSProperties> = {
 
   msgText: { fontSize: 14, lineHeight: 1.65, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 },
 
-  streamingBubble: { padding: '12px 0' },
-  dots: { display: 'flex', gap: 4 },
+  streamingBubble: { padding: '8px 0' },
+  thinkingWrap: {
+    display: 'inline-flex', alignItems: 'center', gap: 10,
+    padding: '8px 14px', borderRadius: 14,
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border-subtle)',
+  },
+  dots: { display: 'flex', gap: 5 },
   dot: {
-    width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', opacity: 0.5,
+    width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)',
     animation: 'pulse 1.2s ease-in-out infinite',
+  },
+  thinkingLabel: {
+    fontSize: 12, color: 'var(--text-secondary)',
+    fontFamily: 'var(--font-primary)', fontStyle: 'italic',
   },
 
   landing: {
