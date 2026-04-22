@@ -1,8 +1,9 @@
-import { streamText, generateText } from 'ai'
+import { streamText } from 'ai'
 import { Agent } from '../agent/agent'
 import { Provider } from '../provider/provider'
 import { Tool } from '../tool/registry'
 import { Retrieval } from '../retrieval/engine'
+import { NarrationManager } from './narration'
 import { ascending } from '../util/id'
 import { Log } from '../util/log'
 import { Bus } from '../util/bus'
@@ -100,46 +101,97 @@ export namespace SessionManager {
 
     Log.info(`Streaming with ${aiMessages.length} messages, system prompt ${systemPrompt.length} chars`)
 
-    try {
-      // Try generateText first to verify model works, then stream
-      Log.info('Calling generateText...')
-      const genResult = await generateText({
-        model: model as any,
-        system: systemPrompt,
-        messages: aiMessages,
-        temperature: agent.temperature,
-        topP: agent.topP,
-      })
+    // Kick off narration + main stream in parallel. A shared queue lets whichever
+    // emits first reach the caller first, and chunks interleave naturally.
+    type StreamChunk = { type: string; content: string; toolName?: string }
+    const queue: StreamChunk[] = []
+    let mainDone = false
+    let narrationDone = false
+    let wake: (() => void) | null = null
+    const ready = () => new Promise<void>((r) => { wake = r })
+    const push = (c: StreamChunk) => { queue.push(c); wake?.(); wake = null }
 
-      const fullContent = genResult.text
-      Log.info(`generateText finished: ${fullContent.length} chars`)
+    // Narration — best effort, grounded in the book index. Suppressed for
+    // internal autofix turns, where the prompt is full of error text + CSD
+    // and would push the narrator off-script.
+    const isAutofix = /^The CSD you just wrote failed to compile\b/.test(content)
+    const lastCsd = lastAssistantCsd(session)
+    if (!isAutofix && NarrationManager.canFire(sessionID)) {
+      NarrationManager.markFired(sessionID)
+      ;(async () => {
+        try {
+          for await (const chunk of NarrationManager.streamNarration(content, lastCsd)) {
+            push({ type: 'narration', content: chunk })
+          }
+        } catch (err: any) {
+          Log.warn(`Narration error: ${err.message}`)
+        } finally {
+          narrationDone = true
+          wake?.()
+        }
+      })()
+    } else {
+      // Either cooldown or autofix — nothing to stream.
+      narrationDone = true
+    }
 
-      // Send the full response in chunks to simulate streaming
-      const chunkSize = 40
-      for (let i = 0; i < fullContent.length; i += chunkSize) {
-        const chunk = fullContent.slice(i, i + chunkSize)
-        yield { type: 'text', content: chunk }
-        // Small delay for streaming feel
-        await new Promise((r) => setTimeout(r, 15))
+    // Main response stream.
+    let fullContent = ''
+    ;(async () => {
+      try {
+        Log.info('Starting streamText...')
+        const stream = streamText({
+          model: model as any,
+          system: systemPrompt,
+          messages: aiMessages,
+          temperature: agent.temperature,
+          topP: agent.topP,
+        })
+        for await (const chunk of stream.textStream) {
+          fullContent += chunk
+          push({ type: 'text', content: chunk })
+        }
+      } catch (err: any) {
+        Log.error('Stream error:', err.message)
+        push({ type: 'error', content: `LLM Error: ${err.message}` })
+      } finally {
+        mainDone = true
+        wake?.()
       }
+    })()
 
-      Log.info(`Stream finished: ${fullContent.length} chars`)
+    while (!mainDone || !narrationDone || queue.length > 0) {
+      if (queue.length === 0) {
+        await ready()
+        continue
+      }
+      yield queue.shift()!
+    }
 
-      // Save assistant response
+    Log.info(`Stream finished: ${fullContent.length} chars`)
+
+    if (fullContent) {
       session.messages.push({
         id: ascending('message'),
         role: 'assistant',
         content: fullContent,
         timestamp: Date.now(),
       })
-
       Bus.emit('session:message', { sessionID, role: 'assistant', content: fullContent })
-    } catch (err: any) {
-      Log.error('Stream error:', err.message)
-      Log.error('Stack:', err.stack)
-      yield { type: 'error', content: `LLM Error: ${err.message}` }
     }
   }
+}
+
+// Pull the most recent assistant-authored CSD content so narration has real
+// context about what the user has been building, not just their latest prompt.
+function lastAssistantCsd(session: Session): string {
+  for (let i = session.messages.length - 1; i >= 0; i--) {
+    const m = session.messages[i]
+    if (m.role !== 'assistant') continue
+    const match = m.content.match(/<CsoundSynthesizer>[\s\S]*?<\/CsoundSynthesizer>/i)
+    if (match) return match[0]
+  }
+  return ''
 }
 
 function buildSystemPrompt(agent: Agent.Info, ragContext: string = ''): string {

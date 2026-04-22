@@ -15,12 +15,17 @@ export default function GraphPage() {
   const [rawData, setRawData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] })
   const [processed, setProcessed] = useState<ProcessedGraph | null>(null)
 
-  // Load graph data from public dir
+  // Load graph data via IPC (electron-vite doesn't serve /resources from the dev
+  // server, so a plain fetch always 404'd on this file).
   useEffect(() => {
-    fetch('/computer-music-history.json')
-      .then((r) => r.json())
+    const api = (window as any).api
+    if (!api?.graph?.getData) {
+      console.warn('graph IPC not available — running outside Electron?')
+      return
+    }
+    api.graph.getData()
       .then(setRawData)
-      .catch((err) => console.error('Failed to load graph data:', err))
+      .catch((err: any) => console.error('Failed to load graph data:', err))
   }, [])
 
   useEffect(() => {

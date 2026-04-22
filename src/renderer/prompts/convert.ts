@@ -83,6 +83,7 @@ CONSTRAINTS:
 - Target ~300–400 lines. Simpler beats fancier.
 - No \`<script type="text/csound">\` tag. The orchestra lives in a JS \`const ORC = \\\`…\\\`;\` template literal only.
 - Do not wrap the output in code fences.
+- NO emojis anywhere — not in headings, labels, buttons, tooltips, status text, or comments. Keep text plain (e.g. "Start Audio", not "▶ Start Audio" or "🔔 Start").
 
 SOURCE CSD:
 <<<SOURCE>>>

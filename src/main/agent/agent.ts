@@ -1,14 +1,27 @@
 import { z } from 'zod'
-import { readFileSync } from 'fs'
-import { join } from 'path'
+// Inline prompt text at bundle time via Vite's ?raw suffix. Runtime file reads
+// break once the main process is bundled because the prompts/ folder isn't
+// copied into out/main — inlining avoids the whole class of resolution bugs.
+import csoundPromptText from './prompts/csound.txt?raw'
+import csoundSinePromptText from './prompts/csound-sine.txt?raw'
+import sketchPromptText from './prompts/sketch.txt?raw'
+import csoundSynthesisPromptText from './prompts/csound-synthesis.txt?raw'
+import csoundEffectsPromptText from './prompts/csound-effects.txt?raw'
+import csoundModulationPromptText from './prompts/csound-modulation.txt?raw'
+import narratorPromptText from './prompts/narrator.txt?raw'
 
-// Load prompt text files
+const PROMPTS: Record<string, string> = {
+  csound: csoundPromptText,
+  'csound-sine': csoundSinePromptText,
+  sketch: sketchPromptText,
+  'csound-synthesis': csoundSynthesisPromptText,
+  'csound-effects': csoundEffectsPromptText,
+  'csound-modulation': csoundModulationPromptText,
+  narrator: narratorPromptText,
+}
+
 function loadPrompt(name: string): string {
-  try {
-    return readFileSync(join(__dirname, 'prompts', `${name}.txt`), 'utf-8')
-  } catch {
-    return ''
-  }
+  return PROMPTS[name] ?? ''
 }
 
 export namespace Agent {

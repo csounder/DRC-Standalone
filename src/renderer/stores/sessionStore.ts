@@ -19,6 +19,7 @@ interface SessionState {
   setSessionID: (id: string) => void
   addMessage: (msg: Message) => void
   appendToLast: (content: string) => void
+  appendById: (id: string, content: string) => void
   setAgentMode: (mode: AgentMode) => void
   setStreaming: (streaming: boolean) => void
   clearMessages: () => void
@@ -44,6 +45,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           content: msgs[msgs.length - 1].content + content,
         }
       }
+      return { messages: msgs }
+    }),
+
+  appendById: (id, content) =>
+    set((s) => {
+      const idx = s.messages.findIndex((m) => m.id === id)
+      if (idx === -1) return {}
+      const msgs = [...s.messages]
+      msgs[idx] = { ...msgs[idx], content: msgs[idx].content + content }
       return { messages: msgs }
     }),
 

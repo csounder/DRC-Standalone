@@ -10,11 +10,29 @@ import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
 import { buildConvertPrompt, type ConvertTarget } from '../prompts/convert'
 import { playArtifact, stopPlayback } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
+import { wrapWithArtifactContext } from '../lib/artifactContext'
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
   'csound-sine': { label: 'Sine', color: '#f0b27a' },
   sketch: { label: 'Sketch', color: '#c5a3d9' },
+}
+
+// Strip emojis and the simplest markdown so the chat bubble reads as plain prose
+// no matter what the model tried. Headings / lists collapse to their label text.
+const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}\u{2300}-\u{23FF}]/gu
+function cleanChatText(text: string): string {
+  return text
+    .replace(EMOJI_RE, '')
+    .replace(/```[\s\S]*?```/g, '')               // fenced code blocks
+    .replace(/`([^`]+)`/g, '$1')                   // inline code
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')           // atx headings
+    .replace(/\*\*([^*]+)\*\*/g, '$1')             // bold
+    .replace(/(^|\s)\*([^*\n]+)\*(?=\s|$|[.,;:!?])/g, '$1$2') // italics
+    .replace(/^[ \t]*[-*+][ \t]+/gm, '')          // bullet markers
+    .replace(/^[ \t]*\d+\.[ \t]+/gm, '')          // ordered list markers
+    .replace(/\n{3,}/g, '\n\n')                    // collapse big gaps
+    .trim()
 }
 
 export default function AgentPage() {
@@ -45,8 +63,14 @@ export default function AgentPage() {
   // When streaming completes and the artifact is a fresh CSD, autoplay it once.
   const autoPlayedRef = useRef<Set<string>>(new Set())
   useEffect(() => {
-    const last = messages[messages.length - 1]
-    if (!last || last.role !== 'assistant') return
+    // Look for the most recent non-narration assistant message. Narration messages
+    // are ambient context and never contain artifacts.
+    let last: Message | null = null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role === 'assistant' && m.type !== 'narration') { last = m; break }
+    }
+    if (!last) return
 
     const detected = detect(last.content)
     if (!detected) return
@@ -109,11 +133,11 @@ export default function AgentPage() {
     void stopPlayback()
   }, [])
 
-  const handleSend = async () => {
-    if (!input.trim() || isStreaming) return
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim()
+    if (!text || isStreaming) return
     if (audioEnabled) audioFeedback.click()
 
-    const text = input.trim()
     setLastUserPrompt(text)
     addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
     setInput('')
@@ -127,7 +151,9 @@ export default function AgentPage() {
           sid = session.id
           setSessionID(sid)
         }
-        await window.api.session.send(sid, text)
+        // Wrap the message with the currently-open artifact so follow-up edits
+        // stay in that artifact's format (HTML stays HTML, VST stays VST).
+        await window.api.session.send(sid, wrapWithArtifactContext(text))
       } else {
         addMessage({ id: `msg_${Date.now()}`, role: 'assistant', content: 'Not connected — restart app.', timestamp: Date.now() })
         setStreaming(false)
@@ -139,10 +165,6 @@ export default function AgentPage() {
   }
 
   const renderMessage = (msg: Message) => {
-    const text = msg.role === 'assistant' ? stripArtifact(msg.content) : msg.content
-    const artifactId = msgArtifactMap.get(msg.id)
-    const artifact = artifactId ? artifacts.find((a) => a.id === artifactId) : null
-
     if (msg.role === 'user') {
       return (
         <div key={msg.id} style={styles.userRow}>
@@ -153,10 +175,28 @@ export default function AgentPage() {
       )
     }
 
+    if (msg.type === 'narration') {
+      // Strip the narrator's trailing "Keywords: ..." line so it reads as prose.
+      const body = msg.content.replace(/\n?Keywords:[^\n]*$/i, '').trim()
+      if (!body) return null
+      return (
+        <div key={msg.id} style={styles.assistantRow}>
+          <div style={styles.narrationBubble}>
+            <span style={styles.narrationLabel}>CONTEXT</span>
+            <p style={styles.narrationText}>{body}</p>
+          </div>
+        </div>
+      )
+    }
+
+    const text = stripArtifact(msg.content)
+    const artifactId = msgArtifactMap.get(msg.id)
+    const artifact = artifactId ? artifacts.find((a) => a.id === artifactId) : null
+
     return (
       <div key={msg.id} style={styles.assistantRow}>
         <div style={styles.assistantBubble}>
-          {text && <p style={styles.msgText}>{text}</p>}
+          {text && <p style={styles.msgText}>{cleanChatText(text)}</p>}
           {artifact && (
             <ArtifactCard
               artifact={artifact}
@@ -200,7 +240,7 @@ export default function AgentPage() {
                   'Granular cloud texture',
                   'Ambient generative pad',
                 ].map((s) => (
-                  <button key={s} onClick={() => setInput(s)} style={styles.pill}>{s}</button>
+                  <button key={s} onClick={() => handleSend(s)} style={styles.pill} disabled={isStreaming}>{s}</button>
                 ))}
               </div>
             </div>
@@ -257,7 +297,7 @@ export default function AgentPage() {
             rows={1}
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isStreaming}
             style={{ ...styles.sendBtn, opacity: !input.trim() || isStreaming ? 0.3 : 1 }}
           >↑</button>
@@ -292,6 +332,31 @@ const styles: Record<string, CSSProperties> = {
 
   assistantRow: { display: 'flex', padding: '3px 28px' },
   assistantBubble: { maxWidth: 640 },
+
+  narrationBubble: {
+    maxWidth: 640,
+    padding: '12px 16px',
+    borderLeft: '2px solid var(--accent)',
+    background: 'var(--accent-muted)',
+    borderRadius: '2px 10px 10px 2px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  narrationLabel: {
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '0.14em',
+    color: 'var(--accent)',
+    fontFamily: 'var(--font-primary)',
+  },
+  narrationText: {
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: 'var(--text-secondary)',
+    fontStyle: 'italic',
+    margin: 0,
+  },
 
   msgText: { fontSize: 14, lineHeight: 1.65, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 },
 

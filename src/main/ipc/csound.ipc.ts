@@ -66,9 +66,18 @@ function extractCsoundError(raw: string): string {
     /^ftable\s+\d+:/i.test(l) ||
     /^Score: end of/i.test(l)
 
-  // Performance-level red flags: explicit "N errors in performance" (N > 0) or silent
-  // output ("overall amps: 0.00000 0.00000") both indicate the CSD ran but didn't
-  // produce any audio. These ARE banner lines, so we check them before filtering.
+  // Prefer the concrete error line (e.g. "error: Unable to find opcode entry…")
+  // over generic summaries so the user sees the actionable cause. We also pull
+  // the "Line: NN" hint right after the error when csound provides it.
+  const errorLines = lines.filter((l) => /error|cannot|unexpected|failed|syntax|undefined/i.test(l) && !isBanner(l))
+  if (errorLines.length) {
+    const msg = errorLines.slice(0, 3).join(' | ')
+    const lineHint = stripped.match(/Line:\s*(\d+)/i)
+    return lineHint ? `${msg} (line ${lineHint[1]})` : msg
+  }
+
+  // Performance-level red flags — only reported if no concrete error line exists.
+  // Silent output with "overall amps: 0.0" almost always means no notes fired.
   const perfErrMatch = stripped.match(/(\d+)\s+errors in performance/i)
   if (perfErrMatch && parseInt(perfErrMatch[1], 10) > 0) {
     const noteDeleted = stripped.match(/note deleted\.\s*([^\n]+)/i)
@@ -79,13 +88,9 @@ function extractCsoundError(raw: string): string {
     return 'Silent output — no instrument events fired (check score numbers match instr definitions)'
   }
 
-  const errorLines = lines.filter((l) => /error|cannot|unexpected|failed|syntax|undefined/i.test(l) && !isBanner(l))
-  if (errorLines.length) return errorLines.slice(0, 4).join(' | ')
-
   const warnLines = lines.filter((l) => /!!|WARNING/.test(l) && !isBanner(l))
   if (warnLines.length) return warnLines.slice(0, 2).join(' | ')
 
-  // No real error or warning detected — caller should treat this as a clean exit.
   return ''
 }
 
