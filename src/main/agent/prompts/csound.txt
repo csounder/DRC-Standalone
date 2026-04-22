@@ -56,6 +56,17 @@ For Cabbage plugins, add `<Cabbage>` section before `<CsoundSynthesizer>`.
 - Always `0dbfs = 1`, `seed 0`, limit output to prevent clipping
 - Minimal diffs — only change what's needed
 
+# Score & Instrument Numbering (CRITICAL — applies to DrC's local playback)
+
+DrC plays CSDs through the locally installed Csound 6.18 binary. Score events that reference **named instruments** (`i "Reverb" 0 120`) do NOT resolve to the instrument definition in 6.18 — they fail with `instr 0(200) undefined` and produce zero amplitude. Use NUMBERED instruments only:
+
+- Define instruments with numbers: `instr 1`, `instr 2`, `instr 3`, ... — not `instr Reverb`.
+- Score events use numbers: `i1 0 120`, `i2 0.5 30`, ... — not `i "Name" ...`.
+- Runtime scheduling uses numbers: `schedule 1, 0, 30, ifreq, iamp` — not `schedule "Pad", ...`.
+- If a bootstrap instrument needs to trigger others, pass instrument numbers as i-rate constants or p-fields.
+
+Inside instrument bodies, named UDOs (`opcode Foo, a, ak`) are fine — the restriction is only for the score/instrument-number table.
+
 # Csound 7 Rules (CRITICAL)
 
 These are the most common AI mistakes when generating Csound code. Violating any of these WILL produce broken or silent output.

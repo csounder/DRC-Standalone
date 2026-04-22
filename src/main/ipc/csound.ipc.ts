@@ -4,6 +4,7 @@ import { promisify } from 'util'
 import { writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
+import { normalizeNamedInstruments } from '../csound/normalize'
 
 const execFileAsync = promisify(execFile)
 
@@ -65,6 +66,19 @@ function extractCsoundError(raw: string): string {
     /^ftable\s+\d+:/i.test(l) ||
     /^Score: end of/i.test(l)
 
+  // Performance-level red flags: explicit "N errors in performance" (N > 0) or silent
+  // output ("overall amps: 0.00000 0.00000") both indicate the CSD ran but didn't
+  // produce any audio. These ARE banner lines, so we check them before filtering.
+  const perfErrMatch = stripped.match(/(\d+)\s+errors in performance/i)
+  if (perfErrMatch && parseInt(perfErrMatch[1], 10) > 0) {
+    const noteDeleted = stripped.match(/note deleted\.\s*([^\n]+)/i)
+    const detail = noteDeleted ? ` — ${noteDeleted[1].trim()}` : ''
+    return `${perfErrMatch[1]} error${perfErrMatch[1] === '1' ? '' : 's'} during performance${detail}`
+  }
+  if (/overall amps:\s+0\.00000\s+0\.00000/i.test(stripped)) {
+    return 'Silent output — no instrument events fired (check score numbers match instr definitions)'
+  }
+
   const errorLines = lines.filter((l) => /error|cannot|unexpected|failed|syntax|undefined/i.test(l) && !isBanner(l))
   if (errorLines.length) return errorLines.slice(0, 4).join(' | ')
 
@@ -76,10 +90,14 @@ function extractCsoundError(raw: string): string {
 }
 
 export function handleCsoundIPC(ipcMain: IpcMain): void {
-  // Write CSD content to temp file, return the path
+  // Write CSD content to temp file, return the path.
+  // Rewrites named instruments (instr Bell, i "Bell" ...) to numbered ones because
+  // Csound 6.18 can't resolve named-instrument score events. Preserves source CSD
+  // in the renderer; only the on-disk copy passed to the csound binary is normalized.
   ipcMain.handle('csound:writeCsd', async (_event, content: string) => {
     const tmpPath = join(getTempDir(), 'current.csd')
-    writeFileSync(tmpPath, content, 'utf-8')
+    const { csd: normalized } = normalizeNamedInstruments(content)
+    writeFileSync(tmpPath, normalized, 'utf-8')
     return { path: tmpPath }
   })
 
@@ -134,16 +152,19 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
           resolve({ success: true, output: 'Stopped.' })
           return
         }
+        // Check for in-performance errors or silent output regardless of exit code —
+        // Csound can exit 0 even when every note was deleted and amps were 0.
+        const msg = extractCsoundError(stderr)
+        if (msg) {
+          resolve({ success: false, error: msg })
+          return
+        }
         if (code === 0 || code === null) {
           resolve({ success: true, output: 'Playback finished.' })
           return
         }
-        // Non-zero exit: surface an error only if stderr actually contains one.
-        // Csound on macOS/homebrew sometimes exits non-zero after clean playback;
-        // in that case extractCsoundError returns '' and we treat it as success.
-        const msg = extractCsoundError(stderr)
-        if (msg) resolve({ success: false, error: msg })
-        else resolve({ success: true, output: 'Playback finished.' })
+        // Non-zero exit but no recognized error in stderr — treat as clean.
+        resolve({ success: true, output: 'Playback finished.' })
       })
 
       playProcess.on('error', (err) => {
