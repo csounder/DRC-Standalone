@@ -2,6 +2,7 @@ import { streamText } from 'ai'
 import { Agent } from '../agent/agent'
 import { Provider } from '../provider/provider'
 import { Retrieval } from '../retrieval/engine'
+import { searchPassages } from '../retrieval/passages'
 import { Log } from '../util/log'
 
 // Clean a user query before feeding it to the narrator: strip anything that
@@ -67,10 +68,17 @@ export namespace NarrationManager {
     // decides to help debug instead of providing historical context.
     const topic = extractTopic(userQuery)
 
-    // Pull grounding passages from the book index (use the cleaned topic).
-    const bookChunks = Retrieval.searchBook(topic, 3)
+    // Pull grounding from the extracted passage index first (cleaner,
+    // topic-tagged quotes). Fall back to the raw book search if no passages
+    // match — this keeps the old path alive for queries the extractor missed.
+    const extracted = searchPassages(topic, 3)
+    const bookChunks = extracted.length === 0 ? Retrieval.searchBook(topic, 3) : []
     const exampleChunks = Retrieval.searchExamples(topic, 1)
     const refs: string[] = []
+    for (const p of extracted) {
+      const tagHint = p.topic_tags.length ? ` tags="${p.topic_tags.slice(0, 3).join(', ')}"` : ''
+      refs.push(`<passage source="${p.source_book}"${tagHint}>\n${p.content.slice(0, 900)}\n</passage>`)
+    }
     for (const c of bookChunks) {
       refs.push(`<passage source="csound_book">\n${c.content.slice(0, 900)}\n</passage>`)
     }

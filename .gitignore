@@ -19,3 +19,6 @@ Thumbs.db
 .idea/
 
 # Electron userData (written at runtime, platform-dependent)
+
+# Knowledge extractor cache (extracted book text + per-chunk checkpoints)
+scripts/.cache/

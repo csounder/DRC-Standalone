@@ -1,23 +1,21 @@
 import { IpcMain } from 'electron'
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+// Inline the JSON at bundle time. Runtime file reads through __dirname broke
+// because resources/ isn't copied into out/main — bundling sidesteps the whole
+// path-resolution problem (same fix as the agent prompts).
+import graphJson from '../../../resources/graph/computer-music-history.json'
+import { Log } from '../util/log'
 
-let graphData: { nodes: any[]; edges: any[] } | null = null
+const graphData: { nodes: any[]; edges: any[] } = graphJson as any
 
 function loadGraphData(): { nodes: any[]; edges: any[] } {
-  if (graphData) return graphData
-
-  const graphPath = join(__dirname, '../../resources/graph/computer-music-history.json')
-  if (existsSync(graphPath)) {
-    graphData = JSON.parse(readFileSync(graphPath, 'utf-8'))
-  } else {
-    graphData = { nodes: [], edges: [] }
-  }
-  return graphData!
+  return graphData
 }
 
 export function handleGraphIPC(ipcMain: IpcMain): void {
+  Log.info(`graph.ipc: bundled graph has ${graphData?.nodes?.length ?? 0} nodes, ${graphData?.edges?.length ?? 0} edges`)
+
   ipcMain.handle('graph:getData', async () => {
+    Log.info(`graph:getData → returning ${graphData?.nodes?.length ?? 0} nodes`)
     return loadGraphData()
   })
 

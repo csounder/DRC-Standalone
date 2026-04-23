@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
+import forceAtlas2 from 'graphology-layout-forceatlas2'
 import type { ProcessedGraph, GraphNode } from './graph-data'
-import { ENTITY_COLORS } from '../../styles/theme'
 
 interface Props {
   processed: ProcessedGraph
@@ -13,8 +13,6 @@ interface LayoutNode {
   id: string
   x: number
   y: number
-  vx: number
-  vy: number
   size: number
   color: string
   label: string
@@ -23,116 +21,109 @@ interface LayoutNode {
   year?: number
 }
 
-// Simple force-directed layout — no WebGL, pure Canvas2D
+// 2D graph renderer. Uses graphology-layout-forceatlas2 (Barnes-Hut, O(n log n))
+// to compute positions ONCE on mount instead of running an n² simulation per
+// frame — handles thousands of nodes without hanging the UI.
 export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, onSelectNode }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const nodesRef = useRef<LayoutNode[]>([])
   const edgesRef = useRef<{ source: string; target: string }[]>([])
-  const animRef = useRef<number>(0)
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
+  const [layoutReady, setLayoutReady] = useState(false)
   const offsetRef = useRef({ x: 0, y: 0 })
   const scaleRef = useRef(1)
-  const dragRef = useRef<{ nodeId: string | null; startX: number; startY: number; panning: boolean }>({ nodeId: null, startX: 0, startY: 0, panning: false })
+  const dragRef = useRef<{ nodeId: string | null; startX: number; startY: number; panning: boolean }>({
+    nodeId: null, startX: 0, startY: 0, panning: false,
+  })
+  const dirtyRef = useRef(true)
 
-  // Initialize layout
+  // Compute layout once on mount (or when the graph changes).
   useEffect(() => {
     if (!processed.graph.order) return
+    setLayoutReady(false)
 
-    const nodes: LayoutNode[] = []
-    processed.graph.forEachNode((id, attrs) => {
-      nodes.push({
-        id,
-        x: (Math.random() - 0.5) * 600,
-        y: (Math.random() - 0.5) * 600,
-        vx: 0,
-        vy: 0,
-        size: (attrs.size as number) || 5,
-        color: (attrs.color as string) || '#666',
-        label: (attrs.label as string) || id,
-        type: (attrs.type as string) || '',
-        description: attrs.description as string,
-        year: attrs.year as number,
-      })
-    })
+    // Run layout asynchronously so the UI can show a loading state.
+    const handle = setTimeout(() => {
+      try {
+        const N = processed.graph.order
+        console.info(`[graph] computing layout for ${N} nodes, ${processed.graph.size} edges`)
+        const t0 = performance.now()
 
-    const edges: { source: string; target: string }[] = []
-    processed.graph.forEachEdge((_edge, _attrs, source, target) => {
-      edges.push({ source, target })
-    })
+        // Seed positions on a circle — FA2 requires non-zero, non-identical coords
+        let i = 0
+        processed.graph.forEachNode((id) => {
+          const theta = (i / N) * Math.PI * 2
+          const r = Math.sqrt(N) * 20
+          processed.graph.setNodeAttribute(id, 'x', Math.cos(theta) * r + Math.random() * 0.1)
+          processed.graph.setNodeAttribute(id, 'y', Math.sin(theta) * r + Math.random() * 0.1)
+          i++
+        })
 
-    nodesRef.current = nodes
-    edgesRef.current = edges
+        const iterations = N > 2000 ? 200 : N > 500 ? 400 : 600
+        forceAtlas2.assign(processed.graph, {
+          iterations,
+          settings: {
+            barnesHutOptimize: N > 400,
+            barnesHutTheta: 0.8,
+            scalingRatio: 8,
+            gravity: 1.2,
+            strongGravityMode: true,
+            slowDown: 4,
+          },
+        })
 
-    // Run force simulation
-    let iteration = 0
-    const maxIter = 300
+        const nodes: LayoutNode[] = []
+        processed.graph.forEachNode((id, attrs) => {
+          nodes.push({
+            id,
+            x: (attrs.x as number) ?? 0,
+            y: (attrs.y as number) ?? 0,
+            size: (attrs.size as number) || 5,
+            color: (attrs.color as string) || '#666',
+            label: (attrs.label as string) || id,
+            type: (attrs.type as string) || '',
+            description: attrs.description as string,
+            year: attrs.year as number,
+          })
+        })
 
-    function simulate() {
-      const ns = nodesRef.current
-      const nodeMap = new Map(ns.map((n) => [n.id, n]))
+        const edges: { source: string; target: string }[] = []
+        processed.graph.forEachEdge((_edge, _attrs, source, target) => {
+          edges.push({ source, target })
+        })
 
-      // Repulsion between all nodes
-      for (let i = 0; i < ns.length; i++) {
-        for (let j = i + 1; j < ns.length; j++) {
-          const dx = ns[j].x - ns[i].x
-          const dy = ns[j].y - ns[i].y
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1
-          const force = 800 / (dist * dist)
-          const fx = (dx / dist) * force
-          const fy = (dy / dist) * force
-          ns[i].vx -= fx
-          ns[i].vy -= fy
-          ns[j].vx += fx
-          ns[j].vy += fy
-        }
+        nodesRef.current = nodes
+        edgesRef.current = edges
+        dirtyRef.current = true
+        autoFit()
+        setLayoutReady(true)
+        console.info(`[graph] layout done in ${(performance.now() - t0).toFixed(0)}ms — ${nodes.length} nodes positioned`)
+      } catch (err) {
+        console.error('[graph] layout failed:', err)
+        // Show nodes in their seed positions even if FA2 blew up
+        const nodes: LayoutNode[] = []
+        processed.graph.forEachNode((id, attrs) => {
+          nodes.push({
+            id,
+            x: (attrs.x as number) ?? Math.random() * 1000 - 500,
+            y: (attrs.y as number) ?? Math.random() * 1000 - 500,
+            size: (attrs.size as number) || 5,
+            color: (attrs.color as string) || '#666',
+            label: (attrs.label as string) || id,
+            type: (attrs.type as string) || '',
+          })
+        })
+        const edges: { source: string; target: string }[] = []
+        processed.graph.forEachEdge((_e, _a, source, target) => edges.push({ source, target }))
+        nodesRef.current = nodes
+        edgesRef.current = edges
+        dirtyRef.current = true
+        autoFit()
+        setLayoutReady(true)
       }
+    }, 50)
 
-      // Attraction along edges
-      for (const e of edgesRef.current) {
-        const s = nodeMap.get(e.source)
-        const t = nodeMap.get(e.target)
-        if (!s || !t) continue
-        const dx = t.x - s.x
-        const dy = t.y - s.y
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1
-        const force = dist * 0.005
-        const fx = (dx / dist) * force
-        const fy = (dy / dist) * force
-        s.vx += fx
-        s.vy += fy
-        t.vx -= fx
-        t.vy -= fy
-      }
-
-      // Gravity toward center
-      for (const n of ns) {
-        n.vx -= n.x * 0.001
-        n.vy -= n.y * 0.001
-      }
-
-      // Apply velocity with damping
-      const damping = 0.85 - (iteration / maxIter) * 0.3
-      for (const n of ns) {
-        n.vx *= damping
-        n.vy *= damping
-        n.x += n.vx
-        n.y += n.vy
-      }
-
-      iteration++
-      if (iteration < maxIter) {
-        requestAnimationFrame(simulate)
-      }
-    }
-
-    simulate()
-
-    // Auto-fit after initial layout
-    setTimeout(() => {
-      autoFit()
-    }, 500)
-
-    return () => { iteration = maxIter }
+    return () => clearTimeout(handle)
   }, [processed])
 
   const autoFit = useCallback(() => {
@@ -156,16 +147,25 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
       x: w / 2 - ((minX + maxX) / 2) * scaleRef.current,
       y: h / 2 - ((minY + maxY) / 2) * scaleRef.current,
     }
+    dirtyRef.current = true
   }, [])
 
-  // Render loop
+  // Render loop — draws only when something changed, not every frame.
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    let rafId = 0
+
     function render() {
+      if (!dirtyRef.current) {
+        rafId = requestAnimationFrame(render)
+        return
+      }
+      dirtyRef.current = false
+
       const dpr = window.devicePixelRatio || 1
       const w = canvas!.offsetWidth
       const h = canvas!.offsetHeight
@@ -177,99 +177,97 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
       const ox = offsetRef.current.x
       const oy = offsetRef.current.y
       const ns = nodesRef.current
+      const es = edgesRef.current
       const nodeMap = new Map(ns.map((n) => [n.id, n]))
 
       // Background
       ctx!.fillStyle = '#0d1117'
       ctx!.fillRect(0, 0, w, h)
 
-      // Edges
+      // Visibility set: keep rendering cheap when filters shrink to a subset
+      const visible = visibleNodes.size > 0 ? visibleNodes : null
+
+      // Edges — single pass, pre-computed color
+      ctx!.strokeStyle = 'rgba(255,255,255,0.05)'
       ctx!.lineWidth = 0.5
-      for (const e of edgesRef.current) {
+      ctx!.beginPath()
+      for (const e of es) {
+        if (visible && (!visible.has(e.source) || !visible.has(e.target))) continue
+        if (selectedNodeId && e.source !== selectedNodeId && e.target !== selectedNodeId) continue
         const s = nodeMap.get(e.source)
         const t = nodeMap.get(e.target)
         if (!s || !t) continue
-        if (visibleNodes.size > 0 && (!visibleNodes.has(s.id) || !visibleNodes.has(t.id))) continue
-
-        if (selectedNodeId) {
-          if (e.source !== selectedNodeId && e.target !== selectedNodeId) continue
-          ctx!.strokeStyle = 'rgba(88,166,255,0.35)'
-          ctx!.lineWidth = 1.2
-        } else {
-          ctx!.strokeStyle = 'rgba(255,255,255,0.06)'
-          ctx!.lineWidth = 0.5
-        }
-
-        ctx!.beginPath()
         ctx!.moveTo(s.x * scale + ox, s.y * scale + oy)
         ctx!.lineTo(t.x * scale + ox, t.y * scale + oy)
+      }
+      ctx!.stroke()
+
+      // Highlighted edges (if a node is selected) on top
+      if (selectedNodeId) {
+        ctx!.strokeStyle = 'rgba(124,184,164,0.55)'
+        ctx!.lineWidth = 1.4
+        ctx!.beginPath()
+        for (const e of es) {
+          if (e.source !== selectedNodeId && e.target !== selectedNodeId) continue
+          const s = nodeMap.get(e.source)
+          const t = nodeMap.get(e.target)
+          if (!s || !t) continue
+          ctx!.moveTo(s.x * scale + ox, s.y * scale + oy)
+          ctx!.lineTo(t.x * scale + ox, t.y * scale + oy)
+        }
         ctx!.stroke()
       }
 
       // Nodes
-      for (const n of ns) {
-        if (visibleNodes.size > 0 && !visibleNodes.has(n.id)) continue
+      const neighbors = selectedNodeId ? collectNeighbors(es, selectedNodeId) : null
 
+      for (const n of ns) {
+        if (visible && !visible.has(n.id)) continue
         const x = n.x * scale + ox
         const y = n.y * scale + oy
-        const r = n.size * scale * 0.35
+        const r = Math.max(1.5, n.size * scale * 0.5)
 
         let alpha = 1
-        let color = n.color
-        if (selectedNodeId && n.id !== selectedNodeId) {
-          // Check if neighbor
-          const isNeighbor = edgesRef.current.some(
-            (e) => (e.source === selectedNodeId && e.target === n.id) ||
-                   (e.target === selectedNodeId && e.source === n.id)
-          )
-          if (!isNeighbor) alpha = 0.12
-        }
-
-        // Glow for selected
-        if (n.id === selectedNodeId) {
-          ctx!.beginPath()
-          ctx!.arc(x, y, r + 4, 0, Math.PI * 2)
-          ctx!.fillStyle = 'rgba(88,166,255,0.2)'
-          ctx!.fill()
-          color = '#58a6ff'
-        }
-
-        // Hover glow
-        if (n.id === hoveredNode && n.id !== selectedNodeId) {
-          ctx!.beginPath()
-          ctx!.arc(x, y, r + 3, 0, Math.PI * 2)
-          ctx!.fillStyle = 'rgba(255,255,255,0.1)'
-          ctx!.fill()
+        if (selectedNodeId && n.id !== selectedNodeId && (!neighbors || !neighbors.has(n.id))) {
+          alpha = 0.12
         }
 
         ctx!.globalAlpha = alpha
         ctx!.beginPath()
         ctx!.arc(x, y, r, 0, Math.PI * 2)
-        ctx!.fillStyle = color
+        ctx!.fillStyle = n.id === selectedNodeId ? '#7cb8a4' : n.color
         ctx!.fill()
-
-        // Label (only for larger nodes or selected/hovered)
-        if (r * scale > 2.5 || n.id === selectedNodeId || n.id === hoveredNode || scale > 0.8) {
-          ctx!.font = `500 ${Math.max(9, 11 * scale)}px Inter, sans-serif`
-          ctx!.fillStyle = `rgba(230,237,243,${alpha * 0.85})`
-          ctx!.textAlign = 'center'
-          ctx!.fillText(n.label, x, y + r + 12 * scale)
-        }
         ctx!.globalAlpha = 1
+      }
+
+      // Labels — only for selected, hovered, or largest nodes (keep text cheap)
+      ctx!.textAlign = 'center'
+      ctx!.font = `500 ${Math.max(10, 12)}px Inter, sans-serif`
+      for (const n of ns) {
+        if (visible && !visible.has(n.id)) continue
+        const isSel = n.id === selectedNodeId
+        const isHover = n.id === hoveredNode
+        const bigEnough = n.size > 8 && scale > 0.4
+        if (!isSel && !isHover && !bigEnough) continue
+        const x = n.x * scale + ox
+        const y = n.y * scale + oy
+        const r = Math.max(1.5, n.size * scale * 0.5)
+        ctx!.fillStyle = isSel ? '#e8e6e1' : 'rgba(200,200,200,0.75)'
+        ctx!.fillText(n.label, x, y + r + 13)
       }
 
       // Stats
       ctx!.font = '11px SF Mono, monospace'
       ctx!.fillStyle = '#484f58'
       ctx!.textAlign = 'left'
-      ctx!.fillText(`${ns.length} nodes · ${edgesRef.current.length} edges`, 16, h - 12)
+      ctx!.fillText(`${ns.length} nodes · ${es.length} edges${visible ? ` · ${visible.size} visible` : ''}`, 16, h - 12)
 
-      animRef.current = requestAnimationFrame(render)
+      rafId = requestAnimationFrame(render)
     }
 
-    animRef.current = requestAnimationFrame(render)
-    return () => cancelAnimationFrame(animRef.current)
-  }, [visibleNodes, selectedNodeId, hoveredNode])
+    rafId = requestAnimationFrame(render)
+    return () => cancelAnimationFrame(rafId)
+  }, [visibleNodes, selectedNodeId, hoveredNode, layoutReady])
 
   // Mouse interaction
   const findNodeAt = useCallback((cx: number, cy: number): LayoutNode | null => {
@@ -278,13 +276,14 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
     const oy = offsetRef.current.y
     let closest: LayoutNode | null = null
     let closestDist = Infinity
+    const visible = visibleNodes.size > 0 ? visibleNodes : null
 
     for (const n of nodesRef.current) {
-      if (visibleNodes.size > 0 && !visibleNodes.has(n.id)) continue
+      if (visible && !visible.has(n.id)) continue
       const x = n.x * scale + ox
       const y = n.y * scale + oy
-      const dist = Math.sqrt((cx - x) ** 2 + (cy - y) ** 2)
-      const hitRadius = n.size * scale * 0.35 + 6
+      const dist = Math.hypot(cx - x, cy - y)
+      const hitRadius = Math.max(4, n.size * scale * 0.5 + 4)
       if (dist < hitRadius && dist < closestDist) {
         closest = n
         closestDist = dist
@@ -315,15 +314,20 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
       offsetRef.current.y += dy
       dragRef.current.startX = e.clientX
       dragRef.current.startY = e.clientY
+      dirtyRef.current = true
       return
     }
 
     const node = findNodeAt(x, y)
-    setHoveredNode(node?.id || null)
+    const id = node?.id || null
+    if (id !== hoveredNode) {
+      setHoveredNode(id)
+      dirtyRef.current = true
+    }
     if (canvasRef.current) {
       canvasRef.current.style.cursor = node ? 'pointer' : 'grab'
     }
-  }, [findNodeAt])
+  }, [findNodeAt, hoveredNode])
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     const moved = Math.abs(e.clientX - dragRef.current.startX) + Math.abs(e.clientY - dragRef.current.startY)
@@ -348,17 +352,42 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
     const newScale = scaleRef.current * factor
     offsetRef.current.x = mx - (mx - offsetRef.current.x) * factor
     offsetRef.current.y = my - (my - offsetRef.current.y) * factor
-    scaleRef.current = Math.max(0.1, Math.min(5, newScale))
+    scaleRef.current = Math.max(0.05, Math.min(8, newScale))
+    dirtyRef.current = true
   }, [])
 
+  // Redraw when props change
+  useEffect(() => { dirtyRef.current = true }, [visibleNodes, selectedNodeId])
+
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block', background: '#0d1117' }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
-    />
+    <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative' }}>
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', height: '100%', display: 'block', background: '#0d1117', cursor: 'grab' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
+      />
+      {!layoutReady && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(13,17,23,0.6)', pointerEvents: 'none',
+          color: '#8b949e', fontSize: 14, fontFamily: 'Inter, sans-serif',
+        }}>
+          Computing layout…
+        </div>
+      )}
+    </div>
   )
+}
+
+function collectNeighbors(edges: { source: string; target: string }[], nodeId: string): Set<string> {
+  const s = new Set<string>()
+  for (const e of edges) {
+    if (e.source === nodeId) s.add(e.target)
+    else if (e.target === nodeId) s.add(e.source)
+  }
+  return s
 }

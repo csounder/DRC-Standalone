@@ -1,6 +1,5 @@
 import Graph from 'graphology'
-import louvain from 'graphology-communities-louvain'
-import { COMMUNITY_COLORS, ENTITY_COLORS } from '../../styles/theme'
+import { ENTITY_COLORS } from '../../styles/theme'
 
 export interface GraphNode {
   id: string
@@ -41,45 +40,43 @@ export function processGraphData(raw: { nodes: GraphNode[]; edges: GraphEdge[] }
     })
   }
 
-  // Add edges
+  // Add edges. Graphology with multi: false rejects a second edge between the
+  // same endpoint pair, and our extracted data has ~650 such pairs (different
+  // relation types between the same two entities). Skip duplicates by checking
+  // the UNDIRECTED endpoint pair, not a type-augmented key.
   for (const edge of raw.edges) {
-    if (graph.hasNode(edge.source) && graph.hasNode(edge.target)) {
-      const key = `${edge.source}--${edge.target}`
-      if (!graph.hasEdge(key)) {
-        graph.addEdgeWithKey(key, edge.source, edge.target, {
-          type: edge.type,
-          weight: edge.weight,
-        })
-      }
+    if (!graph.hasNode(edge.source) || !graph.hasNode(edge.target)) continue
+    if (edge.source === edge.target) continue
+    if (graph.hasEdge(edge.source, edge.target)) continue
+    try {
+      graph.addEdge(edge.source, edge.target, {
+        type: edge.type,
+        weight: edge.weight,
+      })
+    } catch {
+      // Extra belt: swallow anything unexpected so one bad edge can't kill
+      // the whole graph.
     }
   }
 
-  // Community detection
-  louvain.assign(graph, { resolution: 1.2 })
-
-  // Build community color map
-  const communities = new Map<number, string>()
-  graph.forEachNode((node, attrs) => {
-    const comm = attrs.community as number
-    if (!communities.has(comm)) {
-      communities.set(comm, COMMUNITY_COLORS[communities.size % COMMUNITY_COLORS.length])
-    }
-  })
-
-  // Assign sizes based on degree and community colors
+  // Color + size by entity type and degree. Skipped community detection
+  // (Louvain) because it was brittle on isolated nodes and added nothing
+  // the type palette doesn't already convey.
   graph.forEachNode((node, attrs) => {
     const degree = graph.degree(node)
-    const comm = attrs.community as number
-    graph.setNodeAttribute(node, 'size', Math.max(4, Math.min(20, 3 + degree * 1.5)))
-    graph.setNodeAttribute(node, 'color', communities.get(comm) || ENTITY_COLORS[attrs.type as string] || '#666')
+    graph.setNodeAttribute(node, 'size', Math.max(5, Math.min(22, 4 + degree * 1.6)))
+    graph.setNodeAttribute(node, 'color', ENTITY_COLORS[attrs.type as string] || '#7cb8a4')
+    graph.setNodeAttribute(node, 'community', 0)
   })
+
+  const communities = new Map<number, string>([[0, '#7cb8a4']])
 
   // Build nodes array for external consumers
   const nodes: GraphNode[] = raw.nodes.map((n) => {
     const attrs = graph.getNodeAttributes(n.id)
     return {
       ...n,
-      community: attrs.community as number,
+      community: 0,
       color: attrs.color as string,
       size: attrs.size as number,
     }
