@@ -15,6 +15,37 @@ export default function GraphPage() {
   const [rawData, setRawData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] })
   const [processed, setProcessed] = useState<ProcessedGraph | null>(null)
 
+  const [askQuery, setAskQuery] = useState('')
+  const [asking, setAsking] = useState(false)
+  const [askAnswer, setAskAnswer] = useState<string>('')
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set())
+
+  const runAsk = async () => {
+    const q = askQuery.trim()
+    if (!q || asking) return
+    const api = (window as any).api
+    if (!api?.graph?.ask) return
+    setAsking(true)
+    setAskAnswer('')
+    try {
+      const res = await api.graph.ask(q)
+      setAskAnswer(res?.answer ?? '')
+      const ids: string[] = Array.isArray(res?.nodeIds) ? res.nodeIds : []
+      setHighlighted(new Set(ids))
+      // Auto-open the first highlighted node in the side panel for context
+      if (ids.length > 0) selectNode(ids[0])
+    } catch (err: any) {
+      setAskAnswer(`Error: ${err.message}`)
+    }
+    setAsking(false)
+  }
+
+  const clearAsk = () => {
+    setAskQuery('')
+    setAskAnswer('')
+    setHighlighted(new Set())
+  }
+
   // Load graph data via IPC (electron-vite doesn't serve /resources from the dev
   // server, so a plain fetch always 404'd on this file).
   useEffect(() => {
@@ -100,6 +131,26 @@ export default function GraphPage() {
         </div>
       </div>
 
+      {/* Ask row */}
+      <div style={styles.askRow}>
+        <input
+          type="text"
+          value={askQuery}
+          onChange={(e) => setAskQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runAsk() } }}
+          placeholder="Ask: e.g. who invented FM synthesis? where did granular synthesis come from?"
+          style={styles.askInput}
+          disabled={asking}
+        />
+        <button onClick={runAsk} disabled={asking || !askQuery.trim()} style={styles.askBtn}>
+          {asking ? 'Thinking…' : 'Ask'}
+        </button>
+        {(askAnswer || highlighted.size > 0) && (
+          <button onClick={clearAsk} style={styles.askClear}>Clear</button>
+        )}
+        {askAnswer && <div style={styles.askAnswer}>{askAnswer}</div>}
+      </div>
+
       {/* Graph + detail */}
       <div style={styles.viewport}>
         {processed ? (
@@ -108,6 +159,7 @@ export default function GraphPage() {
             visibleNodes={visibleNodes}
             selectedNodeId={selectedNodeId}
             onSelectNode={selectNode}
+            highlightedNodes={highlighted}
           />
         ) : (
           <div style={styles.loading}>
@@ -147,4 +199,31 @@ const styles: Record<string, CSSProperties> = {
   },
   viewport: { flex: 1, display: 'flex', overflow: 'hidden' },
   loading: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+
+  askRow: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
+    borderBottom: '1px solid #1e2228', flexWrap: 'wrap',
+  },
+  askInput: {
+    flex: '1 1 380px', minWidth: 280, padding: '7px 12px', borderRadius: 8,
+    border: '1px solid #30363d', background: '#161b22', color: '#e6edf3',
+    fontSize: 13, fontFamily: 'var(--font-primary)', outline: 'none',
+  },
+  askBtn: {
+    padding: '7px 16px', borderRadius: 8, border: '1px solid #7cb8a4',
+    background: 'transparent', color: '#7cb8a4', fontSize: 12, fontWeight: 600,
+    fontFamily: 'var(--font-primary)', cursor: 'pointer',
+  },
+  askClear: {
+    padding: '7px 12px', borderRadius: 8, border: '1px solid #30363d',
+    background: 'transparent', color: '#8b949e', fontSize: 12,
+    fontFamily: 'var(--font-primary)', cursor: 'pointer',
+  },
+  askAnswer: {
+    flex: '1 1 100%', padding: '10px 14px', borderRadius: 8,
+    background: 'rgba(240,178,122,0.06)',
+    border: '1px solid rgba(240,178,122,0.25)',
+    color: '#e6edf3', fontSize: 13, lineHeight: 1.55,
+    fontFamily: 'var(--font-primary)',
+  },
 }

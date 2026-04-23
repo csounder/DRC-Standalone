@@ -7,6 +7,7 @@ interface Props {
   visibleNodes: Set<string>
   selectedNodeId: string | null
   onSelectNode: (id: string | null) => void
+  highlightedNodes?: Set<string>  // from Ask / semantic search
 }
 
 interface LayoutNode {
@@ -24,10 +25,14 @@ interface LayoutNode {
 // 2D graph renderer. Uses graphology-layout-forceatlas2 (Barnes-Hut, O(n log n))
 // to compute positions ONCE on mount instead of running an n² simulation per
 // frame — handles thousands of nodes without hanging the UI.
-export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, onSelectNode }: Props) {
+export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, onSelectNode, highlightedNodes }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const nodesRef = useRef<LayoutNode[]>([])
   const edgesRef = useRef<{ source: string; target: string }[]>([])
+  // Node ids to always label: the top-N by degree. Everything else only labels
+  // on hover or when selected. Keeps a 3k-node graph legible without walls of
+  // overlapping text.
+  const alwaysLabelRef = useRef<Set<string>>(new Set())
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
   const [layoutReady, setLayoutReady] = useState(false)
   const offsetRef = useRef({ x: 0, y: 0 })
@@ -92,12 +97,22 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
           edges.push({ source, target })
         })
 
+        // Always-label whitelist: top 40 nodes by degree. Users can still see
+        // any node's label by hovering/selecting.
+        const degree = new Map<string, number>()
+        for (const e of edges) {
+          degree.set(e.source, (degree.get(e.source) ?? 0) + 1)
+          degree.set(e.target, (degree.get(e.target) ?? 0) + 1)
+        }
+        const ranked = [...degree.entries()].sort((a, b) => b[1] - a[1])
+        alwaysLabelRef.current = new Set(ranked.slice(0, 40).map(([id]) => id))
+
         nodesRef.current = nodes
         edgesRef.current = edges
         dirtyRef.current = true
         autoFit()
         setLayoutReady(true)
-        console.info(`[graph] layout done in ${(performance.now() - t0).toFixed(0)}ms — ${nodes.length} nodes positioned`)
+        console.info(`[graph] layout done in ${(performance.now() - t0).toFixed(0)}ms — ${nodes.length} nodes positioned; labeling top ${alwaysLabelRef.current.size} by degree`)
       } catch (err) {
         console.error('[graph] layout failed:', err)
         // Show nodes in their seed positions even if FA2 blew up
@@ -220,6 +235,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
 
       // Nodes
       const neighbors = selectedNodeId ? collectNeighbors(es, selectedNodeId) : null
+      const hi = highlightedNodes && highlightedNodes.size > 0 ? highlightedNodes : null
 
       for (const n of ns) {
         if (visible && !visible.has(n.id)) continue
@@ -230,31 +246,65 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
         let alpha = 1
         if (selectedNodeId && n.id !== selectedNodeId && (!neighbors || !neighbors.has(n.id))) {
           alpha = 0.12
+        } else if (hi && !hi.has(n.id) && n.id !== selectedNodeId && n.id !== hoveredNode) {
+          alpha = 0.08
+        }
+
+        // Halo for highlighted nodes
+        if (hi && hi.has(n.id)) {
+          ctx!.beginPath()
+          ctx!.arc(x, y, r + 5, 0, Math.PI * 2)
+          ctx!.fillStyle = 'rgba(240,178,122,0.28)'
+          ctx!.fill()
         }
 
         ctx!.globalAlpha = alpha
         ctx!.beginPath()
         ctx!.arc(x, y, r, 0, Math.PI * 2)
-        ctx!.fillStyle = n.id === selectedNodeId ? '#7cb8a4' : n.color
+        ctx!.fillStyle = n.id === selectedNodeId
+          ? '#7cb8a4'
+          : hi && hi.has(n.id)
+            ? '#f0b27a'
+            : n.color
         ctx!.fill()
         ctx!.globalAlpha = 1
       }
 
-      // Labels — only for selected, hovered, or largest nodes (keep text cheap)
+      // Labels:
+      // - No selection: show selected/hovered, the top-N hubs, and highlights.
+      // - Selection active: show ONLY the selected node + its direct neighbors
+      //   (plus the hover). Hub/highlight labels fade to avoid clutter — the
+      //   neighborhood is the focus.
+      const whitelist = alwaysLabelRef.current
       ctx!.textAlign = 'center'
-      ctx!.font = `500 ${Math.max(10, 12)}px Inter, sans-serif`
+      ctx!.font = '500 12px Inter, sans-serif'
+      ctx!.shadowColor = 'rgba(13,17,23,0.9)'
+      ctx!.shadowBlur = 3
       for (const n of ns) {
         if (visible && !visible.has(n.id)) continue
         const isSel = n.id === selectedNodeId
         const isHover = n.id === hoveredNode
-        const bigEnough = n.size > 8 && scale > 0.4
-        if (!isSel && !isHover && !bigEnough) continue
+        const isNeighbor = neighbors ? neighbors.has(n.id) : false
+        const isHub = whitelist.has(n.id)
+        const isHighlight = hi && hi.has(n.id)
+
+        let show = false
+        if (selectedNodeId) {
+          show = isSel || isHover || isNeighbor
+        } else {
+          show = isSel || isHover || isHub || !!isHighlight
+        }
+        if (!show) continue
         const x = n.x * scale + ox
         const y = n.y * scale + oy
         const r = Math.max(1.5, n.size * scale * 0.5)
-        ctx!.fillStyle = isSel ? '#e8e6e1' : 'rgba(200,200,200,0.75)'
+        ctx!.fillStyle = isSel || isHover
+          ? '#e8e6e1'
+          : isHighlight ? '#f0b27a' : 'rgba(200,200,200,0.85)'
+        ctx!.font = `${isSel || isHover || isHighlight ? 600 : 500} ${isSel || isHover ? 13 : isHighlight ? 12 : 11}px Inter, sans-serif`
         ctx!.fillText(n.label, x, y + r + 13)
       }
+      ctx!.shadowBlur = 0
 
       // Stats
       ctx!.font = '11px SF Mono, monospace'
@@ -357,7 +407,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
   }, [])
 
   // Redraw when props change
-  useEffect(() => { dirtyRef.current = true }, [visibleNodes, selectedNodeId])
+  useEffect(() => { dirtyRef.current = true }, [visibleNodes, selectedNodeId, highlightedNodes])
 
   return (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative' }}>

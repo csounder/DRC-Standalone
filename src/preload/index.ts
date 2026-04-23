@@ -65,6 +65,7 @@ const api = {
     getData: () => ipcRenderer.invoke('graph:getData'),
     getNode: (id: string) => ipcRenderer.invoke('graph:getNode', id),
     neighbors: (id: string) => ipcRenderer.invoke('graph:neighbors', id),
+    ask: (question: string) => ipcRenderer.invoke('graph:ask', question),
   },
 
   export: {
