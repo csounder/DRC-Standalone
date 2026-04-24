@@ -200,16 +200,16 @@ ADAPTATION RULES — follow precisely:
 
 5. **Envelope from attack/decay.** Shape the voice with an envelope driven by the \`attack\` and \`decay\` knobs. A \`transeg\` or \`madsr\`-style shape is fine. Clamp attack to >= 0.001 and decay to >= 0.01 to avoid dc blips.
 
-6. **Channel-writer helper (\`instr 100\`) — MANDATORY.** The host updates knobs at runtime by sending \`i 100 0 0 "<channelName>" <value>\` score events, which rely on this exact instrument. Include it verbatim:
+6. **Channel-writer helper (\`instr 100\`) — MANDATORY.** The host updates knobs at runtime by sending \`i 100 0 0 "<channelName>" <value>\` score events — p3=0 so ONLY the init pass runs. You MUST use the **i-rate** form of chnset for the write to take effect. Include this verbatim:
 
        instr 100
-         Schan = p4
-         kVal  = p5
-         chnset kVal, Schan
+         Schan strget p4
+         iVal  = p5
+         chnset iVal, Schan
          turnoff
        endin
 
-   Do not rename it, do not change its p-field layout, and do not strip the \`turnoff\`.
+   Do not switch to \`kVal\` / k-rate \`chnset\` — with p3=0 no k-cycles fire and the write is silently dropped. Do not rename the instrument, do not change the p-field layout, and do not strip \`turnoff\`.
 
 7. **Always-on reverb bus (\`instr 99\`).** Route every voice into \`"revL"\` / \`"revR"\` via \`chnmix\`, and render the wet path from an always-on \`instr 99\` that reads \`reverbMix\` and \`reverbSize\`:
 

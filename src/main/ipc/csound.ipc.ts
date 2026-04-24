@@ -5,6 +5,7 @@ import { writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
 import { normalizeNamedInstruments } from '../csound/normalize'
+import { Log } from '../util/log'
 
 const execFileAsync = promisify(execFile)
 
@@ -155,11 +156,32 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
       })
 
       let stderr = ''
-      playProcess.stderr?.on('data', (d) => { stderr += d.toString() })
+      playProcess.stderr?.on('data', (d) => {
+        const chunk = d.toString()
+        stderr += chunk
+        // Surface score-parse / channel errors from the live stdin stream so the
+        // user sees why a knob move did nothing.
+        for (const line of chunk.split('\n')) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          if (/INIT ERROR|PERF ERROR|error:|unknown opcode|unquoted|Unknown opcode|not a valid score/i.test(trimmed)) {
+            Log.warn(`csound> ${trimmed}`)
+          }
+        }
+      })
+      playProcess.stdout?.on('data', (d) => {
+        const text = d.toString()
+        for (const line of text.split('\n')) {
+          const t = line.trim()
+          if (t && /error|instr\s+100/i.test(t)) Log.info(`csound> ${t}`)
+        }
+      })
 
       // Swallow EPIPE noise that happens if csound has already exited when we try
       // to write. The next stdin.write() call will just fail cleanly.
-      playProcess.stdin?.on('error', () => {})
+      playProcess.stdin?.on('error', (err) => {
+        Log.warn(`csound stdin error: ${err.message}`)
+      })
 
       playProcess.on('close', (code, signal) => {
         playProcess = null
@@ -214,16 +236,24 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
   // fires once, calls chnset inside instr 100, and updates the channel the
   // voice instrument reads via chnget.
   ipcMain.handle('csound:setChannel', async (_event, name: string, value: number) => {
-    if (!playProcess?.stdin || playProcess.stdin.destroyed) return { success: false, error: 'Not playing' }
-    // Sanitize name — only allow simple identifier chars so we don't let a
-    // renderer-side bug inject arbitrary score.
+    if (!playProcess) {
+      Log.warn(`setChannel(${name}=${value}) — no play process`)
+      return { success: false, error: 'Not playing' }
+    }
+    if (!playProcess.stdin || playProcess.stdin.destroyed) {
+      Log.warn(`setChannel(${name}=${value}) — stdin unavailable (writable=${playProcess.stdin?.writable})`)
+      return { success: false, error: 'stdin unavailable' }
+    }
     const safe = String(name).replace(/[^a-zA-Z0-9_]/g, '')
     if (!safe) return { success: false, error: 'Invalid channel name' }
     const num = Number.isFinite(value) ? value : 0
+    const line = `i 100 0 0 "${safe}" ${num}\n`
     try {
-      playProcess.stdin.write(`i 100 0 0 "${safe}" ${num}\n`)
+      const ok = playProcess.stdin.write(line)
+      Log.info(`setChannel ${safe}=${num} → stdin.write ok=${ok}`)
       return { success: true }
     } catch (err: any) {
+      Log.warn(`setChannel write failed: ${err.message}`)
       return { success: false, error: err.message }
     }
   })
