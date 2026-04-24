@@ -95,6 +95,18 @@ export default function SettingsPage() {
             {audioFeedbackEnabled ? 'On' : 'Off'}
           </button>
         </div>
+        <div style={styles.row}>
+          <div>
+            <span style={styles.label}>Welcome Tour</span>
+            <span style={styles.hint}>Replay the first-run tour</span>
+          </div>
+          <button
+            onClick={() => window.dispatchEvent(new Event('drc:replay-onboarding'))}
+            style={styles.toggle}
+          >
+            Replay
+          </button>
+        </div>
       </section>
 
       {/* API Keys */}

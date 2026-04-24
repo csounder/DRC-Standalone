@@ -175,3 +175,13 @@ code, pre {
   0%   { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
 }
+
+@keyframes drc-splash-in {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes drc-fade-in {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0);   }
+}
