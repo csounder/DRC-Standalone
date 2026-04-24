@@ -6,6 +6,7 @@ import { handleExportIPC } from './export.ipc'
 import { handleMemoryIPC } from './memory.ipc'
 import { handleConfigIPC } from './config.ipc'
 import { handleRetrievalIPC } from './retrieval.ipc'
+import { handleLlmIPC } from './llm.ipc'
 
 export function registerAllIPC(): void {
   handleConfigIPC(ipcMain)  // Load saved keys first
@@ -15,4 +16,5 @@ export function registerAllIPC(): void {
   handleRetrievalIPC(ipcMain)
   handleExportIPC(ipcMain)
   handleMemoryIPC(ipcMain)
+  handleLlmIPC(ipcMain)
 }

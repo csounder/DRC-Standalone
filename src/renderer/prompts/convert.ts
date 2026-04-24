@@ -1,4 +1,4 @@
-export type ConvertTarget = 'webapp' | 'vst' | 'csd'
+export type ConvertTarget = 'webapp' | 'vst' | 'csd' | 'player'
 
 const WEBAPP_TEMPLATE = `Convert the Csound project below into a standalone, runnable web app using the canonical DrC pattern — matched against the reference apps that already ship with DrC (FM Bell, Drum Machine, Etude). This pattern is PROVEN to work; do not invent variations.
 
@@ -149,10 +149,131 @@ SOURCE:
 
 Emit the CSD now.`
 
+// Channel names the Player UI binds to (see PlayerPage.tsx DEFAULT_PARAMS).
+// Keep this in lockstep with the knob grid — adding a knob means adding here too.
+export const PLAYER_CHANNELS = [
+  { name: 'frequency',  default: 440,  range: '20..12000 Hz',  role: 'carrier pitch fallback (used when p4 is absent or 0)' },
+  { name: 'amplitude',  default: 0.5,  range: '0..1',          role: 'output gain for the voice' },
+  { name: 'modIndex',   default: 8,    range: '0..20',         role: 'FM modulation index / depth' },
+  { name: 'modRatio',   default: 3.5,  range: '0.5..10',       role: 'FM modulator:carrier ratio' },
+  { name: 'attack',     default: 0.01, range: '0.001..2 s',    role: 'envelope attack time' },
+  { name: 'decay',      default: 2.0,  range: '0.01..10 s',    role: 'envelope decay/release time' },
+  { name: 'reverbMix',  default: 0.3,  range: '0..1',          role: 'wet reverb level on the master bus' },
+  { name: 'reverbSize', default: 0.8,  range: '0..1',          role: 'reverb feedback / room size' },
+] as const
+
+const PLAYER_TEMPLATE = `Adapt the Csound project below so it runs in the DrC Player.
+
+The Player renders a fixed UI: 8 knobs + a piano keyboard (MIDI 48..72 / C3..C5). The keyboard emits note triggers with \`p4\` set to pitch in Hz. The knobs write to these control channels (exact names, case-sensitive):
+
+<<<CHANNELS>>>
+
+OUTPUT FORMAT (strict):
+- Emit exactly ONE complete CSD: \`<CsoundSynthesizer>…</CsoundSynthesizer>\`.
+- No <Cabbage>, no HTML, no code fences, no prose.
+- <CsOptions> is exactly: -odac -d
+
+ADAPTATION RULES — follow precisely:
+
+1. **Preserve the source's character.** If the source is an FM voice, keep FM; if a filter synth, keep the filter; if a granular texture, keep the grains. Your job is re-wiring, not re-composing.
+
+2. **Channel reads live INSIDE each instrument body**, never at global scope (global chnget runs once at init and returns 0 — knob moves would do nothing). In EVERY voice instrument that uses a parameter:
+
+       instr 1
+         kFreq chnget "frequency"
+         kAmp  chnget "amplitude"
+         kIdx  chnget "modIndex"
+         kRat  chnget "modRatio"
+         kAtt  chnget "attack"
+         kDec  chnget "decay"
+         ; ...use them in the signal path
+
+   Use \`portk\` / \`port\` smoothing (0.01–0.05 s) on parameters that would zipper.
+
+3. **Channel initialization.** At the top of <CsInstruments>, emit one \`chnset <default>, "<name>"\` per channel so the engine has sensible values before the first UI frame. Use the defaults above verbatim.
+
+4. **Pitch via p4.** The voice instrument (usually \`instr 1\`) MUST treat \`p4\` as pitch in Hz when provided, and fall back to the \`frequency\` knob when p4 is 0 or absent:
+
+       iPitch = (p4 > 0 ? p4 : i(kFreq))
+
+   Then drive the carrier from \`iPitch\`. If the source used MIDI note numbers or cps-from-pch, convert at the boundary so internal logic stays the same.
+
+5. **Envelope from attack/decay.** Shape the voice with an envelope driven by the \`attack\` and \`decay\` knobs. A \`transeg\` or \`madsr\`-style shape is fine. Clamp attack to >= 0.001 and decay to >= 0.01 to avoid dc blips.
+
+6. **Channel-writer helper (\`instr 100\`) — MANDATORY.** The host updates knobs at runtime by sending \`i 100 0 0 "<channelName>" <value>\` score events, which rely on this exact instrument. Include it verbatim:
+
+       instr 100
+         Schan = p4
+         kVal  = p5
+         chnset kVal, Schan
+         turnoff
+       endin
+
+   Do not rename it, do not change its p-field layout, and do not strip the \`turnoff\`.
+
+7. **Always-on reverb bus (\`instr 99\`).** Route every voice into \`"revL"\` / \`"revR"\` via \`chnmix\`, and render the wet path from an always-on \`instr 99\` that reads \`reverbMix\` and \`reverbSize\`:
+
+       instr 99
+         kMix  chnget "reverbMix"
+         kSize chnget "reverbSize"
+         aInL  chnget "revL"
+         aInR  chnget "revR"
+         aL, aR reverbsc aInL, aInR, kSize, 12000
+         outs  aL * kMix, aR * kMix
+         chnclear "revL"
+         chnclear "revR"
+       endin
+
+   Voices still \`outs\` their dry signal; reverb is additive. If the source already had its own reverb, REPLACE it with this bus — do not double up.
+
+8. **Score.** Replace <CsScore> with:
+
+       i 99 0 36000       ; reverb bus runs the whole session
+       f 0 36000          ; keep the engine alive for keyboard triggering
+
+   No pre-scheduled notes for instr 1 — the keyboard triggers them live.
+
+9. **Drop anything the Player can't drive**: MIDI opcodes, OSC listeners, \`gk<Name> init …\` knob globals (those become channel reads instead), hard-coded score melodies. Keep ftables, wavetables, and init-time setup.
+
+10. **Unmapped source parameters**: if the source has knobs outside the 8 above (e.g. \`cutoff\`), fold them into the closest match — usually \`modIndex\` for timbre-shaping controls or \`modRatio\` for harmonic-character controls. Do NOT invent new channels.
+
+11. **Quality bar**: the output must compile with stock Csound 6/7, render stereo to \`-odac\`, and produce audible output when the user clicks a keyboard key with default knob values.
+
+SOURCE CSD:
+<<<SOURCE>>>
+
+Emit the adapted CSD now.`
+
+function renderChannelList(): string {
+  return PLAYER_CHANNELS
+    .map((c) => `- "${c.name}" (default ${c.default}, ${c.range}) — ${c.role}`)
+    .join('\n')
+}
+
 export function buildConvertPrompt(target: ConvertTarget, source: string): string {
   const template =
     target === 'webapp' ? WEBAPP_TEMPLATE :
     target === 'vst' ? VST_TEMPLATE :
+    target === 'player' ? PLAYER_TEMPLATE :
     CSD_TEMPLATE
-  return template.replace('<<<SOURCE>>>', source.trim())
+  return template
+    .replace('<<<CHANNELS>>>', renderChannelList())
+    .replace('<<<SOURCE>>>', source.trim())
+}
+
+// Quick heuristic: does this CSD already look Player-ready? If not, the caller
+// should route through buildConvertPrompt('player', ...).
+export function needsPlayerAdapt(source: string): boolean {
+  const s = source.toLowerCase()
+  if (!s.includes('<csoundsynthesizer')) return true
+  const requiredChannels = ['frequency', 'amplitude', 'modindex', 'modratio', 'attack', 'decay', 'reverbmix', 'reverbsize']
+  const hasAllChannels = requiredChannels.every((c) => s.includes(`"${c}"`))
+  if (!hasAllChannels) return true
+  // If every channel is present but p4 isn't referenced anywhere, the keyboard
+  // won't trigger notes — still worth adapting.
+  if (!s.includes('p4')) return true
+  // Channel-writer helper (instr 100) is required for live knob updates. If
+  // a hand-written CSD is missing it, the knobs become read-only.
+  if (!/\binstr\s+100\b/.test(s)) return true
+  return false
 }

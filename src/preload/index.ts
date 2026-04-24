@@ -46,6 +46,9 @@ const api = {
     play: (csdPath: string) =>
       ipcRenderer.invoke('csound:play', csdPath),
     stop: () => ipcRenderer.invoke('csound:stop'),
+    event: (line: string) => ipcRenderer.invoke('csound:event', line),
+    setChannel: (name: string, value: number) =>
+      ipcRenderer.invoke('csound:setChannel', name, value),
     liveStart: (sessionID: string, csdPath: string) =>
       ipcRenderer.invoke('csound:live:start', sessionID, csdPath),
     liveChannel: (sessionID: string, ch: string, val: number) =>
@@ -90,6 +93,11 @@ const api = {
     setApiKey: (provider: string, key: string) =>
       ipcRenderer.invoke('config:setApiKey', provider, key),
     getApiKeys: () => ipcRenderer.invoke('config:getApiKeys'),
+  },
+
+  llm: {
+    adaptCsd: (prompt: string) =>
+      ipcRenderer.invoke('llm:adaptCsd', prompt),
   },
 }
 

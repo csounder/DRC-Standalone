@@ -146,10 +146,20 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
 
     return new Promise((resolve) => {
       playKilledBySignal = false
-      playProcess = spawn('csound', ['-odac', '-d', '-m0', csdPath], { timeout: 120000 })
+      // -Lstdin lets us push live score events (i 1 0 2 440 0.8\n) into csound's
+      // stdin while it's running. Without this the keyboard and knobs are dead.
+      // pipe stdin so we can write to it from event/setChannel handlers.
+      playProcess = spawn('csound', ['-odac', '-d', '-m0', '-Lstdin', csdPath], {
+        timeout: 120000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
 
       let stderr = ''
       playProcess.stderr?.on('data', (d) => { stderr += d.toString() })
+
+      // Swallow EPIPE noise that happens if csound has already exited when we try
+      // to write. The next stdin.write() call will just fail cleanly.
+      playProcess.stdin?.on('error', () => {})
 
       playProcess.on('close', (code, signal) => {
         playProcess = null
@@ -181,6 +191,41 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
         }
       })
     })
+  })
+
+  // Write a raw score line to the running csound stdin (enabled by -Lstdin in
+  // csound:play). Caller is responsible for a valid score line — we only append
+  // a newline if missing. No-op if nothing is playing.
+  ipcMain.handle('csound:event', async (_event, line: string) => {
+    if (!playProcess?.stdin || playProcess.stdin.destroyed) return { success: false, error: 'Not playing' }
+    const ln = line.endsWith('\n') ? line : line + '\n'
+    try {
+      playProcess.stdin.write(ln)
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  // Update a named control channel via the channel-writer helper (instr 100)
+  // that the PLAYER_TEMPLATE bakes into every adapted CSD. Csound score lines
+  // allow string p-fields when double-quoted, so:
+  //     i 100 0 0 "frequency" 880
+  // fires once, calls chnset inside instr 100, and updates the channel the
+  // voice instrument reads via chnget.
+  ipcMain.handle('csound:setChannel', async (_event, name: string, value: number) => {
+    if (!playProcess?.stdin || playProcess.stdin.destroyed) return { success: false, error: 'Not playing' }
+    // Sanitize name — only allow simple identifier chars so we don't let a
+    // renderer-side bug inject arbitrary score.
+    const safe = String(name).replace(/[^a-zA-Z0-9_]/g, '')
+    if (!safe) return { success: false, error: 'Invalid channel name' }
+    const num = Number.isFinite(value) ? value : 0
+    try {
+      playProcess.stdin.write(`i 100 0 0 "${safe}" ${num}\n`)
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
   })
 
   ipcMain.handle('csound:stop', async () => {

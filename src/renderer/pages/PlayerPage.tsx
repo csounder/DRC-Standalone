@@ -1,4 +1,4 @@
-import { useState, useCallback, type CSSProperties } from 'react'
+import { useState, useCallback, useRef, type CSSProperties, type DragEvent } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useEditorStore } from '../stores/editorStore'
 import Knob from '../components/player/Knob'
@@ -6,6 +6,15 @@ import PianoKeyboard from '../components/player/PianoKeyboard'
 import WaveformDisplay from '../components/player/WaveformDisplay'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
+import { buildConvertPrompt, needsPlayerAdapt } from '../prompts/convert'
+
+type AdaptStatus =
+  | { kind: 'idle' }
+  | { kind: 'reading' }
+  | { kind: 'adapting' }
+  | { kind: 'compiling' }
+  | { kind: 'ready' }
+  | { kind: 'error'; message: string }
 
 // Default parameter set for demonstration
 const DEFAULT_PARAMS = [
@@ -21,10 +30,13 @@ const DEFAULT_PARAMS = [
 
 export default function PlayerPage() {
   const { isPlaying, isLiveMode, currentTime, duration, setPlaying, setLiveMode, channels, setChannel } = usePlayerStore()
-  const { csdContent } = useEditorStore()
+  const { csdContent, setCsdContent } = useEditorStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set())
   const [params, setParams] = useState(DEFAULT_PARAMS)
+  const [adaptStatus, setAdaptStatus] = useState<AdaptStatus>({ kind: 'idle' })
+  const [dragging, setDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -35,8 +47,14 @@ export default function PlayerPage() {
   const handleNoteOn = useCallback((midi: number) => {
     setActiveNotes((prev) => new Set(prev).add(midi))
     if (audioEnabled) audioFeedback.click()
-    // TODO: Wire to live engine - send inputMessage to Csound
-  }, [audioEnabled])
+    // midi → Hz, standard equal temperament centered on A4 = 440
+    const hz = 440 * Math.pow(2, (midi - 69) / 12)
+    // Use the current decay knob as the note length so the envelope has room
+    // to breathe; clamp to sensible bounds.
+    const decayParam = params.find((p) => p.name === 'decay')
+    const dur = Math.max(0.5, Math.min(8, (decayParam?.value ?? 2) + 0.5))
+    void window.api?.csound?.event(`i 1 0 ${dur.toFixed(3)} ${hz.toFixed(3)} 0.8`)
+  }, [audioEnabled, params])
 
   const handleNoteOff = useCallback((midi: number) => {
     setActiveNotes((prev) => {
@@ -52,9 +70,9 @@ export default function PlayerPage() {
       next[index] = { ...next[index], value }
       return next
     })
-    // TODO: Wire to live engine - chnset over UDP
     const param = params[index]
     setChannel(param.name, value)
+    void window.api?.csound?.setChannel(param.name, value)
   }, [params, setChannel])
 
   const handleToggleLive = () => {
@@ -62,15 +80,116 @@ export default function PlayerPage() {
     if (audioEnabled) audioFeedback.toggle(!isLiveMode)
   }
 
+  // Load a raw CSD string: adapt via the LLM if it doesn't already follow the
+  // Player convention, then compile + play. Returns once playback has kicked off
+  // (or an error is surfaced in adaptStatus).
+  const loadAndPlayCsd = useCallback(async (raw: string) => {
+    if (!window.api?.csound) {
+      setAdaptStatus({ kind: 'error', message: 'Csound bridge unavailable' })
+      return
+    }
+
+    let csd = raw.trim()
+    if (needsPlayerAdapt(csd)) {
+      setAdaptStatus({ kind: 'adapting' })
+      const prompt = buildConvertPrompt('player', csd)
+      const resp = await window.api.llm.adaptCsd(prompt).catch((err: any) => ({ ok: false, error: err?.message ?? 'adapt failed' }))
+      if (!resp?.ok || !resp.csd) {
+        setAdaptStatus({ kind: 'error', message: `Adapt failed: ${resp?.error ?? 'unknown'}` })
+        return
+      }
+      csd = resp.csd
+    }
+
+    // Publish to the editor store so hasCsd / hasP4 / keyboard visibility update.
+    setCsdContent(csd)
+
+    setAdaptStatus({ kind: 'compiling' })
+    try {
+      const { path } = await window.api.csound.writeCsd(csd)
+      const compile = await window.api.csound.compile(path)
+      if (!compile.success) {
+        setAdaptStatus({ kind: 'error', message: `Compile error: ${String(compile.error ?? '').slice(0, 240)}` })
+        return
+      }
+      setAdaptStatus({ kind: 'ready' })
+      setPlaying(true)
+      const res = await window.api.csound.play(path)
+      if (!res.success) {
+        setAdaptStatus({ kind: 'error', message: `Playback error: ${String(res.error ?? '').slice(0, 240)}` })
+      }
+    } catch (err: any) {
+      setAdaptStatus({ kind: 'error', message: err?.message ?? 'Unexpected error' })
+    }
+  }, [setCsdContent, setPlaying])
+
+  const handleFile = useCallback(async (file: File) => {
+    setAdaptStatus({ kind: 'reading' })
+    try {
+      const text = await file.text()
+      if (!text.trim()) {
+        setAdaptStatus({ kind: 'error', message: 'File is empty' })
+        return
+      }
+      await loadAndPlayCsd(text)
+    } catch (err: any) {
+      setAdaptStatus({ kind: 'error', message: err?.message ?? 'Failed to read file' })
+    }
+  }, [loadAndPlayCsd])
+
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) void handleFile(file)
+  }, [handleFile])
+
+  const onPickFile = useCallback(() => fileInputRef.current?.click(), [])
+
   const hasCsd = csdContent.trim().length > 0
   const hasP4 = csdContent.includes('p4')
 
+  const adaptLabel =
+    adaptStatus.kind === 'reading'   ? 'Reading CSD…' :
+    adaptStatus.kind === 'adapting'  ? 'Adapting for Player…' :
+    adaptStatus.kind === 'compiling' ? 'Compiling…' :
+    adaptStatus.kind === 'ready'     ? 'Playing' :
+    adaptStatus.kind === 'error'     ? adaptStatus.message :
+    null
+
   return (
-    <div style={styles.container}>
+    <div
+      style={{ ...styles.container, ...(dragging ? styles.containerDrag : {}) }}
+      onDragOver={(e) => { e.preventDefault(); if (!dragging) setDragging(true) }}
+      onDragLeave={(e) => {
+        // Only clear when the drag leaves the whole container, not child elements.
+        if (e.currentTarget === e.target) setDragging(false)
+      }}
+      onDrop={handleDrop}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csd,text/plain"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) void handleFile(f)
+          e.target.value = ''
+        }}
+      />
+
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.title}>Player</h1>
         <div style={styles.headerActions}>
+          <button
+            onClick={onPickFile}
+            style={styles.loadButton}
+            disabled={adaptStatus.kind === 'reading' || adaptStatus.kind === 'adapting' || adaptStatus.kind === 'compiling'}
+          >
+            Load CSD
+          </button>
           <button
             onClick={handleToggleLive}
             style={{
@@ -109,9 +228,16 @@ export default function PlayerPage() {
         <span style={styles.time}>
           {formatTime(currentTime)} / {formatTime(duration || 0)}
         </span>
-        {!hasCsd && (
-          <span style={styles.hint}>Write or load a CSD in the Agent tab to play</span>
-        )}
+        {adaptLabel ? (
+          <span style={{
+            ...styles.hint,
+            ...(adaptStatus.kind === 'error' ? { color: '#e28a8a', fontStyle: 'normal' } : {}),
+          }}>
+            {adaptLabel}
+          </span>
+        ) : !hasCsd ? (
+          <span style={styles.hint}>Drop a .csd here, or click Load CSD — the AI will adapt it</span>
+        ) : null}
       </div>
 
       {/* Parameters */}
@@ -175,6 +301,17 @@ const styles: Record<string, CSSProperties> = {
   container: {
     height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column',
     alignItems: 'center', padding: '32px 48px', gap: 28, maxWidth: 900, margin: '0 auto',
+    transition: 'background 150ms ease, box-shadow 150ms ease',
+  },
+  containerDrag: {
+    background: 'var(--accent-muted)',
+    boxShadow: 'inset 0 0 0 2px var(--accent)',
+  },
+  loadButton: {
+    padding: '6px 14px', borderRadius: 8,
+    border: 'var(--border-width) solid var(--border)', background: 'transparent',
+    color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
+    letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const,
   },
   header: {
     width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
