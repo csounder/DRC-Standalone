@@ -11,7 +11,49 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "extract-knowledge": "node scripts/extract-knowledge.mjs",
-    "extract-knowledge:dry": "node scripts/extract-knowledge.mjs --dry-run"
+    "extract-knowledge:dry": "node scripts/extract-knowledge.mjs --dry-run",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.mateolarreaferro.drc",
+    "productName": "DrC",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "resources/**/*"
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "category": "public.app-category.music",
+      "identity": null
+    },
+    "dmg": {
+      "sign": false
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Audio"
+    }
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.0",
@@ -44,6 +86,7 @@
     "@types/three": "^0.183.0",
     "@vitejs/plugin-react": "^4.4.0",
     "electron": "^34.3.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^3.1.0",
     "typescript": "^5.8.0",
     "vite": "^6.3.0"

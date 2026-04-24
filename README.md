@@ -2,9 +2,32 @@
 
 AI-powered Csound creative tool. Electron app.
 
-> No packaged binary is published yet — install from source below.
+## Install (no terminal needed)
 
-## Prerequisites
+1. Grab the latest installer from the
+   [Releases page](https://github.com/mateolarreaferro/DRC-Standalone/releases):
+   - **macOS** — `DrC-<version>-arm64.dmg` (Apple Silicon) or
+     `DrC-<version>-x64.dmg` (Intel). Open the DMG, drag **DrC** to Applications.
+   - **Windows** — `DrC Setup <version>.exe`. Run it.
+   - **Linux** — `DrC-<version>.AppImage`. `chmod +x` it and double-click.
+2. Install **Csound** once (the app calls the `csound` CLI):
+   - macOS: `brew install csound`
+   - Linux: `sudo apt install csound`
+   - Windows: installer at [csound.com/download](https://csound.com/download.html)
+3. Launch **DrC**, open **Settings**, paste an AI Studio Gemini key
+   (free — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)),
+   hit **Test**.
+
+> **macOS first launch:** the app is **not code-signed**. Gatekeeper will say
+> it's "damaged" or "cannot be opened." Either right-click the app → **Open** →
+> **Open**, or run once:
+> ```bash
+> xattr -cr /Applications/DrC.app
+> ```
+
+## Build from source
+
+### Prerequisites
 
 - **Node.js ≥ 20** and npm
 - **Git**
@@ -14,7 +37,7 @@ AI-powered Csound creative tool. Electron app.
   - Linux (Debian/Ubuntu): `sudo apt install csound`
   - Windows: download from [csound.com/download](https://csound.com/download.html)
 
-## Install
+### Clone and install
 
 ```bash
 git clone https://github.com/mateolarreaferro/DRC-Standalone.git
@@ -38,7 +61,7 @@ Add an API key (either works):
 The app pins the Gemini endpoint to `generativelanguage.googleapis.com/v1beta`,
 which is what free AI Studio keys authenticate against.
 
-## Run
+### Run
 
 ```bash
 npm run dev        # dev with hot reload (opens the Electron window)
@@ -55,6 +78,19 @@ server:
 ```bash
 npx electron out/main/index.js
 ```
+
+### Package an installer
+
+```bash
+npm run dist:mac     # → release/DrC-<version>-arm64.dmg + x64
+npm run dist:win     # → release/DrC Setup <version>.exe
+npm run dist:linux   # → release/DrC-<version>.AppImage
+npm run dist         # current platform, defaults
+```
+
+Artifacts land in `release/`. Builds are **unsigned** — distributing a signed
+mac build requires an Apple Developer ID and `CSC_LINK`/`CSC_KEY_PASSWORD` env
+vars; see [electron-builder's code signing guide](https://www.electron.build/code-signing).
 
 ## Architecture
 

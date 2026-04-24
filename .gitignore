@@ -1,6 +1,7 @@
 node_modules/
 out/
 dist/
+release/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
