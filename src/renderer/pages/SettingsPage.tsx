@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [savedKeys, setSavedKeys] = useState<Record<string, string>>({})
   const [available, setAvailable] = useState<string[]>([])
   const [saving, setSaving] = useState('')
+  const [testing, setTesting] = useState('')
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({})
 
   // Load saved keys on mount
   useEffect(() => {
@@ -35,6 +37,25 @@ export default function SettingsPage() {
       }
     } catch {}
     setSaving('')
+  }
+
+  const handleTestKey = async (provider: string) => {
+    setTesting(provider)
+    setTestResults((prev) => {
+      const next = { ...prev }
+      delete next[provider]
+      return next
+    })
+    try {
+      const result = await window.api?.config?.testApiKey(provider)
+      if (result) setTestResults((prev) => ({ ...prev, [provider]: result }))
+    } catch (err) {
+      setTestResults((prev) => ({
+        ...prev,
+        [provider]: { ok: false, message: err instanceof Error ? err.message : 'Test failed.' },
+      }))
+    }
+    setTesting('')
   }
 
   return (
@@ -85,11 +106,26 @@ export default function SettingsPage() {
           <div style={styles.keyInfo}>
             <span style={styles.label}>Google AI (Gemini)</span>
             <span style={styles.hint}>
-              Default — Gemini 2.5 Flash is <strong>free</strong>. Get a key at{' '}
+              Default — Gemini 2.5 Flash is <strong>free</strong>. Use an AI Studio key (Gemini Developer API,
+              not Vertex AI) from{' '}
               <span style={{ color: 'var(--accent)' }}>aistudio.google.com/apikey</span>
             </span>
             {savedKeys.google && (
-              <span style={styles.savedKey}>Saved: {savedKeys.google}</span>
+              <div style={styles.savedRow}>
+                <span style={styles.savedKey}>Saved: {savedKeys.google}</span>
+                <button
+                  onClick={() => handleTestKey('google')}
+                  disabled={testing === 'google'}
+                  style={styles.testButton}
+                >
+                  {testing === 'google' ? 'Testing…' : 'Test'}
+                </button>
+                {testResults.google && (
+                  <span style={testResults.google.ok ? styles.testOk : styles.testErr}>
+                    {testResults.google.ok ? '✓ ' : '✗ '}{testResults.google.message}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <div style={styles.keyInput}>
@@ -120,7 +156,21 @@ export default function SettingsPage() {
             <span style={styles.label}>Anthropic (Claude)</span>
             <span style={styles.hint}>Optional — upgrades Complex mode to Claude Sonnet</span>
             {savedKeys.anthropic && (
-              <span style={styles.savedKey}>Saved: {savedKeys.anthropic}</span>
+              <div style={styles.savedRow}>
+                <span style={styles.savedKey}>Saved: {savedKeys.anthropic}</span>
+                <button
+                  onClick={() => handleTestKey('anthropic')}
+                  disabled={testing === 'anthropic'}
+                  style={styles.testButton}
+                >
+                  {testing === 'anthropic' ? 'Testing…' : 'Test'}
+                </button>
+                {testResults.anthropic && (
+                  <span style={testResults.anthropic.ok ? styles.testOk : styles.testErr}>
+                    {testResults.anthropic.ok ? '✓ ' : '✗ '}{testResults.anthropic.message}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <div style={styles.keyInput}>
@@ -148,7 +198,21 @@ export default function SettingsPage() {
             <span style={styles.label}>OpenAI</span>
             <span style={styles.hint}>Optional — for embeddings and GPT models</span>
             {savedKeys.openai && (
-              <span style={styles.savedKey}>Saved: {savedKeys.openai}</span>
+              <div style={styles.savedRow}>
+                <span style={styles.savedKey}>Saved: {savedKeys.openai}</span>
+                <button
+                  onClick={() => handleTestKey('openai')}
+                  disabled={testing === 'openai'}
+                  style={styles.testButton}
+                >
+                  {testing === 'openai' ? 'Testing…' : 'Test'}
+                </button>
+                {testResults.openai && (
+                  <span style={testResults.openai.ok ? styles.testOk : styles.testErr}>
+                    {testResults.openai.ok ? '✓ ' : '✗ '}{testResults.openai.message}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <div style={styles.keyInput}>
@@ -241,8 +305,17 @@ const styles: Record<string, CSSProperties> = {
   hint: { display: 'block', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 },
   savedKey: {
     display: 'block', fontSize: 11, color: 'var(--success)', fontFamily: 'var(--font-mono)',
-    marginTop: 4,
   },
+  savedRow: {
+    display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap',
+  },
+  testButton: {
+    padding: '3px 10px', borderRadius: 6, border: 'var(--border-width) solid var(--border)',
+    background: 'transparent', color: 'var(--text-secondary)', fontSize: 11,
+    fontFamily: 'var(--font-primary)', cursor: 'pointer',
+  },
+  testOk: { fontSize: 11, color: 'var(--success)' },
+  testErr: { fontSize: 11, color: 'var(--warning)', lineHeight: 1.4 },
   toggle: {
     padding: '6px 16px', borderRadius: 8, border: 'var(--border-width) solid var(--border)',
     background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: 13,

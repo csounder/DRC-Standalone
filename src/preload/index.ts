@@ -93,6 +93,8 @@ const api = {
     setApiKey: (provider: string, key: string) =>
       ipcRenderer.invoke('config:setApiKey', provider, key),
     getApiKeys: () => ipcRenderer.invoke('config:getApiKeys'),
+    testApiKey: (provider: string) =>
+      ipcRenderer.invoke('config:testApiKey', provider),
   },
 
   llm: {

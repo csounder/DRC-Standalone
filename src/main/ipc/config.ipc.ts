@@ -52,6 +52,16 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     return { success: true, available: Provider.availableProviders() }
   })
 
+  ipcMain.handle('config:testApiKey', async (_event, provider: string) => {
+    if (!['google', 'anthropic', 'openai'].includes(provider)) {
+      return { ok: false, message: `Unknown provider: ${provider}` }
+    }
+    if (!Provider.availableProviders().includes(provider)) {
+      return { ok: false, message: 'No key saved for this provider yet.' }
+    }
+    return Provider.testApiKey(provider)
+  })
+
   ipcMain.handle('config:getApiKeys', async () => {
     const config = loadConfig()
     // Return masked keys

@@ -2,16 +2,32 @@
 
 AI-powered Csound creative tool. Electron app.
 
-## Setup
+> No packaged binary is published yet — install from source below.
+
+## Prerequisites
+
+- **Node.js ≥ 20** and npm
+- **Git**
+- **Csound** on your `PATH` — the app shells out to the Csound CLI for
+  compile/render/play
+  - macOS: `brew install csound`
+  - Linux (Debian/Ubuntu): `sudo apt install csound`
+  - Windows: download from [csound.com/download](https://csound.com/download.html)
+
+## Install
 
 ```bash
+git clone https://github.com/mateolarreaferro/DRC-Standalone.git
+cd DRC-Standalone
 npm install
 ```
 
 Add an API key (either works):
 
-1. Settings page → paste a Gemini key (free, from https://aistudio.google.com/apikey), or
-2. Create `.env` at the repo root:
+1. Settings page → paste a Gemini key and hit **Test**. Use an **AI Studio** key
+   (Gemini Developer API, free) from https://aistudio.google.com/apikey —
+   Vertex AI credentials won't work.
+2. Copy `.env.example` to `.env` at the repo root and fill in the key(s):
    ```
    GEMINI_API_KEY=...
    # optional fallbacks:
@@ -19,12 +35,25 @@ Add an API key (either works):
    OPENAI_API_KEY=...
    ```
 
+The app pins the Gemini endpoint to `generativelanguage.googleapis.com/v1beta`,
+which is what free AI Studio keys authenticate against.
+
 ## Run
 
 ```bash
-npm run dev        # dev with hot reload
-npm run build      # production build → out/
+npm run dev        # dev with hot reload (opens the Electron window)
+npm run build      # bundle main + preload + renderer → out/
 npm run typecheck  # tsc, both node + web projects
+```
+
+`npm run dev` is the usual day-to-day entry point — it bundles, launches
+Electron, and hot-reloads on file changes.
+
+After `npm run build`, you can relaunch the bundled output without the dev
+server:
+
+```bash
+npx electron out/main/index.js
 ```
 
 ## Architecture
