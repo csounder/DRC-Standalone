@@ -74,8 +74,8 @@ const api = {
   export: {
     html: (sessionID: string, opts: Record<string, unknown>) =>
       ipcRenderer.invoke('export:html', sessionID, opts),
-    cabbage: (sessionID: string, mode: 'vst' | 'standalone') =>
-      ipcRenderer.invoke('export:cabbage', sessionID, mode),
+    openInCabbage: (content: string, title: string) =>
+      ipcRenderer.invoke('export:openInCabbage', content, title),
     stems: (sessionID: string) =>
       ipcRenderer.invoke('export:stems', sessionID),
     presetPack: (sessionID: string) =>

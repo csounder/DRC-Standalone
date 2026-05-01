@@ -62,6 +62,21 @@ export default function ArtifactPanel({ onConvert }: Props) {
     void stopPlayback()
   }, [])
 
+  // Cabbage launch state — local to the panel because the message is short-
+  // lived and we don't need it visible elsewhere.
+  const [cabbageStatus, setCabbageStatus] = useState<string>('')
+  const handleOpenInCabbage = useCallback(async () => {
+    if (!active || active.type !== 'vst') return
+    setCabbageStatus('Saving and launching Cabbage…')
+    const res = await window.api?.export?.openInCabbage?.(primaryContent(active), active.title)
+    if (res?.success) {
+      setCabbageStatus(`Opened ${res.path?.split('/').pop() ?? 'CSD'} in Cabbage`)
+    } else {
+      setCabbageStatus(res?.error ? `Cabbage: ${String(res.error).slice(0, 160)}` : 'Cabbage launch failed')
+    }
+    setTimeout(() => setCabbageStatus(''), 6000)
+  }, [active])
+
   const handleSave = useCallback(() => {
     if (!active) return
     const tabs = panelTabs(active)
@@ -182,8 +197,13 @@ export default function ArtifactPanel({ onConvert }: Props) {
           </button>
         )}
         <button onClick={handleSave} style={styles.secondary}>↓ Save</button>
+        {active.type === 'vst' && (
+          <button onClick={handleOpenInCabbage} style={styles.secondary}>
+            ⬡ Open in Cabbage
+          </button>
+        )}
         {onConvert && <ConvertMenu currentType={active.type} onConvert={onConvert} />}
-        {status && <span style={styles.status}>{status}</span>}
+        {(status || cabbageStatus) && <span style={styles.status}>{cabbageStatus || status}</span>}
       </div>
     </div>
   )
