@@ -120,7 +120,7 @@ export default function GraphPage() {
                 style={{
                   ...styles.chip,
                   opacity: active ? 1 : 0.35,
-                  borderColor: active ? (ENTITY_COLORS[type] + '80') : '#30363d',
+                  borderColor: active ? (ENTITY_COLORS[type] + '80') : 'var(--border)',
                 }}
               >
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: ENTITY_COLORS[type], display: 'inline-block' }} />
@@ -163,7 +163,7 @@ export default function GraphPage() {
           />
         ) : (
           <div style={styles.loading}>
-            <p style={{ color: '#8b949e', fontSize: 14 }}>Loading knowledge graph...</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading knowledge graph...</p>
           </div>
         )}
 
@@ -181,19 +181,20 @@ export default function GraphPage() {
 }
 
 const styles: Record<string, CSSProperties> = {
-  container: { height: '100%', display: 'flex', flexDirection: 'column', background: '#0d1117' },
+  container: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' },
   controls: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px',
-    borderBottom: '1px solid #1e2228', flexWrap: 'wrap',
+    borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap',
   },
   search: {
-    width: 260, padding: '7px 12px', borderRadius: 8, border: '1px solid #30363d',
-    background: '#161b22', color: '#e6edf3', fontSize: 13, fontFamily: 'var(--font-primary)', outline: 'none',
+    width: 260, padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 13,
+    fontFamily: 'var(--font-primary)', outline: 'none',
   },
   filters: { display: 'flex', gap: 5, flexWrap: 'wrap' },
   chip: {
     display: 'flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 10,
-    border: '1px solid #30363d', background: 'transparent', color: '#8b949e',
+    border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)',
     fontSize: 11, cursor: 'pointer', transition: 'opacity 150ms', textTransform: 'capitalize' as const,
     fontFamily: 'var(--font-primary)',
   },
@@ -202,28 +203,28 @@ const styles: Record<string, CSSProperties> = {
 
   askRow: {
     display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
-    borderBottom: '1px solid #1e2228', flexWrap: 'wrap',
+    borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap',
   },
   askInput: {
     flex: '1 1 380px', minWidth: 280, padding: '7px 12px', borderRadius: 8,
-    border: '1px solid #30363d', background: '#161b22', color: '#e6edf3',
+    border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)',
     fontSize: 13, fontFamily: 'var(--font-primary)', outline: 'none',
   },
   askBtn: {
-    padding: '7px 16px', borderRadius: 8, border: '1px solid #7cb8a4',
-    background: 'transparent', color: '#7cb8a4', fontSize: 12, fontWeight: 600,
+    padding: '7px 16px', borderRadius: 8, border: '1px solid var(--accent)',
+    background: 'transparent', color: 'var(--accent)', fontSize: 12, fontWeight: 600,
     fontFamily: 'var(--font-primary)', cursor: 'pointer',
   },
   askClear: {
-    padding: '7px 12px', borderRadius: 8, border: '1px solid #30363d',
-    background: 'transparent', color: '#8b949e', fontSize: 12,
+    padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)',
+    background: 'transparent', color: 'var(--text-muted)', fontSize: 12,
     fontFamily: 'var(--font-primary)', cursor: 'pointer',
   },
   askAnswer: {
     flex: '1 1 100%', padding: '10px 14px', borderRadius: 8,
-    background: 'rgba(240,178,122,0.06)',
-    border: '1px solid rgba(240,178,122,0.25)',
-    color: '#e6edf3', fontSize: 13, lineHeight: 1.55,
+    background: 'var(--accent-muted)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)', fontSize: 13, lineHeight: 1.55,
     fontFamily: 'var(--font-primary)',
   },
 }

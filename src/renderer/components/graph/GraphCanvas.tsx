@@ -1,6 +1,8 @@
-import { useRef, useEffect, useCallback, useState } from 'react'
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import forceAtlas2 from 'graphology-layout-forceatlas2'
 import type { ProcessedGraph, GraphNode } from './graph-data'
+import { useAppStore } from '../../stores/appStore'
+import type { Theme } from '../../styles/theme'
 
 interface Props {
   processed: ProcessedGraph
@@ -8,6 +10,58 @@ interface Props {
   selectedNodeId: string | null
   onSelectNode: (id: string | null) => void
   highlightedNodes?: Set<string>  // from Ask / semantic search
+}
+
+interface CanvasPalette {
+  bg: string
+  edge: string
+  edgeHi: string
+  labelPrimary: string
+  labelMuted: string
+  labelHighlight: string
+  labelShadow: string
+  selectedFill: string
+  highlightFill: string
+  highlightHalo: string
+  stats: string
+  loadingOverlay: string
+  loadingText: string
+}
+
+const DARK_PALETTE: CanvasPalette = {
+  bg: '#0d1117',
+  edge: 'rgba(255,255,255,0.05)',
+  edgeHi: 'rgba(124,184,164,0.55)',
+  labelPrimary: '#e8e6e1',
+  labelMuted: 'rgba(200,200,200,0.85)',
+  labelHighlight: '#f0b27a',
+  labelShadow: 'rgba(13,17,23,0.9)',
+  selectedFill: '#7cb8a4',
+  highlightFill: '#f0b27a',
+  highlightHalo: 'rgba(240,178,122,0.28)',
+  stats: '#484f58',
+  loadingOverlay: 'rgba(13,17,23,0.6)',
+  loadingText: '#8b949e',
+}
+
+const LIGHT_PALETTE: CanvasPalette = {
+  bg: '#f4f3ee',
+  edge: 'rgba(10,10,10,0.08)',
+  edgeHi: 'rgba(26,58,42,0.55)',
+  labelPrimary: '#0a0a0a',
+  labelMuted: 'rgba(40,40,40,0.78)',
+  labelHighlight: '#8b6914',
+  labelShadow: 'rgba(244,243,238,0.92)',
+  selectedFill: '#1a3a2a',
+  highlightFill: '#8b6914',
+  highlightHalo: 'rgba(139,105,20,0.22)',
+  stats: '#8a8884',
+  loadingOverlay: 'rgba(244,243,238,0.7)',
+  loadingText: '#5a5854',
+}
+
+function paletteFor(theme: Theme): CanvasPalette {
+  return theme === 'light' ? LIGHT_PALETTE : DARK_PALETTE
 }
 
 interface LayoutNode {
@@ -26,6 +80,8 @@ interface LayoutNode {
 // to compute positions ONCE on mount instead of running an n² simulation per
 // frame — handles thousands of nodes without hanging the UI.
 export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, onSelectNode, highlightedNodes }: Props) {
+  const theme = useAppStore((s) => s.theme)
+  const palette = useMemo(() => paletteFor(theme), [theme])
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const nodesRef = useRef<LayoutNode[]>([])
   const edgesRef = useRef<{ source: string; target: string }[]>([])
@@ -196,14 +252,14 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
       const nodeMap = new Map(ns.map((n) => [n.id, n]))
 
       // Background
-      ctx!.fillStyle = '#0d1117'
+      ctx!.fillStyle = palette.bg
       ctx!.fillRect(0, 0, w, h)
 
       // Visibility set: keep rendering cheap when filters shrink to a subset
       const visible = visibleNodes.size > 0 ? visibleNodes : null
 
       // Edges — single pass, pre-computed color
-      ctx!.strokeStyle = 'rgba(255,255,255,0.05)'
+      ctx!.strokeStyle = palette.edge
       ctx!.lineWidth = 0.5
       ctx!.beginPath()
       for (const e of es) {
@@ -219,7 +275,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
 
       // Highlighted edges (if a node is selected) on top
       if (selectedNodeId) {
-        ctx!.strokeStyle = 'rgba(124,184,164,0.55)'
+        ctx!.strokeStyle = palette.edgeHi
         ctx!.lineWidth = 1.4
         ctx!.beginPath()
         for (const e of es) {
@@ -254,7 +310,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
         if (hi && hi.has(n.id)) {
           ctx!.beginPath()
           ctx!.arc(x, y, r + 5, 0, Math.PI * 2)
-          ctx!.fillStyle = 'rgba(240,178,122,0.28)'
+          ctx!.fillStyle = palette.highlightHalo
           ctx!.fill()
         }
 
@@ -262,9 +318,9 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
         ctx!.beginPath()
         ctx!.arc(x, y, r, 0, Math.PI * 2)
         ctx!.fillStyle = n.id === selectedNodeId
-          ? '#7cb8a4'
+          ? palette.selectedFill
           : hi && hi.has(n.id)
-            ? '#f0b27a'
+            ? palette.highlightFill
             : n.color
         ctx!.fill()
         ctx!.globalAlpha = 1
@@ -278,7 +334,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
       const whitelist = alwaysLabelRef.current
       ctx!.textAlign = 'center'
       ctx!.font = '500 12px Inter, sans-serif'
-      ctx!.shadowColor = 'rgba(13,17,23,0.9)'
+      ctx!.shadowColor = palette.labelShadow
       ctx!.shadowBlur = 3
       for (const n of ns) {
         if (visible && !visible.has(n.id)) continue
@@ -299,8 +355,8 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
         const y = n.y * scale + oy
         const r = Math.max(1.5, n.size * scale * 0.5)
         ctx!.fillStyle = isSel || isHover
-          ? '#e8e6e1'
-          : isHighlight ? '#f0b27a' : 'rgba(200,200,200,0.85)'
+          ? palette.labelPrimary
+          : isHighlight ? palette.labelHighlight : palette.labelMuted
         ctx!.font = `${isSel || isHover || isHighlight ? 600 : 500} ${isSel || isHover ? 13 : isHighlight ? 12 : 11}px Inter, sans-serif`
         ctx!.fillText(n.label, x, y + r + 13)
       }
@@ -308,7 +364,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
 
       // Stats
       ctx!.font = '11px SF Mono, monospace'
-      ctx!.fillStyle = '#484f58'
+      ctx!.fillStyle = palette.stats
       ctx!.textAlign = 'left'
       ctx!.fillText(`${ns.length} nodes · ${es.length} edges${visible ? ` · ${visible.size} visible` : ''}`, 16, h - 12)
 
@@ -317,7 +373,10 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
 
     rafId = requestAnimationFrame(render)
     return () => cancelAnimationFrame(rafId)
-  }, [visibleNodes, selectedNodeId, hoveredNode, layoutReady])
+  }, [visibleNodes, selectedNodeId, hoveredNode, layoutReady, palette])
+
+  // Theme switch — palette changed; trigger a redraw with the new colors.
+  useEffect(() => { dirtyRef.current = true }, [palette])
 
   // Mouse interaction
   const findNodeAt = useCallback((cx: number, cy: number): LayoutNode | null => {
@@ -413,7 +472,7 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative' }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block', background: '#0d1117', cursor: 'grab' }}
+        style={{ width: '100%', height: '100%', display: 'block', background: palette.bg, cursor: 'grab' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -423,8 +482,8 @@ export default function GraphCanvas({ processed, visibleNodes, selectedNodeId, o
         <div style={{
           position: 'absolute', inset: 0, display: 'flex',
           alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(13,17,23,0.6)', pointerEvents: 'none',
-          color: '#8b949e', fontSize: 14, fontFamily: 'Inter, sans-serif',
+          background: palette.loadingOverlay, pointerEvents: 'none',
+          color: palette.loadingText, fontSize: 14, fontFamily: 'Inter, sans-serif',
         }}>
           Computing layout…
         </div>
