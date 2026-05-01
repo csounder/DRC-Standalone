@@ -8,7 +8,7 @@ import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
 import { buildConvertPrompt, type ConvertTarget } from '../prompts/convert'
-import { playArtifact, stopPlayback } from '../lib/playback'
+import { playArtifact, stopPlayback, resetAutofix } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
 
@@ -139,6 +139,7 @@ export default function AgentPage() {
     if (audioEnabled) audioFeedback.click()
 
     setLastUserPrompt(text)
+    resetAutofix(sessionID)  // Fresh user prompt — clear any accumulated autofix attempts.
     addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
     setInput('')
     setStreaming(true)

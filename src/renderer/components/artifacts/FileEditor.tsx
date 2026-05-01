@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { ArtifactFile, FileLanguage } from '../../stores/artifactStore'
+import { useAppStore } from '../../stores/appStore'
+import { registerEditorThemes, monacoThemeFor } from '../editor/monacoThemes'
 
 const MONACO_LANG: Record<FileLanguage, string> = {
   csd: 'csound',
@@ -41,6 +43,8 @@ export default function FileEditor({ file, onChange, editable }: Props) {
   const [value, setValue] = useState(file.content)
   const [dirty, setDirty] = useState(false)
   const originalRef = useRef(file.content)
+  const monacoRef = useRef<any>(null)
+  const theme = useAppStore((s) => s.theme)
 
   useEffect(() => {
     setValue(file.content)
@@ -48,8 +52,15 @@ export default function FileEditor({ file, onChange, editable }: Props) {
     setDirty(false)
   }, [file])
 
+  useEffect(() => {
+    if (monacoRef.current) monacoRef.current.editor.setTheme(monacoThemeFor(theme))
+  }, [theme])
+
   const handleMount: OnMount = (_editor, monaco) => {
+    monacoRef.current = monaco
     registerCsoundLanguage(monaco)
+    registerEditorThemes(monaco)
+    monaco.editor.setTheme(monacoThemeFor(theme))
   }
 
   const handleEdit = (v: string | undefined) => {
@@ -104,7 +115,7 @@ export default function FileEditor({ file, onChange, editable }: Props) {
             wordWrap: 'off',
             padding: { top: 12, bottom: 12 },
           }}
-          theme="vs-dark"
+          theme={monacoThemeFor(theme)}
         />
       </div>
     </div>

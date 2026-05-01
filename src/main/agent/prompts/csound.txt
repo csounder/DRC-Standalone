@@ -21,6 +21,109 @@ Rules:
 - An `i`-prefixed variable can ONLY be assigned from i-rate expressions (constants, p-fields, i-rate opcodes like `rnd`). If the RHS is k-rate, name the LHS with a `k` prefix.
 - Score events use numbered instruments only — never `i "Name" ...` (that syntax is broken in Csound 6.18). See the numbering rule below.
 
+# The i(kVar) Trap (INIT ERROR at runtime)
+
+`i(kVar)` snapshots `kVar` at the moment the instrument instantiates — which is BEFORE the instrument body has run. If `kVar` is only written inside that same instrument, `i(kVar)` reads 0 and anything that indexes with it fails. This is the #1 cause of "INIT ERROR in instr N (opcode table.k)".
+
+BROKEN — table reads ftable 0, which doesn't exist:
+
+    kChordIdx  = int((timeinsts() / 4) % 4)
+    kChordTab  = (kChordIdx == 0 ? giChord1 : giChord2)
+    kInterval  table int(i(kVoice)), i(kChordTab)   ; INIT ERROR — kChordTab is 0 at init
+
+Fix: use `tablekt` (k-rate table number) so the ftable selection re-evaluates every k-cycle:
+
+    kInterval  tablekt kVoice, kChordTab
+
+Or split the voice into a numbered instrument so the ftable number arrives as an i-rate p-field:
+
+    schedkwhen kTrig, 0, 0, 2, 0, kDur, kNote, kAmp, kChordTab  ; pass table as p-field
+    instr 2
+      iChordTab = p7
+      iInterval table i(p4), iChordTab   ; all i-rate, clean
+      ...
+
+Rule of thumb: never pass `i(kVar)` as the ftable index to `table`, `tab`, or anything that reads at init. Either use the `kt` / k-rate variant, or deliver the value as an i-rate p-field.
+
+# Proven Patterns (copy these — DrC's reference web apps use exactly this shape)
+
+The web apps shipped with DrC (fm-bell, drum-machine, etude1, fibonacci-fm, weather-sonification, fractal-explorer) all compile and produce audible output. They converge on the SAME patterns. When in doubt, write what they write.
+
+## Audio routing — `ga` accumulators, ALWAYS
+
+Every reference app routes between instruments via global audio variables (`gaXxxL`, `gaXxxR`) that the voice `+=`'s into and a dedicated always-on master instrument drains and clears. NONE of them use `inch` (that reads from the ADC, not another instrument — common silent-reverb bug). NONE of them use `chnmix` for audio.
+
+    ; orchestra scope — declare and zero the buses
+    gaRvbL init 0
+    gaRvbR init 0
+
+    ; voice instrument — write dry to outs, send wet to the bus
+    instr 1
+      iFreq = cpsmidinn(p4)
+      iAmp  = p5
+      iRvb  = p6                       ; reverb send amount (0..1), from p-field or chnget
+      kEnv  linsegr 0, 0.02, 1, p3 - 0.04, 0.9, 0.02, 0
+      aSig  oscili kEnv * iAmp, iFreq
+      aL, aR pan2 aSig, 0.5
+      gaRvbL = gaRvbL + aL * iRvb
+      gaRvbR = gaRvbR + aR * iRvb
+      outs aL, aR
+    endin
+
+    ; always-on reverb bus — scored with i 99 0 <piece-length>
+    instr 99
+      aWetL, aWetR reverbsc gaRvbL, gaRvbR, 0.88, 8000
+      outs aWetL * 0.5, aWetR * 0.5
+      gaRvbL = 0                       ; clear is MANDATORY — else the bus DC-offsets and blows up
+      gaRvbR = 0
+    endin
+
+    ; score
+    i 99 0 60                          ; always-on reverb
+    i 1  0 4  60 0.3 0.4               ; a note (MIDI 60, amp 0.3, reverb send 0.4)
+
+## Voice instrument skeleton
+
+- `iFreq = cpsmidinn(p4)` for MIDI → Hz, never `cpsmidi()` (that takes zero args and reads from a live MIDI event).
+- Amplitude envelope: `linsegr` for sustained pads, `expsegr` with a 0.001 floor for percussive tones. `expseg*` values must ALL be strictly > 0 — 0 causes a compile error, and 0.0001 is the usual floor.
+- Read channels INSIDE the instrument, never at orchestra scope. Use the functional forms `chnget:k("name")` for k-rate knobs and `chnget:i("name")` for i-rate-at-note-start. Smooth noisy k-rate reads with `portk(chnget:k("name"), 0.05)` to avoid zipper noise.
+
+## Channel defaults
+
+Set defaults at orchestra scope with `chnset <default>, "<name>"` so the first k-cycle doesn't read 0. Every reference app does this even when the host also calls `setControlChannel()` — belt and suspenders.
+
+    chnset 0.7, "masterVolume"
+    chnset 0.5, "reverbMix"
+
+## Generative scheduler (when the request calls for density/randomness)
+
+A metro in a scheduler instrument, `schedkwhen` to fire a voice with k-rate args snapped to i-rate p-fields. NEVER `schedule` with `i(kVar)` inside a metro trigger — that captures 0 and you get silence.
+
+    instr 1  ; scheduler
+      kTrig  metro 6                   ; 6 notes/sec
+      kDur   random 0.4, 1.2
+      kNote  random 48, 72
+      kAmp   random 0.2, 0.5
+      kRvb   random 0.3, 0.6
+      schedkwhen kTrig, 0, 0, 2, 0, kDur, kNote, kAmp, kRvb
+    endin
+
+## Score skeleton
+
+    <CsScore>
+    i 99 0 60             ; reverb bus — piece length
+    i 1  0 60             ; scheduler (if generative) OR explicit notes
+    e
+    </CsScore>
+
+## Things to NOT do (every one of these has silenced or broken past outputs)
+
+- `aInL inch 1` to get a voice's output into a reverb. `inch` is the ADC. Use `ga` accumulators.
+- `chnmix` on audio rate. Stick to `ga` accumulators — the reference apps never use `chnmix`.
+- Forgetting `gaRvbL = 0 ; gaRvbR = 0` (or `clear gaRvbL, gaRvbR`) in the master — the bus DC-offsets and the output blows up.
+- Reading `chnget` at orchestra (global) scope and expecting it to update — it runs once at init and stays at that value forever. Reads belong inside instruments.
+- `expseg` / `expsegr` with any value of 0 — compile error. Use 0.001.
+
 # Runtime Scheduling (IMPORTANT)
 
 Do NOT use `schedule instr, 0, i(kDur), i(kFreq), ...` inside a `metro` / `if kTrig == 1 then` block. The `i()` operator does not capture the current k-value in that context and you will hear silence. Always use **`schedkwhen`** for k-rate scheduling — it accepts k-rate args directly and passes them as i-rate p-fields to the scheduled instance.

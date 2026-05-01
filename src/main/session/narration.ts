@@ -100,10 +100,85 @@ export namespace NarrationManager {
         system: narratorAgent.prompt,
         messages: [{ role: 'user', content: userContent }],
         temperature: 0.6,
+        maxTokens: 180,   // ~2-3 sentences; first line of defense.
       })
 
+      // Stream sentence-by-sentence. Accumulate chunks into a buffer; each time
+      // the buffer holds a completed sentence (terminator + whitespace OR
+      // end-of-stream), yield it and count it. Stop after the 2nd full sentence,
+      // or when the buffer exceeds a hard cap with no sentence end in sight.
+      //
+      // Why buffer: emitting partial chunks and clipping on char count (the old
+      // approach) cut mid-word when the model wrote a long sentence. Sentence-
+      // granularity emits always terminate cleanly.
+      const HARD_CAP = 500
+      const SOFT_SENTENCE_LIMIT = 2
+      let buf = ''
+      let emittedChars = 0
+      let sentencesOut = 0
+      let stopped = false
+
+      const flushCompleteSentences = function* (force: boolean): Generator<string> {
+        // Find the rightmost sentence terminator in buf that's followed by
+        // whitespace (or is at end-of-buf when `force` is true).
+        while (!stopped) {
+          let endIdx = -1
+          for (let i = 0; i < buf.length; i++) {
+            const ch = buf[i]
+            if (ch !== '.' && ch !== '!' && ch !== '?') continue
+            const next = buf[i + 1]
+            if (next === undefined) {
+              if (force) endIdx = i + 1
+              break
+            }
+            if (/\s/.test(next)) {
+              endIdx = i + 1
+              break
+            }
+          }
+          if (endIdx < 0) return
+          const sentence = buf.slice(0, endIdx)
+          buf = buf.slice(endIdx).replace(/^\s+/, '')
+          yield (emittedChars === 0 ? sentence : ' ' + sentence)
+          emittedChars += sentence.length + (emittedChars === 0 ? 0 : 1)
+          sentencesOut++
+          if (sentencesOut >= SOFT_SENTENCE_LIMIT) {
+            stopped = true
+            return
+          }
+        }
+      }
+
       for await (const chunk of stream.textStream) {
-        yield chunk
+        if (stopped) continue
+        buf += chunk
+        // Strip any trailing "Keywords: ..." line the narrator tacks on —
+        // the renderer strips it downstream anyway, but we don't want it
+        // polluting our sentence/char accounting.
+        const kwIdx = buf.search(/\n?Keywords:/i)
+        if (kwIdx >= 0) buf = buf.slice(0, kwIdx)
+
+        for (const out of flushCompleteSentences(false)) yield out
+        if (stopped) break
+
+        // Safety valve: if the model's been going without any terminator and
+        // we're way past budget, cut our losses at the last space in the buffer.
+        if (emittedChars + buf.length > HARD_CAP) {
+          const slice = buf.slice(0, HARD_CAP - emittedChars)
+          const lastSpace = slice.lastIndexOf(' ')
+          const cut = lastSpace > 40 ? lastSpace : slice.length
+          const tail = buf.slice(0, cut).trim()
+          if (tail) yield (emittedChars === 0 ? tail : ' ' + tail) + '…'
+          stopped = true
+          break
+        }
+      }
+
+      // Stream ended before we hit the sentence cap — flush whatever complete
+      // sentences are still in the buffer, and if what's left looks like a
+      // near-complete sentence, emit it too.
+      if (!stopped) {
+        for (const out of flushCompleteSentences(true)) yield out
       }
     } catch (err: any) {
       Log.warn(`Narration stream failed: ${err.message}`)

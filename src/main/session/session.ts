@@ -111,12 +111,15 @@ export namespace SessionManager {
     const ready = () => new Promise<void>((r) => { wake = r })
     const push = (c: StreamChunk) => { queue.push(c); wake?.(); wake = null }
 
-    // Narration — best effort, grounded in the book index. Suppressed for
-    // internal autofix turns, where the prompt is full of error text + CSD
-    // and would push the narrator off-script.
+    // Narration — best effort, grounded in the book index. Suppressed for:
+    //  - autofix turns (prompt is full of error text + CSD, pushes the narrator off-script)
+    //  - conversion templates (Web App / VST / CSD / Player — narrator misreads the
+    //    "convert this code" instruction and either refuses or apologizes; nothing
+    //    useful to add to a mechanical reformat)
     const isAutofix = /^The CSD you just wrote failed to compile\b/.test(content)
+    const isConversion = /^(Convert the Csound project below|Adapt the Csound project below|Extract the <CsoundSynthesizer>)/.test(content)
     const lastCsd = lastAssistantCsd(session)
-    if (!isAutofix && NarrationManager.canFire(sessionID)) {
+    if (!isAutofix && !isConversion && NarrationManager.canFire(sessionID)) {
       NarrationManager.markFired(sessionID)
       ;(async () => {
         try {

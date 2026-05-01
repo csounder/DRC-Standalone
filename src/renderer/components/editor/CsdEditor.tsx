@@ -2,6 +2,8 @@ import { useRef, useEffect } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 import { useEditorStore } from '../../stores/editorStore'
+import { useAppStore } from '../../stores/appStore'
+import { registerEditorThemes, monacoThemeFor } from './monacoThemes'
 
 // Csound language definition for Monaco
 const CSOUND_LANG_ID = 'csound'
@@ -72,39 +74,6 @@ function registerCsoundLanguage(monaco: any) {
       ],
     },
   })
-
-  monaco.editor.defineTheme('drc-dark', {
-    base: 'vs-dark',
-    inherit: true,
-    rules: [
-      { token: 'tag', foreground: '7cb8a4', fontStyle: 'bold' },
-      { token: 'comment', foreground: '484f58', fontStyle: 'italic' },
-      { token: 'keyword', foreground: 'c5a3d9', fontStyle: 'bold' },
-      { token: 'keyword.control', foreground: 'c5a3d9' },
-      { token: 'keyword.header', foreground: 'f0b27a', fontStyle: 'bold' },
-      { token: 'string', foreground: 'a8d5a2' },
-      { token: 'number', foreground: 'f4a6a0' },
-      { token: 'operator', foreground: '8b949e' },
-      { token: 'variable.rate', foreground: '7eb8da' },
-      { token: 'variable.krate', foreground: '58a6ff' },
-      { token: 'variable.global', foreground: 'D4748A' },
-      { token: 'variable.pfield', foreground: 'f0b27a' },
-      { token: 'function.table', foreground: '3D8B8B' },
-      { token: 'function.instr', foreground: '5B8C5A' },
-    ],
-    colors: {
-      'editor.background': '#111110',
-      'editor.foreground': '#e8e6e1',
-      'editor.lineHighlightBackground': '#1a191822',
-      'editor.selectionBackground': '#7cb8a425',
-      'editorCursor.foreground': '#7cb8a4',
-      'editorLineNumber.foreground': '#2a2926',
-      'editorLineNumber.activeForeground': '#6a6864',
-      'editor.inactiveSelectionBackground': '#7cb8a415',
-      'editorIndentGuide.background': '#1f1e1d',
-      'editorIndentGuide.activeBackground': '#2a2926',
-    },
-  })
 }
 
 const DEFAULT_CSD = `<CsoundSynthesizer>
@@ -151,12 +120,20 @@ i 1 4   4   220   0.45
 
 export default function CsdEditor() {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const monacoRef = useRef<any>(null)
   const { csdContent, setCsdContent } = useEditorStore()
+  const theme = useAppStore((s) => s.theme)
+
+  useEffect(() => {
+    if (monacoRef.current) monacoRef.current.editor.setTheme(monacoThemeFor(theme))
+  }, [theme])
 
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor
+    monacoRef.current = monaco
     registerCsoundLanguage(monaco)
-    monaco.editor.setTheme('drc-dark')
+    registerEditorThemes(monaco)
+    monaco.editor.setTheme(monacoThemeFor(theme))
     editor.getModel()?.setLanguage?.(CSOUND_LANG_ID)
 
     // Set initial content if empty
@@ -172,7 +149,7 @@ export default function CsdEditor() {
       value={csdContent || DEFAULT_CSD}
       onChange={(value) => setCsdContent(value || '')}
       onMount={handleMount}
-      theme="drc-dark"
+      theme={monacoThemeFor(theme)}
       options={{
         fontFamily: '"SF Mono", "Fira Code", Consolas, monospace',
         fontSize: 13,
