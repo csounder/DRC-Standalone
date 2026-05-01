@@ -149,24 +149,24 @@ SOURCE:
 
 Emit the CSD now.`
 
-// Channel names the Player UI binds to (see PlayerPage.tsx DEFAULT_PARAMS).
-// Keep this in lockstep with the knob grid — adding a knob means adding here too.
+// The Player UI now reads its knob list from `chn_k` declarations in the
+// adapted CSD instead of forcing a hardcoded 8-channel template. PLAYER_CHANNELS
+// is kept around as a small set of *suggested* well-known names the model can
+// reuse when the source patch maps cleanly onto them — but the model is free
+// to add or omit any channel as long as each is declared with chn_k.
 export const PLAYER_CHANNELS = [
-  { name: 'frequency',  default: 440,  range: '20..12000 Hz',  role: 'carrier pitch fallback (used when p4 is absent or 0)' },
   { name: 'amplitude',  default: 0.5,  range: '0..1',          role: 'output gain for the voice' },
-  { name: 'modIndex',   default: 8,    range: '0..20',         role: 'FM modulation index / depth' },
-  { name: 'modRatio',   default: 3.5,  range: '0.5..10',       role: 'FM modulator:carrier ratio' },
   { name: 'attack',     default: 0.01, range: '0.001..2 s',    role: 'envelope attack time' },
-  { name: 'decay',      default: 2.0,  range: '0.01..10 s',    role: 'envelope decay/release time' },
+  { name: 'release',    default: 0.5,  range: '0.01..6 s',     role: 'envelope release tail (linsegr)' },
   { name: 'reverbMix',  default: 0.3,  range: '0..1',          role: 'wet reverb level on the master bus' },
   { name: 'reverbSize', default: 0.8,  range: '0..1',          role: 'reverb feedback / room size' },
 ] as const
 
 const PLAYER_TEMPLATE = `Adapt the Csound project below so it runs in the DrC Player.
 
-The Player renders a fixed UI: 8 knobs + a piano keyboard (MIDI 48..72 / C3..C5). The keyboard emits note triggers with \`p4\` set to pitch in Hz. The knobs write to these control channels (exact names, case-sensitive):
+The Player renders a piano keyboard (MIDI 48..72 / C3..C5) and a knob grid that is built dynamically from your \`chn_k\` declarations. The keyboard sustains notes for as long as a key is held: noteOn dispatches \`i 1.NNN 0 -1 <freq> <vel>\` and noteOff dispatches \`i -1.NNN 0 0\` (turnoff for that tagged instance). Your voice MUST use a release-aware envelope (\`linsegr\`) so the tail completes after turnoff.
 
-<<<CHANNELS>>>
+The host writes knob values via score events: \`i 100 0 0 "<channelName>" <value>\`.
 
 OUTPUT FORMAT (strict):
 - Emit exactly ONE complete CSD: \`<CsoundSynthesizer>…</CsoundSynthesizer>\`.
@@ -175,32 +175,69 @@ OUTPUT FORMAT (strict):
 
 ADAPTATION RULES — follow precisely:
 
-1. **Preserve the source's character.** If the source is an FM voice, keep FM; if a filter synth, keep the filter; if a granular texture, keep the grains. Your job is re-wiring, not re-composing.
+1. **Preserve the source's character.** If the source is an FM voice, keep FM; a filter synth, keep the filter; a granular texture, keep the grains. Your job is re-wiring, not re-composing.
 
-2. **Channel reads live INSIDE each instrument body**, never at global scope (global chnget runs once at init and returns 0 — knob moves would do nothing). In EVERY voice instrument that uses a parameter:
+2. **Declare every knob with \`chn_k\` at orchestra scope (top of <CsInstruments>, before any \`instr\`).** Pick 4–10 knobs that meaningfully shape THIS patch. Each declaration MUST follow:
+
+       chn_k "<channelName>", 3, <itype>, <dflt>, <min>, <max>, 0, 0, 0, 0, "unit=<unit> label=<Label>"
+
+   Where:
+   - \`channelName\` is camelCase and unique (e.g. \`cutoff\`, \`fmIndex\`, \`grainDensity\`)
+   - \`3\` = both input + output (host writes, orchestra reads)
+   - \`itype\`: 1 = integer, 2 = linear, 3 = exponential (use 3 for frequency / time / decibel-ish ranges; 2 for mix/depth/ratio; 1 for discrete counts)
+   - \`dflt\`, \`min\`, \`max\` = the default and bounds the knob will use
+   - The trailing string is metadata. The label and unit are SINGLE tokens — the host auto-prettifies camelCase, and converts underscores to spaces. **DO NOT escape quotes inside the string** (Csound string literals do not support \`\\"\`); if the label needs a space, use an underscore.
+
+   Examples (note: NO escaped quotes anywhere):
+
+       chn_k "cutoff",      3, 3, 1200, 20,    18000,  0, 0, 0, 0, "unit=Hz label=Cutoff"
+       chn_k "resonance",   3, 2, 0.3,  0,     1,      0, 0, 0, 0, "unit= label=Resonance"
+       chn_k "fmIndex",     3, 2, 6,    0,     30,     0, 0, 0, 0, "unit= label=FM_Index"
+       chn_k "attack",      3, 3, 0.01, 0.001, 2,      0, 0, 0, 0, "unit=s label=Attack"
+       chn_k "release",     3, 3, 0.5,  0.01,  6,      0, 0, 0, 0, "unit=s label=Release"
+       chn_k "reverbMix",   3, 2, 0.3,  0,     1,      0, 0, 0, 0, "unit= label=Reverb_Mix"
+       chn_k "reverbSize",  3, 2, 0.8,  0,     1,      0, 0, 0, 0, "unit= label=Reverb_Size"
+
+   Any source parameter that doesn't map cleanly to a well-known name should still be exposed under whatever name fits the patch — invent a name, don't drop the knob.
+
+3. **Initialize each channel.** Right after the chn_k block, emit \`chnset <dflt>, "<name>"\` for every channel using the same defaults you declared. This guarantees the first k-cycle reads sensible values.
+
+4. **Read channels INSIDE each instrument body**, never at global scope (global chnget runs once at init and returns 0). Pattern:
 
        instr 1
-         kFreq chnget "frequency"
-         kAmp  chnget "amplitude"
-         kIdx  chnget "modIndex"
-         kRat  chnget "modRatio"
-         kAtt  chnget "attack"
-         kDec  chnget "decay"
-         ; ...use them in the signal path
+         kCut  chnget "cutoff"
+         kRes  chnget "resonance"
+         kCut  port  kCut, 0.02      ; smoothing for slow-moving knobs
+         kRes  port  kRes, 0.02
+         ; ... use kCut, kRes in signal path
 
-   Use \`portk\` / \`port\` smoothing (0.01–0.05 s) on parameters that would zipper.
+5. **Voice instrument contract — \`instr 1\`.**
+   - \`p4\` is pitch in Hz delivered by the keyboard. If the source originally used MIDI note numbers or cpspch, convert at the boundary so the body still operates on Hz.
+   - \`p5\` is normalized velocity (0..1).
+   - \`p3 = -1\` for keyboard-triggered notes (the host turns them off via \`i -1.NNN\`). DO NOT reach for p3 arithmetic for envelope timing — the envelope is release-aware.
+   - **Envelope rates — CRITICAL.** \`linsegr\` only accepts **i-rate** time/value arguments. You MUST read envelope parameters at i-rate via the i-rate form of chnget (output variable starts with \`i\`):
 
-3. **Channel initialization.** At the top of <CsInstruments>, emit one \`chnset <default>, "<name>"\` per channel so the engine has sensible values before the first UI frame. Use the defaults above verbatim.
+         instr 1
+           ; i-rate snapshots — these are what linsegr can use
+           iAtt   chnget  "attack"
+           iRel   chnget  "release"
+           ; k-rate reads — for parameters you want to modulate while the note holds
+           kAmp   chnget  "amplitude"
+           kIdx   chnget  "fmIndex"
+           kAmp   port    kAmp, 0.02
+           kIdx   port    kIdx, 0.02
 
-4. **Pitch via p4.** The voice instrument (usually \`instr 1\`) MUST treat \`p4\` as pitch in Hz when provided, and fall back to the \`frequency\` knob when p4 is 0 or absent:
+           iFreq = p4
+           iVel  = p5
 
-       iPitch = (p4 > 0 ? p4 : i(kFreq))
+           kEnv linsegr 0, iAtt, 1, iAtt + 0.05, 0.7, iRel, 0
+           ; ...signal path uses kEnv * kAmp * iVel
 
-   Then drive the carrier from \`iPitch\`. If the source used MIDI note numbers or cps-from-pch, convert at the boundary so internal logic stays the same.
+     Passing k-rate variables (\`kAtt\`, \`kRel\`) to \`linsegr\` produces **"Unable to find opcode entry for 'linsegr' with matching argument types"** — that is the most common adapter failure. Use \`i\`-prefixed reads for any envelope time/value you put into \`linsegr\`.
+   - \`linsegr\`'s last segment is the release — it triggers automatically on turnoff. Do not invent your own release logic.
+   - Multiply your audio path by \`kEnv * kAmp * iVel\` (or the equivalent of your amplitude knob × velocity).
 
-5. **Envelope from attack/decay.** Shape the voice with an envelope driven by the \`attack\` and \`decay\` knobs. A \`transeg\` or \`madsr\`-style shape is fine. Clamp attack to >= 0.001 and decay to >= 0.01 to avoid dc blips.
-
-6. **Channel-writer helper (\`instr 100\`) — MANDATORY.** The host updates knobs at runtime by sending \`i 100 0 0 "<channelName>" <value>\` score events — p3=0 so ONLY the init pass runs. You MUST use the **i-rate** form of chnset for the write to take effect. Include this verbatim:
+6. **Channel-writer helper (\`instr 100\`) — MANDATORY, verbatim:**
 
        instr 100
          Schan strget p4
@@ -209,9 +246,9 @@ ADAPTATION RULES — follow precisely:
          turnoff
        endin
 
-   Do not switch to \`kVal\` / k-rate \`chnset\` — with p3=0 no k-cycles fire and the write is silently dropped. Do not rename the instrument, do not change the p-field layout, and do not strip \`turnoff\`.
+   Do not switch to \`kVal\` / k-rate \`chnset\` — with p3=0 no k-cycles fire and the write is silently dropped. Do not rename the instrument or change the p-field layout.
 
-7. **Always-on reverb bus (\`instr 99\`).** Route every voice into \`"revL"\` / \`"revR"\` via \`chnmix\`, and render the wet path from an always-on \`instr 99\` that reads \`reverbMix\` and \`reverbSize\`:
+7. **Always-on reverb bus (\`instr 99\`).** Voices send to \`"revL"\` / \`"revR"\` via \`chnmix\`; the bus reads them, applies reverbsc, and outputs the wet signal:
 
        instr 99
          kMix  chnget "reverbMix"
@@ -224,20 +261,22 @@ ADAPTATION RULES — follow precisely:
          chnclear "revR"
        endin
 
-   Voices still \`outs\` their dry signal; reverb is additive. If the source already had its own reverb, REPLACE it with this bus — do not double up.
+   Voices still \`outs\` their dry signal; reverb is additive. If the source already had its own reverb, REPLACE it with this bus — do not double up. If you don't expose \`reverbMix\`/\`reverbSize\` as knobs, hardcode reasonable defaults but keep the bus.
 
-8. **Score.** Replace <CsScore> with:
+8. **Score.** Replace <CsScore> with exactly:
 
        i 99 0 36000       ; reverb bus runs the whole session
        f 0 36000          ; keep the engine alive for keyboard triggering
 
    No pre-scheduled notes for instr 1 — the keyboard triggers them live.
 
-9. **Drop anything the Player can't drive**: MIDI opcodes, OSC listeners, \`gk<Name> init …\` knob globals (those become channel reads instead), hard-coded score melodies. Keep ftables, wavetables, and init-time setup.
+9. **Drop anything the Player can't drive**: MIDI opcodes, OSC listeners, \`gk<Name> init …\` knob globals (those become \`chn_k\` + \`chnget\` instead), hard-coded score melodies. Keep ftables, wavetables, and init-time setup.
 
-10. **Unmapped source parameters**: if the source has knobs outside the 8 above (e.g. \`cutoff\`), fold them into the closest match — usually \`modIndex\` for timbre-shaping controls or \`modRatio\` for harmonic-character controls. Do NOT invent new channels.
+10. **Quality bar**: the output must compile with stock Csound 6/7, render stereo to \`-odac\`, and produce audible output when the user holds a keyboard key with default knob values. The note must sustain while held and release cleanly when released.
 
-11. **Quality bar**: the output must compile with stock Csound 6/7, render stereo to \`-odac\`, and produce audible output when the user clicks a keyboard key with default knob values.
+SUGGESTED WELL-KNOWN CHANNEL NAMES (use these names when they fit so users get familiar bindings):
+
+<<<CHANNELS>>>
 
 SOURCE CSD:
 <<<SOURCE>>>
@@ -263,17 +302,20 @@ export function buildConvertPrompt(target: ConvertTarget, source: string): strin
 
 // Quick heuristic: does this CSD already look Player-ready? If not, the caller
 // should route through buildConvertPrompt('player', ...).
+//
+// The new contract relies on Player infrastructure being present, not on a
+// fixed channel set — the knobs themselves are now declared by the CSD via
+// chn_k. Required infrastructure:
+//   - <CsoundSynthesizer> wrapper
+//   - At least one chn_k declaration (otherwise the knob grid is empty)
+//   - p4 referenced somewhere in the orchestra (keyboard pitch arrives there)
+//   - instr 100 channel-writer helper (so live knob updates land)
+//   - linsegr in the orchestra (so sustain-release with i -1.NNN works)
 export function needsPlayerAdapt(source: string): boolean {
-  const s = source.toLowerCase()
-  if (!s.includes('<csoundsynthesizer')) return true
-  const requiredChannels = ['frequency', 'amplitude', 'modindex', 'modratio', 'attack', 'decay', 'reverbmix', 'reverbsize']
-  const hasAllChannels = requiredChannels.every((c) => s.includes(`"${c}"`))
-  if (!hasAllChannels) return true
-  // If every channel is present but p4 isn't referenced anywhere, the keyboard
-  // won't trigger notes — still worth adapting.
-  if (!s.includes('p4')) return true
-  // Channel-writer helper (instr 100) is required for live knob updates. If
-  // a hand-written CSD is missing it, the knobs become read-only.
-  if (!/\binstr\s+100\b/.test(s)) return true
+  if (!/<CsoundSynthesizer/i.test(source)) return true
+  if (!/\bchn_k\s+/i.test(source)) return true
+  if (!/\bp4\b/.test(source)) return true
+  if (!/\binstr\s+100\b/.test(source)) return true
+  if (!/\blinsegr\b/i.test(source)) return true
   return false
 }

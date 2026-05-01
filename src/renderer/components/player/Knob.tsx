@@ -8,9 +8,17 @@ interface Props {
   step?: number
   unit?: string
   onChange: (value: number) => void
+  // MIDI Learn — when supplied, the knob shows a tiny binding pill that
+  // toggles "waiting for CC..." mode and surfaces the bound CC# once mapped.
+  ccLabel?: string | null
+  isLearning?: boolean
+  onToggleLearn?: () => void
 }
 
-export default function Knob({ label, value, min, max, step = 0.01, unit = '', onChange }: Props) {
+export default function Knob({
+  label, value, min, max, step = 0.01, unit = '', onChange,
+  ccLabel = null, isLearning = false, onToggleLearn,
+}: Props) {
   const knobRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const startY = useRef(0)
@@ -96,6 +104,19 @@ export default function Knob({ label, value, min, max, step = 0.01, unit = '', o
       </div>
       <span style={styles.value}>{displayValue}{unit}</span>
       <span style={styles.label}>{label}</span>
+      {onToggleLearn && (
+        <button
+          type="button"
+          onClick={onToggleLearn}
+          title={isLearning ? 'Cancel MIDI learn' : ccLabel ? `Bound to ${ccLabel} — click to relearn` : 'Click then move a MIDI controller to bind'}
+          style={{
+            ...styles.learnPill,
+            ...(isLearning ? styles.learnPillActive : ccLabel ? styles.learnPillBound : {}),
+          }}
+        >
+          {isLearning ? 'learning…' : ccLabel ?? 'learn'}
+        </button>
+      )}
     </div>
   )
 }
@@ -157,5 +178,28 @@ const styles: Record<string, CSSProperties> = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+  },
+  learnPill: {
+    marginTop: 2,
+    padding: '2px 6px',
+    fontSize: 9,
+    fontFamily: 'var(--font-mono)',
+    color: 'var(--text-muted)',
+    background: 'transparent',
+    border: 'var(--border-width) solid var(--border)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    letterSpacing: '0.04em',
+    minWidth: 48,
+    textAlign: 'center',
+  },
+  learnPillActive: {
+    color: '#ff4444',
+    borderColor: '#ff4444',
+    animation: 'pulse 1.2s ease-in-out infinite',
+  },
+  learnPillBound: {
+    color: 'var(--accent)',
+    borderColor: 'var(--accent)',
   },
 }

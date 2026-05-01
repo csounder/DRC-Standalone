@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, session } from 'electron'
 import { join, resolve } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -72,6 +72,15 @@ function createWindow(): void {
 app.whenReady().then(() => {
   loadDotenv()
   electronApp.setAppUserModelId('com.drc.app')
+
+  // Web MIDI in the renderer needs explicit permission grants — Chromium
+  // gates `navigator.requestMIDIAccess()` behind both 'midi' and 'midiSysex'
+  // checks. We auto-grant since this is a desktop app the user installed.
+  const allowMidi = (perm: string) => perm === 'midi' || perm === 'midiSysex'
+  session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => {
+    cb(allowMidi(perm))
+  })
+  session.defaultSession.setPermissionCheckHandler((_wc, perm) => allowMidi(perm))
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

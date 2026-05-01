@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type CSSProperties, type DragEvent } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect, type CSSProperties, type DragEvent } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useEditorStore } from '../stores/editorStore'
 import Knob from '../components/player/Knob'
@@ -7,6 +7,9 @@ import WaveformDisplay from '../components/player/WaveformDisplay'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 import { buildConvertPrompt, needsPlayerAdapt } from '../prompts/convert'
+import { parseChannels, LEGACY_CHANNELS, type ChannelSpec } from '../lib/parseChannels'
+import { useMidi } from '../lib/useMidi'
+import { useMidiStore } from '../stores/midiStore'
 
 type AdaptStatus =
   | { kind: 'idle' }
@@ -16,24 +19,36 @@ type AdaptStatus =
   | { kind: 'ready' }
   | { kind: 'error'; message: string }
 
-// Default parameter set for demonstration
-const DEFAULT_PARAMS = [
-  { name: 'frequency', min: 20, max: 12000, value: 440, unit: 'Hz', step: 1 },
-  { name: 'amplitude', min: 0, max: 1, value: 0.5, unit: '', step: 0.01 },
-  { name: 'modIndex', min: 0, max: 20, value: 8, unit: '', step: 0.1 },
-  { name: 'modRatio', min: 0.5, max: 10, value: 3.5, unit: '', step: 0.1 },
-  { name: 'attack', min: 0.001, max: 2, value: 0.01, unit: 's', step: 0.001 },
-  { name: 'decay', min: 0.01, max: 10, value: 2, unit: 's', step: 0.01 },
-  { name: 'reverbMix', min: 0, max: 1, value: 0.3, unit: '', step: 0.01 },
-  { name: 'reverbSize', min: 0, max: 1, value: 0.8, unit: '', step: 0.01 },
-]
-
 export default function PlayerPage() {
   const { isPlaying, isLiveMode, currentTime, duration, setPlaying, setLiveMode, channels, setChannel } = usePlayerStore()
   const { csdContent, setCsdContent } = useEditorStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set())
-  const [params, setParams] = useState(DEFAULT_PARAMS)
+  // Source-of-truth set used by note handlers — synchronous dedupe avoids
+  // double-trigger on browser keydown autorepeat or simultaneous touch+mouse.
+  const activeNotesRef = useRef<Set<number>>(new Set())
+  // The CSD declares its own knobs via `chn_k`; we re-parse on every CSD change
+  // and merge with prior values so live tweaks survive an identical reload.
+  const channelSpecs = useMemo<ChannelSpec[]>(() => {
+    const parsed = parseChannels(csdContent)
+    return parsed.length > 0 ? parsed : LEGACY_CHANNELS
+  }, [csdContent])
+  const [paramValues, setParamValues] = useState<Record<string, number>>(() => {
+    const seed: Record<string, number> = {}
+    for (const c of channelSpecs) seed[c.name] = c.default
+    return seed
+  })
+  // When the spec changes (new CSD adapted), seed any new channels to their
+  // declared default and drop bindings for channels that no longer exist.
+  useEffect(() => {
+    setParamValues((prev) => {
+      const next: Record<string, number> = {}
+      for (const c of channelSpecs) {
+        next[c.name] = prev[c.name] ?? c.default
+      }
+      return next
+    })
+  }, [channelSpecs])
   const [adaptStatus, setAdaptStatus] = useState<AdaptStatus>({ kind: 'idle' })
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -44,36 +59,80 @@ export default function PlayerPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
 
-  const handleNoteOn = useCallback((midi: number) => {
+  // Build the fractional p1 the score event uses for a held note. Three-digit
+  // padded MIDI ensures we get unique tags (1.069 ≠ 1.070), and `i -1.069 0 0`
+  // hits exactly the instance to release. The voice's linsegr handles the tail.
+  const tagFor = (midi: number) => `1.${midi.toString().padStart(3, '0')}`
+
+  const handleNoteOn = useCallback((midi: number, velocity = 0.8) => {
+    if (activeNotesRef.current.has(midi)) return
+    activeNotesRef.current.add(midi)
     setActiveNotes((prev) => new Set(prev).add(midi))
     if (audioEnabled) audioFeedback.click()
-    // midi → Hz, standard equal temperament centered on A4 = 440
     const hz = 440 * Math.pow(2, (midi - 69) / 12)
-    // Use the current decay knob as the note length so the envelope has room
-    // to breathe; clamp to sensible bounds.
-    const decayParam = params.find((p) => p.name === 'decay')
-    const dur = Math.max(0.5, Math.min(8, (decayParam?.value ?? 2) + 0.5))
-    void window.api?.csound?.event(`i 1 0 ${dur.toFixed(3)} ${hz.toFixed(3)} 0.8`)
-  }, [audioEnabled, params])
+    const tag = tagFor(midi)
+    // p3 = -1: indefinite duration. The matching i -1.NNN call below ends it.
+    void window.api?.csound?.event(`i ${tag} 0 -1 ${hz.toFixed(3)} ${velocity.toFixed(3)}`)
+  }, [audioEnabled])
 
   const handleNoteOff = useCallback((midi: number) => {
+    if (!activeNotesRef.current.has(midi)) return
+    activeNotesRef.current.delete(midi)
     setActiveNotes((prev) => {
       const next = new Set(prev)
       next.delete(midi)
       return next
     })
+    const tag = tagFor(midi)
+    // Negative p1 of the same fractional tag fires linsegr's release segment
+    // and turns off that specific instance once the tail completes.
+    void window.api?.csound?.event(`i -${tag} 0 0`)
   }, [])
 
-  const handleParamChange = useCallback((index: number, value: number) => {
-    setParams((prev) => {
-      const next = [...prev]
-      next[index] = { ...next[index], value }
-      return next
-    })
-    const param = params[index]
-    setChannel(param.name, value)
-    void window.api?.csound?.setChannel(param.name, value)
-  }, [params, setChannel])
+  const handleParamChange = useCallback((spec: ChannelSpec, value: number) => {
+    setParamValues((prev) => ({ ...prev, [spec.name]: value }))
+    setChannel(spec.name, value)
+    void window.api?.csound?.setChannel(spec.name, value)
+  }, [setChannel])
+
+  // Wire Web MIDI: noteOn/Off reuse the on-screen keyboard handlers, and CCs
+  // are routed through MIDI Learn — when a knob is armed (`learnTarget` set),
+  // the next CC binds to it; otherwise CC values scale across the bound spec's
+  // [min, max] and get pushed via setChannel like any other knob move.
+  const midiEnabled    = useMidiStore((s) => s.enabled)
+  const midiStatus     = useMidiStore((s) => s.status)
+  const midiInputs     = useMidiStore((s) => s.inputs)
+  const midiBindings   = useMidiStore((s) => s.bindings)
+  const learnTarget    = useMidiStore((s) => s.learnTarget)
+  const startLearn     = useMidiStore((s) => s.startLearn)
+  const cancelLearn    = useMidiStore((s) => s.cancelLearn)
+  const setMidiEnabled = useMidiStore((s) => s.setEnabled)
+
+  const handleCCBinding = useCallback((channelName: string, normalized01: number) => {
+    const spec = channelSpecs.find((c) => c.name === channelName)
+    if (!spec) return
+    // Map 0..1 across the spec's range. Exponential curves map log-spaced so a
+    // mid-position knob lands musically (e.g. 632 Hz on a 20..20000 cutoff).
+    let value: number
+    if (spec.curve === 'exp' && spec.min > 0) {
+      value = spec.min * Math.pow(spec.max / spec.min, normalized01)
+    } else if (spec.curve === 'int') {
+      value = Math.round(spec.min + (spec.max - spec.min) * normalized01)
+    } else {
+      value = spec.min + (spec.max - spec.min) * normalized01
+    }
+    handleParamChange(spec, value)
+  }, [channelSpecs, handleParamChange])
+
+  useMidi({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff }, handleCCBinding)
+
+  const ccLabelFor = (channel: string): string | null => {
+    for (const k of Object.keys(midiBindings)) {
+      const b = midiBindings[k]
+      if (b.channel === channel) return `CC ${b.cc}`
+    }
+    return null
+  }
 
   const handleToggleLive = () => {
     setLiveMode(!isLiveMode)
@@ -191,6 +250,24 @@ export default function PlayerPage() {
             Load CSD
           </button>
           <button
+            onClick={() => setMidiEnabled(!midiEnabled)}
+            title={
+              !midiEnabled       ? 'Enable physical MIDI input'        :
+              midiStatus === 'denied'      ? 'MIDI access denied — check OS permissions' :
+              midiStatus === 'unsupported' ? 'Web MIDI unavailable in this build'        :
+              midiInputs.length === 0      ? 'MIDI on (no input devices)'                :
+              `MIDI on — ${midiInputs.map((i) => i.name).join(', ')}`
+            }
+            style={{
+              ...styles.loadButton,
+              ...(midiEnabled ? styles.midiActive : {}),
+            }}
+          >
+            MIDI {midiEnabled
+              ? (midiStatus === 'ready' ? `(${midiInputs.length})` : midiStatus === 'requesting' ? '…' : '!')
+              : 'off'}
+          </button>
+          <button
             onClick={handleToggleLive}
             style={{
               ...styles.liveToggle,
@@ -240,20 +317,32 @@ export default function PlayerPage() {
         ) : null}
       </div>
 
-      {/* Parameters */}
+      {/* Parameters — built from chn_k declarations in the CSD */}
       <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>Parameters</h3>
+        <h3 style={styles.sectionTitle}>
+          Parameters
+          {channelSpecs.length > 0 && channelSpecs !== LEGACY_CHANNELS ? null : (
+            <span style={styles.sectionHint}> — defaults (CSD has no chn_k declarations)</span>
+          )}
+        </h3>
         <div style={styles.knobGrid}>
-          {params.map((p, i) => (
+          {channelSpecs.map((spec) => (
             <Knob
-              key={p.name}
-              label={p.name}
-              value={p.value}
-              min={p.min}
-              max={p.max}
-              step={p.step}
-              unit={p.unit}
-              onChange={(val) => handleParamChange(i, val)}
+              key={spec.name}
+              label={spec.label}
+              value={paramValues[spec.name] ?? spec.default}
+              min={spec.min}
+              max={spec.max}
+              step={spec.step}
+              unit={spec.unit}
+              onChange={(val) => handleParamChange(spec, val)}
+              ccLabel={midiEnabled ? ccLabelFor(spec.name) : null}
+              isLearning={midiEnabled && learnTarget === spec.name}
+              onToggleLearn={
+                midiEnabled
+                  ? () => (learnTarget === spec.name ? cancelLearn() : startLearn(spec.name))
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -313,6 +402,7 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
     letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const,
   },
+  midiActive: { borderColor: 'var(--accent)', color: 'var(--accent)' },
   header: {
     width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   },
