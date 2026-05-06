@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Tool } from './tool'
 import { spawn } from 'child_process'
 import { fileExists, readText } from '../util/fs'
+import { withCsoundPath } from '../util/csound-path'
 
 interface CompileError {
   line?: number
@@ -48,6 +49,7 @@ export const csoundCompile = Tool.define('csound_compile', {
     return new Promise((resolve) => {
       const proc = spawn('csound', ['-n', '-d', '-m0', '-W', '-o', 'null', filePath], {
         timeout: 10000,
+        env: withCsoundPath(),
       })
 
       let stderr = ''

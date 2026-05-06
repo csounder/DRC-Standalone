@@ -6,6 +6,7 @@ import { join } from 'path'
 import { app } from 'electron'
 import { normalizeNamedInstruments } from '../csound/normalize'
 import { Log } from '../util/log'
+import { withCsoundPath } from '../util/csound-path'
 
 const execFileAsync = promisify(execFile)
 
@@ -100,16 +101,31 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
   // Rewrites named instruments (instr Bell, i "Bell" ...) to numbered ones because
   // Csound 6.18 can't resolve named-instrument score events. Preserves source CSD
   // in the renderer; only the on-disk copy passed to the csound binary is normalized.
+  //
+  // Also unfolds single-line <CsOptions>-odac -d</CsOptions> into multi-line form.
+  // Csound 6.18 has a parser bug where a one-liner with multiple flags reports
+  // "Invalid arguments in <CsOptions>: <CsInstruments>" under --syntax-check-only,
+  // which would otherwise abort the Player's compile step before play. Our adapt
+  // template emits the one-liner; users may bring CSDs that do too.
   ipcMain.handle('csound:writeCsd', async (_event, content: string) => {
     const tmpPath = join(getTempDir(), 'current.csd')
-    const { csd: normalized } = normalizeNamedInstruments(content)
+    const { csd: namedFixed } = normalizeNamedInstruments(content)
+    const normalized = namedFixed.replace(
+      /<CsOptions>([^\n<]*)<\/CsOptions>/i,
+      (_, body: string) => `<CsOptions>\n${body.trim()}\n</CsOptions>`,
+    )
     writeFileSync(tmpPath, normalized, 'utf-8')
     return { path: tmpPath }
   })
 
   ipcMain.handle('csound:compile', async (_event, csdPath: string) => {
     try {
-      const { stdout, stderr } = await execFileAsync('csound', ['--syntax-check-only', csdPath], { timeout: 10000 })
+      // -n alongside --syntax-check-only sidesteps a Csound 6.18 bug where
+      // `--syntax-check-only` *alone* mis-parses <CsOptions> and reports
+      // "Invalid arguments in <CsOptions>: <CsInstruments>" for any valid
+      // unified CSD. -n means "no sound to disk" — combined with the syntax
+      // flag it's still parse-only, just under a code path that works.
+      const { stdout, stderr } = await execFileAsync('csound', ['--syntax-check-only', '-n', csdPath], { timeout: 10000, env: withCsoundPath() })
       return { success: true, output: (stdout + '\n' + stderr).trim() || 'Compilation successful — no errors.' }
     } catch (err: any) {
       if (err.code === 'ENOENT') {
@@ -123,7 +139,7 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
   ipcMain.handle('csound:render', async (_event, csdPath: string, opts?: { output?: string }) => {
     const outputPath = opts?.output || join(getTempDir(), 'output.wav')
     try {
-      const { stdout, stderr } = await execFileAsync('csound', ['-o', outputPath, csdPath], { timeout: 30000 })
+      const { stdout, stderr } = await execFileAsync('csound', ['-o', outputPath, csdPath], { timeout: 30000, env: withCsoundPath() })
       return { success: true, output: `Rendered to ${outputPath}\n${(stdout + '\n' + stderr).trim()}` }
     } catch (err: any) {
       if (err.code === 'ENOENT') {
@@ -153,6 +169,7 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
       playProcess = spawn('csound', ['-odac', '-d', '-m0', '-Lstdin', csdPath], {
         timeout: 120000,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: withCsoundPath(),
       })
 
       let stderr = ''
@@ -268,15 +285,4 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
     return { success: true }
   })
 
-  ipcMain.handle('csound:live:start', async (_event, _sessionID: string, _csdPath: string) => {
-    return { success: false, error: 'Live engine not yet implemented' }
-  })
-
-  ipcMain.handle('csound:live:channel', async (_event, _sessionID: string, _ch: string, _val: number) => {
-    return { success: false, error: 'Live engine not yet implemented' }
-  })
-
-  ipcMain.handle('csound:live:reload', async (_event, _sessionID: string, _orc: string) => {
-    return { success: false, error: 'Live engine not yet implemented' }
-  })
 }

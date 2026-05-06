@@ -49,12 +49,6 @@ const api = {
     event: (line: string) => ipcRenderer.invoke('csound:event', line),
     setChannel: (name: string, value: number) =>
       ipcRenderer.invoke('csound:setChannel', name, value),
-    liveStart: (sessionID: string, csdPath: string) =>
-      ipcRenderer.invoke('csound:live:start', sessionID, csdPath),
-    liveChannel: (sessionID: string, ch: string, val: number) =>
-      ipcRenderer.invoke('csound:live:channel', sessionID, ch, val),
-    liveHotReload: (sessionID: string, orc: string) =>
-      ipcRenderer.invoke('csound:live:reload', sessionID, orc),
   },
 
   retrieval: {

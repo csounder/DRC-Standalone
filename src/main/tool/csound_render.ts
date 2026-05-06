@@ -4,6 +4,7 @@ import { spawn } from 'child_process'
 import { fileExists } from '../util/fs'
 import { join, dirname, basename } from 'path'
 import { readFile, stat } from 'fs/promises'
+import { withCsoundPath } from '../util/csound-path'
 
 function parseWavHeader(buffer: Buffer) {
   if (buffer.length < 44) return null
@@ -36,6 +37,7 @@ export const csoundRender = Tool.define('csound_render', {
     return new Promise((resolve) => {
       const proc = spawn('csound', ['-W', '-d', '-m0', '-o', outPath, filePath], {
         timeout: 30000,
+        env: withCsoundPath(),
       })
 
       let stderr = ''

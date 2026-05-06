@@ -204,7 +204,10 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: 'var(--shadow-elevated)',
     zIndex: 10,
     pointerEvents: 'none',
-    animation: 'drc-fade-in 120ms ease',
+    // Opacity-only — drc-fade-in animates transform too, which would override
+    // the static translateY(-50%) centering and make the tooltip pop in below
+    // its final spot before snapping up.
+    animation: 'drc-fade-opacity 120ms ease',
   },
   tooltipLabel: {
     fontSize: 13,

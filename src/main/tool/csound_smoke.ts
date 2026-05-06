@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Tool } from './tool'
 import { spawn } from 'child_process'
 import { fileExists } from '../util/fs'
+import { withCsoundPath } from '../util/csound-path'
 
 export const csoundSmoke = Tool.define('csound_smoke', {
   description: 'Quick smoke test — runs a CSD briefly to verify it starts without crashing. Faster than full render.',
@@ -17,6 +18,7 @@ export const csoundSmoke = Tool.define('csound_smoke', {
     return new Promise((resolve) => {
       const proc = spawn('csound', ['-d', '-m0', '-W', '-o', '/dev/null', filePath], {
         timeout: (timeout + 4) * 1000,
+        env: withCsoundPath(),
       })
 
       let stderr = ''

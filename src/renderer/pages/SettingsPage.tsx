@@ -62,17 +62,27 @@ export default function SettingsPage() {
     <div style={styles.container}>
       <h1 style={styles.title}>Settings</h1>
 
-      {/* Status banner */}
-      <div style={{
-        ...styles.statusBanner,
-        borderColor: available.length > 0 ? 'var(--success)' : 'var(--warning)',
-      }}>
-        <span style={{ fontSize: 14 }}>
-          {available.length > 0
-            ? `✓ Connected: ${available.join(', ')}`
-            : '⚠ No API key configured — add a key below to start using the agent'}
-        </span>
-      </div>
+      {/* Status banner — distinguishes "saved in DRC" from "from env var" so a
+          shell-exported GEMINI_API_KEY doesn't make us claim a key is set when
+          the Saved row below is empty. We say "Saved", not "Connected", because
+          we haven't actually verified the key with a network call — that's
+          what the per-key Test button is for. */}
+      {(() => {
+        const savedNames = Object.keys(savedKeys)
+        const envOnly = available.filter((p) => !savedNames.includes(p))
+        const ok = savedNames.length > 0
+        const borderColor = ok ? 'var(--success)' : (envOnly.length > 0 ? 'var(--warning)' : 'var(--warning)')
+        const label = savedNames.length > 0
+          ? `✓ Saved in DRC: ${savedNames.join(', ')}${envOnly.length > 0 ? ` (also detected via env: ${envOnly.join(', ')})` : ''} — click Test next to a key to verify it works`
+          : envOnly.length > 0
+            ? `Using API key from environment (${envOnly.join(', ')}). Save one below to override or to keep working without the env var.`
+            : '⚠ No API key set — add one below to start using the agent'
+        return (
+          <div style={{ ...styles.statusBanner, borderColor }}>
+            <span style={{ fontSize: 14 }}>{label}</span>
+          </div>
+        )
+      })()}
 
       {/* Appearance */}
       <section style={styles.section}>
@@ -120,7 +130,14 @@ export default function SettingsPage() {
             <span style={styles.hint}>
               Default — Gemini 2.5 Flash is <strong>free</strong>. Use an AI Studio key (Gemini Developer API,
               not Vertex AI) from{' '}
-              <span style={{ color: 'var(--accent)' }}>aistudio.google.com/apikey</span>
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.extLink}
+              >
+                aistudio.google.com/apikey
+              </a>
             </span>
             {savedKeys.google && (
               <div style={styles.savedRow}>
@@ -325,6 +342,9 @@ const styles: Record<string, CSSProperties> = {
     padding: '3px 10px', borderRadius: 6, border: 'var(--border-width) solid var(--border)',
     background: 'transparent', color: 'var(--text-secondary)', fontSize: 11,
     fontFamily: 'var(--font-primary)', cursor: 'pointer',
+  },
+  extLink: {
+    color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer',
   },
   testOk: { fontSize: 11, color: 'var(--success)' },
   testErr: { fontSize: 11, color: 'var(--warning)', lineHeight: 1.4 },

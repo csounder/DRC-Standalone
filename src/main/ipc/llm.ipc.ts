@@ -31,7 +31,11 @@ export function handleLlmIPC(ipcMain: IpcMain): void {
         model: model as any,
         messages: [{ role: 'user', content: trimmed }],
         temperature: 0.2,
-        maxTokens: 4000,
+        // 8192: an adapted CSD with chn_k bank, instr 100 helper, reverb bus,
+        // and a rewritten voice routinely lands in the 5–7K-token range. 4000
+        // truncated outputs mid-orchestra so the </CsoundSynthesizer> tag never
+        // arrived and extractCsd returned null.
+        maxTokens: 8192,
       })
       const csd = extractCsd(text)
       if (!csd) {

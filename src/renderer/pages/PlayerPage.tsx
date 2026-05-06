@@ -20,7 +20,7 @@ type AdaptStatus =
   | { kind: 'error'; message: string }
 
 export default function PlayerPage() {
-  const { isPlaying, isLiveMode, currentTime, duration, setPlaying, setLiveMode, channels, setChannel } = usePlayerStore()
+  const { isPlaying, currentTime, duration, setPlaying, channels, setChannel } = usePlayerStore()
   const { csdContent, setCsdContent } = useEditorStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set())
@@ -109,8 +109,23 @@ export default function PlayerPage() {
   const setMidiEnabled = useMidiStore((s) => s.setEnabled)
 
   const handleCCBinding = useCallback((channelName: string, normalized01: number) => {
-    const spec = channelSpecs.find((c) => c.name === channelName)
-    if (!spec) return
+    // Bindings persist in localStorage but channelSpecs is per-CSD. After a
+    // re-adapt or load, an old binding can reference a channel name that no
+    // longer exists (or differs only in case). Try exact, then case-insensitive,
+    // then surface the miss so the user sees *why* the bound knob did nothing
+    // rather than silently swallowing every CC.
+    let spec = channelSpecs.find((c) => c.name === channelName)
+    if (!spec) {
+      const lc = channelName.toLowerCase()
+      spec = channelSpecs.find((c) => c.name.toLowerCase() === lc)
+    }
+    if (!spec) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[midi] CC for "${channelName}" arrived but no chn_k channel matches — current patch declares: ${channelSpecs.map((c) => c.name).join(', ') || '(none)'}`,
+      )
+      return
+    }
     // Map 0..1 across the spec's range. Exponential curves map log-spaced so a
     // mid-position knob lands musically (e.g. 632 Hz on a 20..20000 cutoff).
     let value: number
@@ -132,11 +147,6 @@ export default function PlayerPage() {
       if (b.channel === channel) return `CC ${b.cc}`
     }
     return null
-  }
-
-  const handleToggleLive = () => {
-    setLiveMode(!isLiveMode)
-    if (audioEnabled) audioFeedback.toggle(!isLiveMode)
   }
 
   // Load a raw CSD string: adapt via the LLM if it doesn't already follow the
@@ -267,19 +277,6 @@ export default function PlayerPage() {
               ? (midiStatus === 'ready' ? `(${midiInputs.length})` : midiStatus === 'requesting' ? '…' : '!')
               : 'off'}
           </button>
-          <button
-            onClick={handleToggleLive}
-            style={{
-              ...styles.liveToggle,
-              ...(isLiveMode ? styles.liveActive : {}),
-            }}
-          >
-            <span style={{
-              ...styles.liveDot,
-              background: isLiveMode ? '#ff4444' : 'var(--text-muted)',
-            }} />
-            LIVE
-          </button>
         </div>
       </div>
 
@@ -408,15 +405,6 @@ const styles: Record<string, CSSProperties> = {
   },
   title: { fontSize: 28, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '0.04em' },
   headerActions: { display: 'flex', gap: 8 },
-  liveToggle: {
-    display: 'flex', alignItems: 'center', gap: 6,
-    padding: '6px 14px', borderRadius: 8,
-    border: 'var(--border-width) solid var(--border)', background: 'transparent',
-    color: 'var(--text-muted)', fontSize: 11, fontWeight: 600,
-    letterSpacing: '0.08em', cursor: 'pointer',
-  },
-  liveActive: { borderColor: '#ff4444', color: '#ff4444' },
-  liveDot: { width: 6, height: 6, borderRadius: '50%' },
   waveformArea: {
     width: '100%', borderRadius: 16, overflow: 'hidden',
     border: 'var(--border-width) solid var(--border)', background: 'var(--bg-secondary)',

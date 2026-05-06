@@ -185,3 +185,12 @@ code, pre {
   0%   { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0);   }
 }
+
+/* Opacity-only fade for elements that already own a transform (e.g. a
+   translateY(-50%) for vertical centering). Animating `transform` in
+   drc-fade-in would clobber the static offset, making the element first
+   appear at the un-centered position and then snap into place. */
+@keyframes drc-fade-opacity {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}

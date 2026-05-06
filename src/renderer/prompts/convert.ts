@@ -289,6 +289,32 @@ function renderChannelList(): string {
     .join('\n')
 }
 
+// Strip CsoundQT-specific blocks that often trail real-world CSDs. <bsbPanel>
+// and <bsbPresets> are CsoundQT's GUI metadata — they're hundreds of lines of
+// XML that aren't part of the orchestra and just waste prompt budget while
+// confusing the adapter ("the source defines a 'gain' widget so I should keep
+// it" — no, you shouldn't, the Player has its own knobs).
+//
+// <MacOptions>, <MacGUI>, <EventPanel> are MacCsound holdovers in the same
+// spirit. Anything after the closing </CsoundSynthesizer> tag is, by definition,
+// not Csound — drop it.
+export function cleanSource(source: string): string {
+  let s = source.trim()
+  const closeTag = s.search(/<\/CsoundSynthesizer\s*>/i)
+  if (closeTag !== -1) {
+    const end = s.indexOf('>', closeTag) + 1
+    s = s.slice(0, end)
+  }
+  // Belt-and-suspenders for the rare CSD that puts the GUI block *inside*
+  // <CsoundSynthesizer> (shouldn't be valid, but CsoundQT has been known to).
+  s = s.replace(/<bsbPanel>[\s\S]*?<\/bsbPanel>/gi, '')
+  s = s.replace(/<bsbPresets>[\s\S]*?<\/bsbPresets>/gi, '')
+  s = s.replace(/<MacOptions>[\s\S]*?<\/MacOptions>/gi, '')
+  s = s.replace(/<MacGUI>[\s\S]*?<\/MacGUI>/gi, '')
+  s = s.replace(/<EventPanel>[\s\S]*?<\/EventPanel>/gi, '')
+  return s.trim()
+}
+
 export function buildConvertPrompt(target: ConvertTarget, source: string): string {
   const template =
     target === 'webapp' ? WEBAPP_TEMPLATE :
@@ -297,7 +323,7 @@ export function buildConvertPrompt(target: ConvertTarget, source: string): strin
     CSD_TEMPLATE
   return template
     .replace('<<<CHANNELS>>>', renderChannelList())
-    .replace('<<<SOURCE>>>', source.trim())
+    .replace('<<<SOURCE>>>', cleanSource(source))
 }
 
 // Quick heuristic: does this CSD already look Player-ready? If not, the caller

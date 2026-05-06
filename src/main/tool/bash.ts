@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { Tool } from './tool'
 import { spawn } from 'child_process'
+import { withCsoundPath } from '../util/csound-path'
 
 export const bash = Tool.define('bash', {
   description: 'Execute a shell command. Use for Csound CLI operations, file management, and system tasks.',
@@ -13,6 +14,7 @@ export const bash = Tool.define('bash', {
       const proc = spawn('bash', ['-c', command], {
         timeout: timeout * 1000,
         cwd: process.cwd(),
+        env: withCsoundPath(),
       })
 
       let stdout = ''
