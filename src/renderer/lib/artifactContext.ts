@@ -1,20 +1,24 @@
-import { useArtifactStore, type ArtifactType } from '../stores/artifactStore'
+import { useArtifactStore, primaryContent, type ArtifactType } from '../stores/artifactStore'
 
-// One short line per type. The full artifact body is already in conversation
-// history (it was the previous assistant message) — re-sending it would bloat
-// tokens and bust implicit prompt caching. All we need is a 1-line hint so the
-// model knows to preserve the current format.
+// One short line per type, so the model keeps the right output format.
 const FORMAT_HINT: Record<ArtifactType, string> = {
-  csd: 'active artifact: CSD — emit updated <CsoundSynthesizer>…</CsoundSynthesizer>',
-  webapp: 'active artifact: Web App — emit updated <!DOCTYPE html>…</html>; do not revert to a plain CSD',
-  vst: 'active artifact: Cabbage VST — keep the <Cabbage>…</Cabbage> section',
+  csd: 'Emit the full updated <CsoundSynthesizer>…</CsoundSynthesizer>.',
+  webapp: 'Emit the full updated <!DOCTYPE html>…</html>; do not revert to a plain CSD.',
+  vst: 'Keep the <Cabbage>…</Cabbage> section and emit the full updated document.',
 }
 
-// Prepend a single-line hint about which format to keep, only for assistant
-// follow-ups (i.e. when there's an active artifact AND a prior assistant turn
-// in history that already carries the full artifact content).
+// Wrap a follow-up so the model edits the artifact CURRENTLY OPEN in the panel,
+// not whatever happens to be last in the chat. We embed the active artifact's
+// exact current content as the base to modify. This is what makes "open an
+// older version (or hand-edit the code), then ask for a change" target that
+// version — relying on conversation history alone always edited the newest one.
 export function wrapWithArtifactContext(userText: string): string {
   const active = useArtifactStore.getState().getActive()
   if (!active) return userText
-  return `[${FORMAT_HINT[active.type]}]\n${userText}`
+  return (
+    `Modify the artifact currently open in the panel, shown below. Apply the change to THIS exact version, ` +
+    `not to any earlier or later version from the conversation. ${FORMAT_HINT[active.type]}\n\n` +
+    `<current-artifact type="${active.type}">\n${primaryContent(active)}\n</current-artifact>\n\n` +
+    userText
+  )
 }

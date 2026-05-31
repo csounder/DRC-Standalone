@@ -46,7 +46,7 @@ export default function AgentPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID, startNewSession, clearMessages } = useSessionStore()
   const [historyOpen, setHistoryOpen] = useState(false)
-  const { artifacts, panelOpen, addArtifact, updateInPlace, setActive } = useArtifactStore()
+  const { artifacts, panelOpen, addArtifact, updatePrimary, updateInPlace, setActive } = useArtifactStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
 
   useEffect(() => {
@@ -66,6 +66,9 @@ export default function AgentPage() {
   // First detection creates the artifact; subsequent updates mutate it in place.
   // When streaming completes and the artifact is a fresh CSD, autoplay it once.
   const autoPlayedRef = useRef<Set<string>>(new Set())
+  // The artifact version a follow-up edit should branch from — the one loaded in
+  // the panel at send time, not necessarily the newest. Set in handleSend.
+  const editBaseRef = useRef<string | null>(null)
   useEffect(() => {
     // Look for the most recent non-narration assistant message. Narration messages
     // are ambient context and never contain artifacts.
@@ -81,6 +84,17 @@ export default function AgentPage() {
 
     const existingId = msgArtifactMap.get(last.id)
     if (!existingId) {
+      // If this turn was an edit of the artifact loaded in the panel, branch the
+      // new version from THAT version (same title/lineage), not the newest one.
+      const base = editBaseRef.current
+        ? useArtifactStore.getState().artifacts.find((a) => a.id === editBaseRef.current)
+        : null
+      if (base && base.type === detected.type) {
+        const artifact = updatePrimary(base.id, detected.code)
+        setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
+        editBaseRef.current = null
+        return
+      }
       const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
       const artifact = addArtifact({ type: detected.type, title, content: detected.code })
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
@@ -192,6 +206,9 @@ export default function AgentPage() {
         // the current type. Plain follow-ups keep the format-preserving hint.
         const active = useArtifactStore.getState().getActive()
         const convertTo = active ? detectConvertIntent(text, active.type) : null
+        // A plain follow-up edits the loaded version in place (branch from it).
+        // A format conversion changes type, so it starts a fresh artifact chain.
+        editBaseRef.current = active && !convertTo ? active.id : null
         const payload = convertTo && active
           ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
           : wrapWithArtifactContext(text)
