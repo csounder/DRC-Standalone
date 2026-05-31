@@ -137,10 +137,11 @@ endin`,
 export default function WebAppsPage() {
   const [selectedApp, setSelectedApp] = useState<AppTemplate | null>(null)
   const [appCode, setAppCode] = useState('')
-  // Fraction of split width given to the code panel. Preview takes the rest.
-  // Default favors the preview since that's what the user actually interacts with.
-  const [codeFrac, setCodeFrac] = useState(0.30)
-  const [fullscreen, setFullscreen] = useState(false)
+  // Fraction of split width given to the code panel when it's open. Preview
+  // takes the rest. The preview is what the user interacts with, so the code
+  // panel is hidden by default and revealed on demand via "Open Code".
+  const [codeFrac, setCodeFrac] = useState(0.4)
+  const [showCode, setShowCode] = useState(false)
   const splitRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
   const { setCsdContent } = useEditorStore()
@@ -238,19 +239,19 @@ export default function WebAppsPage() {
                 Open in CSD Editor
               </button>
               <button
-                onClick={() => setFullscreen((v) => !v)}
-                style={styles.toolbarButton}
-                title={fullscreen ? 'Exit fullscreen' : 'Preview fullscreen'}
+                onClick={() => setShowCode((v) => !v)}
+                style={showCode ? styles.toolbarButtonPrimary : styles.toolbarButton}
+                title={showCode ? 'Hide the HTML source' : 'Show the HTML source'}
               >
-                {fullscreen ? '↙ Exit Fullscreen' : '⤢ Fullscreen'}
+                {showCode ? '✕ Hide Code' : '⟨⟩ Open Code'}
               </button>
             </div>
           </div>
 
           <div ref={splitRef} style={styles.editorSplit}>
-            {!fullscreen && (
+            {showCode && (
               <>
-                {/* Code */}
+                {/* Code (revealed on demand) */}
                 <div style={{ ...styles.codePanel, flex: `0 0 ${codeFrac * 100}%` }}>
                   <div style={styles.codePanelHeader}>
                     <span style={styles.fileName}>index.html</span>
@@ -272,11 +273,13 @@ export default function WebAppsPage() {
               </>
             )}
 
-            {/* Live preview */}
+            {/* Live preview — full width by default, header only when sharing space */}
             <div style={{ ...styles.previewPanel, flex: 1 }}>
-              <div style={styles.codePanelHeader}>
-                <span style={styles.fileName}>Preview</span>
-              </div>
+              {showCode && (
+                <div style={styles.codePanelHeader}>
+                  <span style={styles.fileName}>Preview</span>
+                </div>
+              )}
               <iframe
                 srcDoc={appCode || buildHtmlApp(selectedApp)}
                 style={styles.previewFrame}
