@@ -4,10 +4,13 @@ import { useSessionStore, type AgentMode, type Message } from '../stores/session
 import { useArtifactStore, primaryContent, type Artifact } from '../stores/artifactStore'
 import ArtifactPanel from '../components/artifacts/ArtifactPanel'
 import ArtifactCard from '../components/chat/ArtifactCard'
+import MessageFeedback from '../components/chat/MessageFeedback'
+import ProfileBadge from '../components/chat/ProfileBadge'
+import SessionHistory from '../components/chat/SessionHistory'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
-import { buildConvertPrompt, type ConvertTarget } from '../prompts/convert'
+import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../prompts/convert'
 import { playArtifact, stopPlayback, resetAutofix } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
@@ -15,7 +18,6 @@ import { wrapWithArtifactContext } from '../lib/artifactContext'
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
   'csound-sine': { label: 'Sine', color: '#f0b27a' },
-  sketch: { label: 'Sketch', color: '#c5a3d9' },
 }
 
 // Strip emojis and the simplest markdown so the chat bubble reads as plain prose
@@ -41,7 +43,8 @@ export default function AgentPage() {
   const [providersAvailable, setProvidersAvailable] = useState<string[] | null>(null)
   const playingArtifactId = usePlaybackStore((s) => s.artifactId)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID } = useSessionStore()
+  const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID, startNewSession, clearMessages } = useSessionStore()
+  const [historyOpen, setHistoryOpen] = useState(false)
   const { artifacts, panelOpen, addArtifact, updateInPlace, setActive } = useArtifactStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
 
@@ -125,6 +128,35 @@ export default function AgentPage() {
     }
   }, [sessionID, agentMode])
 
+  const newChat = useCallback(() => {
+    void stopPlayback()
+    resetAutofix(sessionID)
+    startNewSession()
+    setMsgArtifactMap(new Map())
+    autoPlayedRef.current = new Set()
+  }, [sessionID, startNewSession])
+
+  // Reopen a persisted chat. We pre-seed autoPlayedRef with the loaded message
+  // ids so restoring a session that ends in a CSD doesn't blast audio on open.
+  const loadSession = useCallback(async (id: string) => {
+    if (!window.api?.session) return
+    const data: any = await window.api.session.get(id)
+    if (!data) return
+    void stopPlayback()
+    resetAutofix(sessionID)
+    clearMessages()
+    setMsgArtifactMap(new Map())
+    setSessionID(data.id)
+    if (['csound', 'csound-sine'].includes(data.agent)) setAgentMode(data.agent)
+    const loaded = new Set<string>()
+    for (const m of data.messages ?? []) {
+      if (m.role !== 'user' && m.role !== 'assistant') continue
+      addMessage({ id: m.id, role: m.role, content: m.content, timestamp: m.timestamp })
+      if (m.role === 'assistant') loaded.add(m.id)
+    }
+    autoPlayedRef.current = loaded // suppress autoplay for restored turns
+  }, [sessionID, clearMessages, setSessionID, setAgentMode, addMessage])
+
   const handlePlay = useCallback((artifact: Artifact) => {
     void playArtifact(artifact)
   }, [])
@@ -152,9 +184,17 @@ export default function AgentPage() {
           sid = session.id
           setSessionID(sid)
         }
-        // Wrap the message with the currently-open artifact so follow-up edits
-        // stay in that artifact's format (HTML stays HTML, VST stays VST).
-        await window.api.session.send(sid, wrapWithArtifactContext(text))
+        // If the message is really a request to switch the open artifact to a
+        // different format ("make it a web app"), route it through the same
+        // proven convert template the "Convert to" button uses — otherwise the
+        // preserve-format hint below would fight the switch and keep emitting
+        // the current type. Plain follow-ups keep the format-preserving hint.
+        const active = useArtifactStore.getState().getActive()
+        const convertTo = active ? detectConvertIntent(text, active.type) : null
+        const payload = convertTo && active
+          ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
+          : wrapWithArtifactContext(text)
+        await window.api.session.send(sid, payload)
       } else {
         addMessage({ id: `msg_${Date.now()}`, role: 'assistant', content: 'Not connected — restart app.', timestamp: Date.now() })
         setStreaming(false)
@@ -193,6 +233,9 @@ export default function AgentPage() {
     const text = stripArtifact(msg.content)
     const artifactId = msgArtifactMap.get(msg.id)
     const artifact = artifactId ? artifacts.find((a) => a.id === artifactId) : null
+    // Don't offer feedback on the turn that's still streaming in.
+    const streamingThis = isStreaming && messages[messages.length - 1]?.id === msg.id
+    const showFeedback = !streamingThis && (Boolean(text) || Boolean(artifact))
 
     return (
       <div key={msg.id} style={styles.assistantRow}>
@@ -207,6 +250,7 @@ export default function AgentPage() {
               onStop={handleStop}
             />
           )}
+          {showFeedback && <MessageFeedback messageId={msg.id} content={msg.content} />}
         </div>
       </div>
     )
@@ -214,8 +258,28 @@ export default function AgentPage() {
 
   return (
     <div style={styles.page}>
+      <SessionHistory
+        open={historyOpen}
+        currentSessionID={sessionID}
+        onClose={() => setHistoryOpen(false)}
+        onLoad={(id) => void loadSession(id)}
+      />
+
       {/* Chat side */}
       <div style={styles.chatSide}>
+        <div style={styles.topBar}>
+          <button style={styles.topBtn} onClick={() => setHistoryOpen(true)} title="Session history">
+            ☰ History
+          </button>
+          <button
+            style={styles.topBtn}
+            onClick={newChat}
+            disabled={messages.length === 0 && !sessionID}
+            title="Start a new chat"
+          >
+            ＋ New
+          </button>
+        </div>
         {messages.length === 0 ? (
           /* Landing — centered hero + input (Claude-style) */
           <div style={styles.landing}>
@@ -312,7 +376,10 @@ export default function AgentPage() {
               </button>
             ))}
           </div>
-          <span style={styles.hint}>Artifacts: CSD · Web App · VST</span>
+          <div style={styles.footerRight}>
+            <ProfileBadge />
+            <span style={styles.hint}>CSD · Web App · VST</span>
+          </div>
         </div>
       </div>
     )
@@ -322,7 +389,25 @@ export default function AgentPage() {
 const styles: Record<string, CSSProperties> = {
   page: { height: '100%', display: 'flex', background: 'var(--bg-primary)' },
 
-  chatSide: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
+  chatSide: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' },
+
+  topBar: {
+    display: 'flex',
+    gap: 6,
+    padding: '8px 16px',
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  topBtn: {
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    fontSize: 11,
+    fontFamily: 'var(--font-primary)',
+    padding: '4px 10px',
+    borderRadius: 8,
+    cursor: 'pointer',
+  },
+  footerRight: { display: 'flex', alignItems: 'center', gap: 10 },
 
   messages: { flex: 1, overflow: 'auto', padding: '24px 0' },
 

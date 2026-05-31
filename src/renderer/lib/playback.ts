@@ -10,6 +10,8 @@ const AUTOFIX_LIMIT = 2
 
 export function resetAutofix(sessionID: string | null): void {
   if (sessionID) autofixAttempts.delete(sessionID)
+  // A fresh user prompt ends any in-flight fix attribution.
+  useSessionStore.getState().setLastFailure(null)
 }
 
 // Single owner of the csound play/stop flow. Both the chat artifact card and
@@ -29,6 +31,12 @@ export async function playArtifact(artifact: Artifact): Promise<void> {
         status: 'error',
         message: `Compile error: ${errMsg}`,
       })
+      // Remember what failed so a later successful play becomes a learned fix.
+      useSessionStore.getState().setLastFailure({
+        errorRaw: errMsg,
+        brokenCsd: primaryContent(artifact),
+        kind: 'compile',
+      })
       void requestAutofix(artifact, errMsg, 'compile')
       return
     }
@@ -43,12 +51,31 @@ export async function playArtifact(artifact: Artifact): Promise<void> {
     if (current.artifactId !== artifact.id) return
 
     if (res.success) {
+      // If this artifact previously failed and was auto-fixed, the now-working
+      // CSD is the fix — store the error→fix pair so the agent learns from it.
+      const failure = useSessionStore.getState().lastFailure
+      const fixedCsd = primaryContent(artifact)
+      if (failure && fixedCsd && fixedCsd !== failure.brokenCsd) {
+        useSessionStore.getState().sendFeedback('accepted_fix', {
+          errorRaw: failure.errorRaw,
+          brokenCsd: failure.brokenCsd,
+          fixedCsd,
+          kind: failure.kind,
+        })
+        useSessionStore.getState().setLastFailure(null)
+      }
       usePlaybackStore.getState().clear()
     } else {
       const errMsg = String(res.error ?? '').slice(0, 300)
       usePlaybackStore.getState().set({
         status: 'error',
         message: `Error: ${errMsg.slice(0, 160)}`,
+      })
+      // Remember what failed so a later successful play becomes a learned fix.
+      useSessionStore.getState().setLastFailure({
+        errorRaw: errMsg,
+        brokenCsd: primaryContent(artifact),
+        kind: 'runtime',
       })
       // INIT ERROR / PERF ERROR / silent output all surface here, not from the
       // syntax-check compile step. Close the loop so these get autofixed too.

@@ -1,5 +1,6 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import { SessionManager } from '../session/session'
+import { MemoryStore } from '../memory/store'
 import '../tool/registry'
 import { Log } from '../util/log'
 
@@ -53,7 +54,8 @@ export function handleAgentIPC(ipcMain: IpcMain): void {
     return SessionManager.list().map((s) => ({
       id: s.id,
       agent: s.agentName,
-      messageCount: s.messages.length,
+      title: s.title ?? null,
+      messageCount: s.messages.length || MemoryStore.messageCount(s.id),
       createdAt: s.createdAt,
     }))
   })

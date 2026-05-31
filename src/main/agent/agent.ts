@@ -4,7 +4,6 @@ import { z } from 'zod'
 // copied into out/main — inlining avoids the whole class of resolution bugs.
 import csoundPromptText from './prompts/csound.txt?raw'
 import csoundSinePromptText from './prompts/csound-sine.txt?raw'
-import sketchPromptText from './prompts/sketch.txt?raw'
 import csoundSynthesisPromptText from './prompts/csound-synthesis.txt?raw'
 import csoundEffectsPromptText from './prompts/csound-effects.txt?raw'
 import csoundModulationPromptText from './prompts/csound-modulation.txt?raw'
@@ -13,7 +12,6 @@ import narratorPromptText from './prompts/narrator.txt?raw'
 const PROMPTS: Record<string, string> = {
   csound: csoundPromptText,
   'csound-sine': csoundSinePromptText,
-  sketch: sketchPromptText,
   'csound-synthesis': csoundSynthesisPromptText,
   'csound-effects': csoundEffectsPromptText,
   'csound-modulation': csoundModulationPromptText,
@@ -64,16 +62,6 @@ export namespace Agent {
       prompt: loadPrompt('csound-sine'),
       color: '#f0b27a',
       options: { designMode: true, sineMode: true },
-    },
-    sketch: {
-      name: 'sketch',
-      description: 'Exploration-first creative mode for rapid sonic sketching',
-      mode: 'primary',
-      temperature: 0.8,
-      model: undefined, // Resolved at runtime via Provider.defaultProvider()
-      prompt: loadPrompt('sketch'),
-      color: '#c5a3d9',
-      options: { sketchMode: true },
     },
     'csound-synthesis': {
       name: 'csound-synthesis',
@@ -135,9 +123,5 @@ export namespace Agent {
 
   export function isSineMode(agent: Info): boolean {
     return agent.options?.sineMode === true
-  }
-
-  export function isSketchMode(agent: Info): boolean {
-    return agent.options?.sketchMode === true
   }
 }

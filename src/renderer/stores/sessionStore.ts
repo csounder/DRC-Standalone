@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type AgentMode = 'csound' | 'csound-sine' | 'sketch'
+export type AgentMode = 'csound' | 'csound-sine'
 
 export interface Message {
   id: string
@@ -11,11 +11,20 @@ export interface Message {
   timestamp: number
 }
 
+// What failed last, so a subsequent successful play can be recorded as an
+// error→fix pair in memory. Set by playback.ts before it requests an autofix.
+export interface LastFailure {
+  errorRaw: string
+  brokenCsd: string
+  kind: 'compile' | 'runtime'
+}
+
 interface SessionState {
   sessionID: string | null
   messages: Message[]
   agentMode: AgentMode
   isStreaming: boolean
+  lastFailure: LastFailure | null
   setSessionID: (id: string) => void
   addMessage: (msg: Message) => void
   appendToLast: (content: string) => void
@@ -23,6 +32,9 @@ interface SessionState {
   setAgentMode: (mode: AgentMode) => void
   setStreaming: (streaming: boolean) => void
   clearMessages: () => void
+  startNewSession: () => void
+  setLastFailure: (f: LastFailure | null) => void
+  sendFeedback: (kind: string, payload?: Record<string, unknown>) => void
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -30,6 +42,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   messages: [],
   agentMode: 'csound',
   isStreaming: false,
+  lastFailure: null,
 
   setSessionID: (id) => set({ sessionID: id }),
 
@@ -60,4 +73,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setAgentMode: (mode) => set({ agentMode: mode }),
   setStreaming: (streaming) => set({ isStreaming: streaming }),
   clearMessages: () => set({ messages: [] }),
+
+  // Drop back to a clean slate; the next send() mints a fresh persisted session.
+  startNewSession: () => set({ sessionID: null, messages: [], lastFailure: null }),
+
+  setLastFailure: (f) => set({ lastFailure: f }),
+
+  sendFeedback: (kind, payload) => {
+    const sessionID = get().sessionID
+    const p = window.api?.memory?.feedback?.(kind, { sessionId: sessionID, ...payload })
+    // Let the profile badge refresh once the heuristic model has updated.
+    void Promise.resolve(p).then(() =>
+      window.dispatchEvent(new CustomEvent('drc:profile-changed')),
+    )
+  },
 }))

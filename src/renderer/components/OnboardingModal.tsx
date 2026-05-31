@@ -128,8 +128,9 @@ function Welcome() {
         <span style={{ color: 'var(--accent)' }}>C</span>
       </h1>
       <p style={styles.lede}>
-        A studio for computer music. Chat with an agent, sculpt Csound patches, play
-        them live, and explore the field&rsquo;s history — all in one place.
+        Csound, with an AI agent built in. Generate instruments from a description,
+        perform them live with knobs and a keyboard, and dig into where computer music
+        came from.
       </p>
       <p style={styles.body}>
         This tour takes about thirty seconds. You can skip it any time.

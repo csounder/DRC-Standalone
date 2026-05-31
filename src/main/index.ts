@@ -3,6 +3,7 @@ import { join, resolve } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllIPC } from './ipc/register'
+import { MemoryDB } from './memory/db'
 
 // Prevent GPU crashes in Electron
 app.disableHardwareAcceleration()
@@ -86,6 +87,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  MemoryDB.init() // open the persistent memory DB before any memory:* handler can fire
   registerAllIPC()
   createWindow()
 

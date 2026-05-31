@@ -81,6 +81,10 @@ const api = {
     save: (type: string, data: unknown) =>
       ipcRenderer.invoke('memory:save', type, data),
     getProfile: () => ipcRenderer.invoke('memory:profile'),
+    feedback: (kind: string, payload?: Record<string, unknown>) =>
+      ipcRenderer.invoke('memory:feedback', kind, payload ?? {}),
+    lessons: () => ipcRenderer.invoke('memory:lessons'),
+    deleteLesson: (id: string) => ipcRenderer.invoke('memory:deleteLesson', id),
   },
 
   config: {

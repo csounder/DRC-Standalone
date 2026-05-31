@@ -72,7 +72,7 @@ export default function SplashScreen({ onDone }: Props) {
           <span style={styles.mark}>Dr</span>
           <span style={styles.markAccent}>C</span>
         </div>
-        <div style={styles.subtitle}>A studio for computer music.</div>
+        <div style={styles.subtitle}>Csound, with an AI agent built in.</div>
         <div style={styles.pulse} aria-hidden />
       </div>
       <div style={styles.skipHint}>click or press any key to skip</div>

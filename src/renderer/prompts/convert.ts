@@ -345,3 +345,37 @@ export function needsPlayerAdapt(source: string): boolean {
   if (!/\blinsegr\b/i.test(source)) return true
   return false
 }
+
+// Detect when a free-text chat message is really a request to convert the
+// active artifact into a *different* format ("make it a web app", "export as
+// a VST", "give me the plain CSD"). When it is, the caller should route the
+// message through buildConvertPrompt() — the same proven path the "Convert
+// to" button uses — instead of a normal follow-up, which would otherwise be
+// told to preserve the current format and ignore the switch.
+//
+// Conservative by design: only fires on phrasings that name a target format,
+// and only returns a target that differs from the artifact already open.
+const CONVERT_INTENT: { type: ConvertTarget; re: RegExp }[] = [
+  {
+    type: 'webapp',
+    re: /\b(web\s?app|web\s?site|web version|html (?:page|app|document|version)|in the browser|as html|browser app)\b/i,
+  },
+  {
+    type: 'vst',
+    re: /\b(vst|au plugin|audio unit|cabbage|plugin|daw)\b/i,
+  },
+  {
+    type: 'csd',
+    re: /\b(plain csd|raw csd|back to (?:a )?csd|just (?:the )?csd|csd instrument|extract (?:the )?csd)\b/i,
+  },
+]
+
+export function detectConvertIntent(
+  text: string,
+  activeType: 'csd' | 'webapp' | 'vst',
+): 'csd' | 'webapp' | 'vst' | null {
+  for (const { type, re } of CONVERT_INTENT) {
+    if (type !== activeType && re.test(text)) return type
+  }
+  return null
+}
