@@ -9,6 +9,7 @@ export interface Message {
   type?: 'text' | 'tool_call' | 'tool_result' | 'narration'
   toolName?: string
   timestamp: number
+  suggestions?: string[] // one-click follow-up prompts (on narration messages)
 }
 
 // What failed last, so a subsequent successful play can be recorded as an
@@ -29,6 +30,7 @@ interface SessionState {
   addMessage: (msg: Message) => void
   appendToLast: (content: string) => void
   appendById: (id: string, content: string) => void
+  setMessageSuggestions: (id: string, suggestions: string[]) => void
   setAgentMode: (mode: AgentMode) => void
   setStreaming: (streaming: boolean) => void
   clearMessages: () => void
@@ -67,6 +69,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (idx === -1) return {}
       const msgs = [...s.messages]
       msgs[idx] = { ...msgs[idx], content: msgs[idx].content + content }
+      return { messages: msgs }
+    }),
+
+  setMessageSuggestions: (id, suggestions) =>
+    set((s) => {
+      const idx = s.messages.findIndex((m) => m.id === id)
+      if (idx === -1) return {}
+      const msgs = [...s.messages]
+      msgs[idx] = { ...msgs[idx], suggestions }
       return { messages: msgs }
     }),
 

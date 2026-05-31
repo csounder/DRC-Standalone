@@ -33,6 +33,7 @@ function cleanChatText(text: string): string {
     .replace(/(^|\s)\*([^*\n]+)\*(?=\s|$|[.,;:!?])/g, '$1$2') // italics
     .replace(/^[ \t]*[-*+][ \t]+/gm, '')          // bullet markers
     .replace(/^[ \t]*\d+\.[ \t]+/gm, '')          // ordered list markers
+    .replace(/\s*[—–]\s*/g, ', ')                  // em/en dashes -> comma (backstop)
     .replace(/\n{3,}/g, '\n\n')                    // collapse big gaps
     .trim()
 }
@@ -217,14 +218,33 @@ export default function AgentPage() {
     }
 
     if (msg.type === 'narration') {
-      // Strip the narrator's trailing "Keywords: ..." line so it reads as prose.
-      const body = msg.content.replace(/\n?Keywords:[^\n]*$/i, '').trim()
+      // Strip the narrator's trailing "Keywords: ..." line so it reads as prose,
+      // and convert any em/en dashes to commas (backstop for the no-dash rule).
+      const body = msg.content
+        .replace(/\n?Keywords:[^\n]*$/i, '')
+        .replace(/\s*[—–]\s*/g, ', ')
+        .trim()
       if (!body) return null
       return (
         <div key={msg.id} style={styles.assistantRow}>
           <div style={styles.narrationBubble}>
             <span style={styles.narrationLabel}>CONTEXT</span>
             <p style={styles.narrationText}>{body}</p>
+            {msg.suggestions && msg.suggestions.length > 0 && (
+              <div style={styles.suggestionRow}>
+                {msg.suggestions.map((s) => (
+                  <button
+                    key={s}
+                    style={styles.suggestionChip}
+                    disabled={isStreaming}
+                    onClick={() => handleSend(s)}
+                    title={`Generate: ${s}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )
@@ -442,6 +462,31 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--text-secondary)',
     fontStyle: 'italic',
     margin: 0,
+  },
+  suggestionRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  suggestionChip: {
+    width: '100%',
+    maxWidth: 340,
+    textAlign: 'center',
+    padding: '8px 14px',
+    borderRadius: 10,
+    border: '1px solid var(--accent)',
+    background: 'transparent',
+    color: 'var(--accent)',
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: 'var(--font-primary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    transition: 'background 150ms ease, opacity 150ms ease',
   },
 
   msgText: { fontSize: 14, lineHeight: 1.65, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 },

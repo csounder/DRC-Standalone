@@ -46,6 +46,16 @@ export function useStream() {
             timestamp: Date.now(),
           })
         }
+      } else if (chunk.type === 'suggestions') {
+        // Clickable follow-up prompts attach to the current CONTEXT message.
+        if (narrationIdRef.current) {
+          try {
+            const arr = JSON.parse(chunk.content)
+            if (Array.isArray(arr)) store.setMessageSuggestions(narrationIdRef.current, arr)
+          } catch {
+            /* ignore malformed suggestions */
+          }
+        }
       } else if (chunk.type === 'error') {
         store.addMessage({
           id: `msg_${Date.now()}_e`,

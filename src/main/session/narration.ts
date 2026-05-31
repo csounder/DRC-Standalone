@@ -1,4 +1,4 @@
-import { streamText } from 'ai'
+import { streamText, generateText } from 'ai'
 import { Agent } from '../agent/agent'
 import { Provider } from '../provider/provider'
 import { Retrieval } from '../retrieval/engine'
@@ -26,6 +26,44 @@ function extractTopic(raw: string): string {
   return s || raw.slice(0, 100)
 }
 
+// Canonical attributions that MUST appear when the topic matches, regardless of
+// what the retrieval happens to surface. Keeps the narrator from omitting the
+// obvious origin (e.g. talking about FM without naming John Chowning).
+const CANONICAL_FACTS: { re: RegExp; fact: string }[] = [
+  {
+    re: /\bfm\b|frequency modulation|\bdx7\b|chowning|fmod|modulation index/i,
+    fact: 'FM (frequency modulation) synthesis was invented by John Chowning at Stanford (1967–1973) and licensed to Yamaha, powering the DX7.',
+  },
+  {
+    re: /\bbell\b|risset|additive|gbuzz|partials/i,
+    fact: 'Jean-Claude Risset pioneered additive synthesis and computer modeling of bell and brass tones at Bell Labs in the 1960s.',
+  },
+  {
+    re: /granular|grain|partikkel|sndwarp/i,
+    fact: 'Granular synthesis traces to Dennis Gabor’s acoustic quanta (1947) and was developed musically by Iannis Xenakis and Curtis Roads.',
+  },
+  {
+    re: /physical model|waveguide|pluck|karplus|wgbow|wgflute|wgbrass/i,
+    fact: 'Physical modeling via digital waveguides was developed by Julius O. Smith III at Stanford CCRMA; Karplus–Strong (1983) is the classic plucked-string case.',
+  },
+  {
+    re: /subtractive|moog|ladder|vcf|moogladder/i,
+    fact: 'Subtractive synthesis was popularized by Robert Moog’s voltage-controlled ladder filter in the 1960s.',
+  },
+  {
+    re: /reverb|schroeder|freeverb|reverbsc/i,
+    fact: 'Manfred Schroeder devised the first digital reverberation algorithms (comb and allpass networks) at Bell Labs in the early 1960s.',
+  },
+  {
+    re: /vocoder|cross-?synth|channel vocoder/i,
+    fact: 'The vocoder was invented by Homer Dudley at Bell Labs (1938); its analysis/resynthesis idea underlies cross-synthesis.',
+  },
+]
+
+function matchedCanonicalFacts(topic: string): string[] {
+  return CANONICAL_FACTS.filter((c) => c.re.test(topic)).map((c) => c.fact)
+}
+
 export namespace NarrationManager {
   const COOLDOWN_MS = 15_000
   const firedMap = new Map<string, number>()
@@ -43,10 +81,14 @@ export namespace NarrationManager {
   // user is asking about. Pulls passages from the Csound book and (optional)
   // graph entities so the narration references real, citeable context rather
   // than hallucinated lore. Runs in parallel with the main code-generation call.
+  export type NarrationEvent =
+    | { type: 'narration'; content: string }
+    | { type: 'suggestions'; content: string } // content = JSON string[]
+
   export async function* streamNarration(
     userQuery: string,
     csdContext: string = ''
-  ): AsyncGenerator<string> {
+  ): AsyncGenerator<NarrationEvent> {
     const narratorAgent = Agent.get('narrator')
     if (!narratorAgent || !narratorAgent.prompt) {
       Log.warn('Narrator agent not configured')
@@ -85,14 +127,24 @@ export namespace NarrationManager {
     for (const ex of exampleChunks) {
       refs.push(`<example id="${ex.id}">\n${ex.content.slice(0, 600)}\n</example>`)
     }
-    const grounding = refs.length
-      ? `\n\n<grounding>\n${refs.join('\n')}\n</grounding>`
+    // Authoritative attributions that MUST be honored for this topic (e.g. FM ->
+    // Chowning), independent of what retrieval surfaced.
+    const canonical = matchedCanonicalFacts(topic)
+    const factsBlock = canonical.length
+      ? `\n\n<authoritative-facts>\n${canonical.join('\n')}\n</authoritative-facts>`
+      : ''
+
+    const grounding =
+      (refs.length ? `\n\n<grounding>\n${refs.join('\n')}\n</grounding>` : '') + factsBlock
+
+    const mustName = canonical.length
+      ? ` You MUST name the originator/origin from <authoritative-facts> (for FM that means John Chowning).`
       : ''
 
     const userContent =
       `Topic: "${topic}"` +
       grounding +
-      `\n\nProvide EXACTLY 2-3 sentences of historical/educational context on this topic, grounded in the passages above. Cite a specific composer, instrument, studio, year, or work when the passages support it. NO code. NO CSD. NO emojis. NO markdown. NO bullet points. NO headers. Plain prose only.`
+      `\n\nProvide EXACTLY 2 short, COMPLETE sentences of historical/educational context, grounded in the material above. Each sentence must be under 22 words and end with a period.${mustName} Cite a specific composer, instrument, studio, year, or work when supported. Do NOT run sentences together. NEVER use em dashes or en dashes (— or –) or semicolons; use short separate sentences instead. NO code. NO CSD. NO emojis. NO markdown. NO bullet points. NO headers. Plain prose only.`
 
     try {
       const stream = streamText({
@@ -158,7 +210,7 @@ export namespace NarrationManager {
         const kwIdx = buf.search(/\n?Keywords:/i)
         if (kwIdx >= 0) buf = buf.slice(0, kwIdx)
 
-        for (const out of flushCompleteSentences(false)) yield out
+        for (const out of flushCompleteSentences(false)) yield { type: 'narration', content: out }
         if (stopped) break
 
         // Safety valve: if the model's been going without any terminator and
@@ -168,7 +220,7 @@ export namespace NarrationManager {
           const lastSpace = slice.lastIndexOf(' ')
           const cut = lastSpace > 40 ? lastSpace : slice.length
           const tail = buf.slice(0, cut).trim()
-          if (tail) yield (emittedChars === 0 ? tail : ' ' + tail) + '…'
+          if (tail) yield { type: 'narration', content: (emittedChars === 0 ? tail : ' ' + tail) + '…' }
           stopped = true
           break
         }
@@ -178,10 +230,50 @@ export namespace NarrationManager {
       // sentences are still in the buffer, and if what's left looks like a
       // near-complete sentence, emit it too.
       if (!stopped) {
-        for (const out of flushCompleteSentences(true)) yield out
+        for (const out of flushCompleteSentences(true)) yield { type: 'narration', content: out }
+      }
+
+      // Follow-up: turn the names/works the narrator surfaced into 2-3 one-click
+      // prompts ("Generate a classic Risset bell"). Best-effort and grounded in
+      // the same passages, so suggestions point at things the agent can build.
+      const suggestions = await generateSuggestions(model, topic, grounding)
+      if (suggestions.length > 0) {
+        yield { type: 'suggestions', content: JSON.stringify(suggestions) }
       }
     } catch (err: any) {
       Log.warn(`Narration stream failed: ${err.message}`)
+    }
+  }
+
+  // Generate short, imperative "make this next" prompts from the same grounding.
+  async function generateSuggestions(
+    model: any,
+    topic: string,
+    grounding: string,
+  ): Promise<string[]> {
+    try {
+      const { text } = await generateText({
+        model,
+        system:
+          `You suggest follow-up sound-design prompts for a Csound generator. Given a topic and reference passages, propose specific instruments, techniques, or famous works the user could ask the agent to GENERATE next.`,
+        messages: [
+          {
+            role: 'user',
+            content:
+              `Topic: "${topic}"${grounding}\n\nList 3 short imperative prompts (4 to 8 words each) the user could click to generate something concrete related to this topic. Name specific instruments, composers, or works when the passages support it. Examples: "Generate a classic Risset bell", "Build a Chowning FM brass", "Make a Risset endless glissando". Output ONLY the prompts, one per line, no numbering, no quotes, no extra text.`,
+          },
+        ],
+        temperature: 0.7,
+        maxTokens: 90,
+      })
+      return text
+        .split('\n')
+        .map((l) => l.replace(/^[\s\-*\d.)]+/, '').replace(/^["'`]|["'`]$/g, '').trim())
+        .filter((l) => l.length >= 4 && l.length <= 60)
+        .slice(0, 3)
+    } catch (err: any) {
+      Log.warn(`Suggestion generation failed: ${err.message}`)
+      return []
     }
   }
 }

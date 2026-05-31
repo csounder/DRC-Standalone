@@ -196,8 +196,8 @@ export namespace SessionManager {
       NarrationManager.markFired(sessionID)
       ;(async () => {
         try {
-          for await (const chunk of NarrationManager.streamNarration(content, lastCsd)) {
-            push({ type: 'narration', content: chunk })
+          for await (const ev of NarrationManager.streamNarration(content, lastCsd)) {
+            push({ type: ev.type, content: ev.content })
           }
         } catch (err: any) {
           Log.warn(`Narration error: ${err.message}`)
@@ -329,7 +329,13 @@ You can create three types of artifacts. The user's UI auto-detects them from yo
 Always output the full artifact code — never truncate or use placeholders.
 
 Pick the format from the user's intent, not from a default. If the user mentions a "web app", "web version", "website", "browser", or "HTML", emit a Web App (\`<!DOCTYPE html>\`). If they mention a "VST", "AU", "plugin", "Cabbage", or "DAW", emit a VST. Otherwise emit a CSD. When the user asks to switch an existing artifact — "make it a web app", "turn this into a plugin", "give me the plain CSD" — transform the current artifact into the requested format and emit the full document in that format; do not keep the old format.
-</artifacts>`)
+</artifacts>
+
+<response-style>
+Keep prose extremely brief. Before an artifact, write at most ONE short sentence on what you are making. After it, at most ONE short sentence (or none). Do not explain the code line by line, list features, or recap. The artifact speaks for itself; the user can ask for detail if they want it. Spend your output budget on the artifact, not prose, so the CSD is never truncated.
+
+Never use em dashes or en dashes (— or –). Use a comma, a period, parentheses, or the word "to" instead.
+</response-style>`)
 
   return parts.join('\n\n')
 }
