@@ -12,7 +12,7 @@ export const TAB_META: TabMeta[] = [
     label: 'Agent',
     icon: '⬡',
     description: 'Chat with the agent to generate and iterate on Csound pieces.',
-    long: 'Describe a sound, sketch, or instrument in plain language. The agent writes CSD, web apps, or VST drafts inline — play, edit, or convert them without leaving the conversation.',
+    long: 'Describe a sound, sketch, or instrument in plain language. The agent writes CSD, web apps, or Cabbage plugin drafts inline — play, edit, or convert them without leaving the conversation.',
   },
   {
     path: '/apps',

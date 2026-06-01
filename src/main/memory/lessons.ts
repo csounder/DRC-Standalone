@@ -20,8 +20,13 @@ Decide if the user's latest message states a DURABLE preference or standing rule
 Durable (capture): "always use reverbsc", "when I ask for a granular cloud texture make it tonal", "I prefer long decays", "never let it clip", "by default keep pieces under 30s".
 One-off (ignore): "make a granular pad", "add more reverb to this one", "louder", "now make it darker".
 
-If durable, reply with ONE concise imperative rule under 140 characters, no preamble.
-If not durable, reply with exactly: NONE`
+If it is durable, rewrite it as ONE precise, ACTIONABLE rule the model can implement directly in Csound code. Make abstract words concrete by naming the synthesis mechanism, because a terse restatement gets interpreted loosely and ignored. Examples of the transformation:
+- user "make granular clouds tonal" -> "When making granular cloud textures, quantize every grain pitch to a fixed musical scale or chord (e.g. a scale table read with cpsmidinn) so the cloud has a clear tonal center. Do not use continuous random pitch or random detuning."
+- user "never let it clip" -> "Keep the output below 0dbfs: scale amp conservatively and add a limiter on the master, never let peaks exceed 1.0."
+- user "I like long decays" -> "Default to long release/decay envelopes (several seconds) on sustained instruments unless asked otherwise."
+
+Keep it under 240 characters, imperative, no preamble.
+If it is NOT durable, reply with exactly: NONE`
 
 export namespace Lessons {
   export async function maybeCapture(
@@ -40,12 +45,12 @@ export namespace Lessons {
         system: EXTRACT_SYSTEM,
         messages: [{ role: 'user', content: userText }],
         temperature: 0,
-        maxTokens: 60,
+        maxTokens: 140,
       })
 
       const rule = text.trim().replace(/^["'`]|["'`]$/g, '').trim()
       if (!rule || /^none\b/i.test(rule)) return
-      if (rule.length > 200) return // guard against the model rambling
+      if (rule.length > 320) return // guard against the model rambling
 
       const id = MemoryStore.saveLesson(rule, sessionId)
       if (id) Bus.emit('memory:lessons-updated')

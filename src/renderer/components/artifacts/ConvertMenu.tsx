@@ -4,11 +4,11 @@ import type { ArtifactType } from '../../stores/artifactStore'
 const TARGETS: Record<ArtifactType, { key: 'csd' | 'webapp' | 'vst'; label: string; icon: string }[]> = {
   csd: [
     { key: 'webapp', label: 'Web App', icon: '◫' },
-    { key: 'vst', label: 'VST Plugin', icon: '⬡' },
+    { key: 'vst', label: 'Cabbage Plugin', icon: '⬡' },
   ],
   webapp: [
     { key: 'csd', label: 'CSD Instrument', icon: '♪' },
-    { key: 'vst', label: 'VST Plugin', icon: '⬡' },
+    { key: 'vst', label: 'Cabbage Plugin', icon: '⬡' },
   ],
   vst: [
     { key: 'csd', label: 'CSD Instrument', icon: '♪' },

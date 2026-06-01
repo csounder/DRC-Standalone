@@ -63,7 +63,7 @@ export namespace MemoryRetrieval {
     if (lessons.length === 0) return ''
     const lines = [
       `<remembered-instructions>`,
-      `Standing rules this user has given you. Follow them unless the current request explicitly overrides one:`,
+      `Standing rules this user has explicitly given you. They are BINDING and OVERRIDE your default approach. Realize each rule concretely in the generated code, not just in prose. When a rule and your usual habit conflict, the rule wins. Only ignore a rule if the current request explicitly overrides it:`,
     ]
     let budget = maxChars
     for (const l of lessons) {

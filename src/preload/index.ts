@@ -70,6 +70,8 @@ const api = {
       ipcRenderer.invoke('export:html', sessionID, opts),
     openInCabbage: (content: string, title: string) =>
       ipcRenderer.invoke('export:openInCabbage', content, title),
+    revealFile: (path: string) =>
+      ipcRenderer.invoke('export:revealFile', path),
     stems: (sessionID: string) =>
       ipcRenderer.invoke('export:stems', sessionID),
     presetPack: (sessionID: string) =>
@@ -93,6 +95,9 @@ const api = {
     getApiKeys: () => ipcRenderer.invoke('config:getApiKeys'),
     testApiKey: (provider: string) =>
       ipcRenderer.invoke('config:testApiKey', provider),
+    getCabbagePath: () => ipcRenderer.invoke('config:getCabbagePath'),
+    setCabbagePath: (path: string) =>
+      ipcRenderer.invoke('config:setCabbagePath', path),
   },
 
   llm: {

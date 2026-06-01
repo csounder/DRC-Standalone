@@ -166,13 +166,25 @@ export namespace SessionManager {
       const matched = MemoryRetrieval.matchedLessons(content)
       if (matched.length > 0) {
         const last = aiMessages[aiMessages.length - 1]
+        // Forceful, concrete framing: the rule OVERRIDES defaults and must be
+        // realized in the actual code, not merely acknowledged in prose. Weak
+        // wording let the model honor the letter ("pitched grains") while
+        // missing the intent ("tonal"), e.g. random continuous grain pitch.
         last.content =
-          `${last.content}\n\n[Standing rule you previously gave me — apply it to this request: ${matched.join(' ')}]`
-        Log.info(`Applied ${matched.length} standing rule(s) inline`)
+          `${last.content}\n\n` +
+          `[NON-NEGOTIABLE standing rule you gave me earlier. It OVERRIDES my default approach and any conflicting habit. Apply it concretely in the generated code, not just in the description: ${matched.join(' ')}]`
+        Log.info(`Applied ${matched.length} standing rule(s) inline: ${JSON.stringify(matched)}`)
+      } else if (memory.lessons) {
+        Log.info(`Standing rules exist but none token-matched this request`)
       }
     }
 
-    Log.info(`Streaming with ${aiMessages.length} messages, system prompt ${systemPrompt.length} chars`)
+    Log.info(
+      `Streaming with ${aiMessages.length} messages, ` +
+      `system prompt ${systemPrompt.length} chars, ` +
+      `lessons block ${memory.lessons ? memory.lessons.length : 0} chars, ` +
+      `model ${resolvedModel.providerID}/${resolvedModel.modelID}`,
+    )
 
     // Kick off narration + main stream in parallel. A shared queue lets whichever
     // emits first reach the caller first, and chunks interleave naturally.

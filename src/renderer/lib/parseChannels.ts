@@ -41,9 +41,12 @@ function stripComments(src: string): string {
 // Pull the orchestra body. If we can't find the section we just operate on the
 // whole string — chn_k declarations only appear at orchestra scope so spurious
 // matches outside <CsInstruments> are unlikely.
-function extractOrchestra(csd: string): string {
+//
+// Exported because the web harness reuses it verbatim as the `ORC` template
+// literal (`compileOrc` wants the orchestra body, not the full CSD).
+export function extractOrchestra(csd: string): string {
   const m = csd.match(/<CsInstruments>([\s\S]*?)<\/CsInstruments>/i)
-  return m ? m[1] : csd
+  return m ? m[1].trim() : csd.trim()
 }
 
 // Tokenize a chn_k argument list, keeping double-quoted strings intact. We

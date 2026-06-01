@@ -7,7 +7,7 @@ import FileEditor from './FileEditor'
 import ConvertMenu from './ConvertMenu'
 import WebAppPreview from './WebAppArtifact'
 
-const TYPE_LABELS: Record<ArtifactType, string> = { csd: 'Csound', webapp: 'Web App', vst: 'VST Plugin' }
+const TYPE_LABELS: Record<ArtifactType, string> = { csd: 'Csound', webapp: 'Web App', vst: 'Cabbage Plugin' }
 const TYPE_ICONS: Record<ArtifactType, string> = { csd: '♪', webapp: '◫', vst: '⬡' }
 
 interface Props {
@@ -65,17 +65,26 @@ export default function ArtifactPanel({ onConvert }: Props) {
   // Cabbage launch state — local to the panel because the message is short-
   // lived and we don't need it visible elsewhere.
   const [cabbageStatus, setCabbageStatus] = useState<string>('')
+  // When a launch fails we keep the saved path around so the user can reveal it
+  // in Finder/Explorer and open it manually.
+  const [cabbageSavedPath, setCabbageSavedPath] = useState<string>('')
   const handleOpenInCabbage = useCallback(async () => {
     if (!active || active.type !== 'vst') return
     setCabbageStatus('Saving and launching Cabbage…')
+    setCabbageSavedPath('')
     const res = await window.api?.export?.openInCabbage?.(primaryContent(active), active.title)
     if (res?.success) {
       setCabbageStatus(`Opened ${res.path?.split('/').pop() ?? 'CSD'} in Cabbage`)
+      setTimeout(() => setCabbageStatus(''), 6000)
     } else {
-      setCabbageStatus(res?.error ? `Cabbage: ${String(res.error).slice(0, 160)}` : 'Cabbage launch failed')
+      setCabbageStatus(res?.error ? `Cabbage: ${String(res.error).slice(0, 200)}` : 'Cabbage launch failed')
+      if (res?.path) setCabbageSavedPath(res.path)
     }
-    setTimeout(() => setCabbageStatus(''), 6000)
   }, [active])
+
+  const handleRevealCabbageFile = useCallback(() => {
+    if (cabbageSavedPath) void window.api?.export?.revealFile?.(cabbageSavedPath)
+  }, [cabbageSavedPath])
 
   const handleSave = useCallback(() => {
     if (!active) return
@@ -200,6 +209,11 @@ export default function ArtifactPanel({ onConvert }: Props) {
         {active.type === 'vst' && (
           <button onClick={handleOpenInCabbage} style={styles.secondary}>
             ⬡ Open in Cabbage
+          </button>
+        )}
+        {cabbageSavedPath && (
+          <button onClick={handleRevealCabbageFile} style={styles.secondary}>
+            Reveal file
           </button>
         )}
         {onConvert && <ConvertMenu currentType={active.type} onConvert={onConvert} />}

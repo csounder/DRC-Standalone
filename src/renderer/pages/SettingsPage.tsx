@@ -11,14 +11,30 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState('')
   const [testing, setTesting] = useState('')
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({})
+  const [cabbagePath, setCabbagePath] = useState('')
+  const [cabbageExists, setCabbageExists] = useState<boolean | null>(null)
+  const [cabbageSaving, setCabbageSaving] = useState(false)
 
-  // Load saved keys on mount
+  // Load saved keys + Cabbage path on mount
   useEffect(() => {
     window.api?.config?.getApiKeys().then((result: any) => {
       setSavedKeys(result.keys || {})
       setAvailable(result.available || [])
     }).catch(() => {})
+    window.api?.config?.getCabbagePath?.().then((result: any) => {
+      setCabbagePath(result?.path || '')
+      setCabbageExists(result?.path ? !!result?.exists : null)
+    }).catch(() => {})
   }, [])
+
+  const handleSaveCabbagePath = async () => {
+    setCabbageSaving(true)
+    try {
+      const result = await window.api?.config?.setCabbagePath?.(cabbagePath.trim())
+      setCabbageExists(result?.path ? !!result?.exists : null)
+    } catch {}
+    setCabbageSaving(false)
+  }
 
   const handleSaveKey = async (provider: string, key: string) => {
     if (!key.trim()) return
@@ -273,6 +289,44 @@ export default function SettingsPage() {
             <span style={styles.hint}>Auto-detected if on PATH</span>
           </div>
           <input type="text" placeholder="/usr/local/bin/csound" style={styles.input} />
+        </div>
+      </section>
+
+      {/* Cabbage */}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>Cabbage</h2>
+        <div style={styles.keyRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>Cabbage Path</span>
+            <span style={styles.hint}>
+              Where "Open in Cabbage" launches your plugin. Leave blank to auto-detect.
+              On macOS, point at the app bundle (e.g. <code>/Applications/CabbagePro.app</code>);
+              on Windows/Linux, the Cabbage executable.
+            </span>
+            {cabbagePath && cabbageExists === false && (
+              <span style={styles.testErr}>✗ Nothing found at that path — double-check it.</span>
+            )}
+            {cabbagePath && cabbageExists === true && (
+              <span style={styles.testOk}>✓ Found</span>
+            )}
+          </div>
+          <div style={styles.keyInput}>
+            <input
+              type="text"
+              value={cabbagePath}
+              onChange={(e) => setCabbagePath(e.target.value)}
+              placeholder="/Applications/CabbagePro.app"
+              style={styles.input}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveCabbagePath()}
+            />
+            <button
+              onClick={handleSaveCabbagePath}
+              disabled={cabbageSaving}
+              style={styles.saveButton}
+            >
+              {cabbageSaving ? '...' : 'Save'}
+            </button>
+          </div>
         </div>
       </section>
 

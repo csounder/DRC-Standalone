@@ -14,6 +14,8 @@ import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../
 import { playArtifact, stopPlayback, resetAutofix } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
+import { parseChannels, extractOrchestra } from '../lib/parseChannels'
+import { buildWebApp } from '../lib/webHarness'
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
@@ -69,6 +71,12 @@ export default function AgentPage() {
   // The artifact version a follow-up edit should branch from — the one loaded in
   // the panel at send time, not necessarily the newest. Set in handleSend.
   const editBaseRef = useRef<string | null>(null)
+  // When a "Convert to Web App" is in flight, the model streams back an adapted
+  // orchestra CSD (not HTML). We suppress the normal CSD-artifact path for that
+  // ONE turn and, on completion, deterministically wrap the orchestra into a web
+  // app via buildWebApp. The flag is consumed (cleared) the moment that turn is
+  // handled, so it can never leak into a later, unrelated generation.
+  const pendingWebappConvertRef = useRef<{ title: string } | null>(null)
   useEffect(() => {
     // Look for the most recent non-narration assistant message. Narration messages
     // are ambient context and never contain artifacts.
@@ -81,6 +89,30 @@ export default function AgentPage() {
 
     const detected = detect(last.content)
     if (!detected) return
+
+    // Convert-to-Web-App: the model emits an adapted orchestra CSD, not HTML. We
+    // own the UI, so suppress the CSD artifact while it streams; on completion
+    // wrap the orchestra into a web app deterministically. Consumed in this one
+    // turn — the flag is cleared here so it never affects a later generation.
+    const pendingConvert = pendingWebappConvertRef.current
+    if (pendingConvert && detected.type === 'csd') {
+      if (isStreaming) return            // wait for the full orchestra
+      pendingWebappConvertRef.current = null
+      const csd = detected.code
+      const orc = extractOrchestra(csd)
+      const title = pendingConvert.title || deriveTitle(csd, 'csd', lastUserPrompt)
+      const html = buildWebApp({
+        orc,
+        channels: parseChannels(csd),
+        title,
+        hasKeyboard: /\bp4\b/.test(orc),
+        hasReverbBus: /\binstr\s+99\b/.test(orc),
+      })
+      const artifact = addArtifact({ type: 'webapp', title, content: html })
+      setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
+      setActive(artifact.id)
+      return
+    }
 
     const existingId = msgArtifactMap.get(last.id)
     if (!existingId) {
@@ -118,8 +150,12 @@ export default function AgentPage() {
     const prompt = buildConvertPrompt(targetType, primaryContent(active))
     const shortLabel =
       targetType === 'webapp' ? 'Convert to Web App' :
-      targetType === 'vst' ? 'Convert to VST Plugin' :
+      targetType === 'vst' ? 'Convert to Cabbage' :
       'Extract standalone CSD'
+
+    // The webapp conversion now returns an orchestra CSD that we wrap ourselves
+    // (see the detection effect). Mark the turn so it's intercepted.
+    pendingWebappConvertRef.current = targetType === 'webapp' ? { title: active.title } : null
 
     setInput('')
     // Show a compact user-visible message, not the full template
@@ -149,6 +185,7 @@ export default function AgentPage() {
     startNewSession()
     setMsgArtifactMap(new Map())
     autoPlayedRef.current = new Set()
+    pendingWebappConvertRef.current = null
   }, [sessionID, startNewSession])
 
   // Reopen a persisted chat. We pre-seed autoPlayedRef with the loaded message
@@ -161,6 +198,7 @@ export default function AgentPage() {
     resetAutofix(sessionID)
     clearMessages()
     setMsgArtifactMap(new Map())
+    pendingWebappConvertRef.current = null
     setSessionID(data.id)
     if (['csound', 'csound-sine'].includes(data.agent)) setAgentMode(data.agent)
     const loaded = new Set<string>()
@@ -209,6 +247,9 @@ export default function AgentPage() {
         // A plain follow-up edits the loaded version in place (branch from it).
         // A format conversion changes type, so it starts a fresh artifact chain.
         editBaseRef.current = active && !convertTo ? active.id : null
+        // A "make it a web app" intent returns an orchestra CSD we wrap ourselves.
+        pendingWebappConvertRef.current =
+          convertTo === 'webapp' && active ? { title: active.title } : null
         const payload = convertTo && active
           ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
           : wrapWithArtifactContext(text)
@@ -332,7 +373,7 @@ export default function AgentPage() {
               </div>
               <p style={styles.emptyTitle}>What do you want to hear?</p>
               <p style={styles.emptyDesc}>
-                Describe a sound. I'll generate a Csound instrument, play it, and open it as an artifact you can edit, export as a web app, or build into a VST plugin.
+                Describe a sound. I'll generate a Csound instrument, play it, and open it as an artifact you can edit, export as a web app, or build into a Cabbage plugin.
               </p>
               {inputBar(true)}
               <div style={styles.pills}>
@@ -415,7 +456,7 @@ export default function AgentPage() {
           </div>
           <div style={styles.footerRight}>
             <ProfileBadge />
-            <span style={styles.hint}>CSD · Web App · VST</span>
+            <span style={styles.hint}>CSD · Web App · Cabbage</span>
           </div>
         </div>
       </div>

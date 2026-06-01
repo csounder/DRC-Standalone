@@ -14,6 +14,22 @@ export function resetAutofix(sessionID: string | null): void {
   useSessionStore.getState().setLastFailure(null)
 }
 
+// Parse-only syntax check of a full CSD via the csound CLI (--syntax-check-only,
+// no audio). Used to verify an adapted orchestra compiles BEFORE we wrap it into
+// a web app — a non-compiling orchestra would otherwise ship as a silent app.
+export async function compileCheckCsd(
+  csd: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!window.api?.csound) return { ok: true } // no engine available — don't block
+  try {
+    const { path } = await window.api.csound.writeCsd(csd)
+    const res = await window.api.csound.compile(path)
+    return res.success ? { ok: true } : { ok: false, error: String(res.error ?? 'compile failed') }
+  } catch (err: any) {
+    return { ok: false, error: String(err?.message ?? err) }
+  }
+}
+
 // Single owner of the csound play/stop flow. Both the chat artifact card and
 // the artifact panel call these helpers so their playing-state stays in sync —
 // and a global Stop pill can observe the same store.

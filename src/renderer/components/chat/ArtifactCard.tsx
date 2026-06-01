@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import { primaryContent, type Artifact } from '../../stores/artifactStore'
 
 const TYPE_ICONS = { csd: '♪', webapp: '◫', vst: '⬡' }
-const TYPE_LABELS = { csd: 'Csound Instrument', webapp: 'Web App', vst: 'VST Plugin' }
+const TYPE_LABELS = { csd: 'Csound Instrument', webapp: 'Web App', vst: 'Cabbage Plugin' }
 
 interface Props {
   artifact: Artifact

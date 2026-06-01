@@ -1,7 +1,8 @@
 import { IpcMain, app, shell } from 'electron'
-import { spawn } from 'child_process'
+import { spawn, execFile } from 'child_process'
 import { writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { getConfigValue } from '../util/config'
 
 // Saves a Cabbage-ified CSD to a stable path and tries to launch the Cabbage
 // Studio app on it. We save first regardless — that way even if no Cabbage
@@ -19,34 +20,66 @@ function safeFileName(title: string): string {
   return (base || 'untitled') + '.csd'
 }
 
-// Launch Cabbage with the saved CSD. Returns true if the spawn was accepted —
-// not whether the app eventually opened. We try a couple of common app names
-// before falling back to the OS file-association path.
-function launchCabbage(csdPath: string): { ok: boolean; method: string; error?: string } {
+// Default macOS app names we probe with `open -a` when the user hasn't set an
+// explicit path. Cabbage ships under a few display names across versions.
+const MAC_APP_NAMES = ['Cabbage', 'CabbageLite', 'Cabbage Studio', 'CabbagePro']
+
+// `open -a <app> <file>` exits non-zero (asynchronously) when the app can't be
+// found — spawn never throws for that, so we MUST await the exit code rather
+// than assume the launch worked. Resolves true only on a clean exit.
+function openWithApp(appNameOrPath: string, csdPath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile('open', ['-a', appNameOrPath, csdPath], (err) => resolve(!err))
+  })
+}
+
+// Spawn a Cabbage executable directly (Windows/Linux) with the CSD as its arg.
+function spawnBinary(bin: string, csdPath: string): { ok: boolean; method: string; error?: string } {
+  try {
+    const child = spawn(bin, [csdPath], { detached: true, stdio: 'ignore' })
+    child.unref()
+    return { ok: true, method: `spawn "${bin}"` }
+  } catch (err: any) {
+    return { ok: false, method: `spawn "${bin}"`, error: err?.message ?? 'spawn failed' }
+  }
+}
+
+// Launch Cabbage on the saved CSD, preferring the user-configured path. Unlike
+// the old version this verifies the launch actually succeeded and reports an
+// honest failure (with a Settings hint) when no Cabbage install can be found,
+// instead of silently claiming success.
+async function launchCabbage(csdPath: string): Promise<{ ok: boolean; method: string; error?: string }> {
+  const configured = (getConfigValue('cabbagePath') ?? '').trim()
   const platform = process.platform
+
   if (platform === 'darwin') {
-    // `open -a` returns non-zero immediately if the app isn't found, so we can
-    // try a couple of bundle identifiers / display names without spamming the
-    // user. -W would block; we want fire-and-forget.
-    for (const appName of ['Cabbage', 'Cabbage Studio', 'CabbagePro']) {
-      try {
-        const child = spawn('open', ['-a', appName, csdPath], { detached: true, stdio: 'ignore' })
-        child.unref()
-        return { ok: true, method: `open -a "${appName}"` }
-      } catch {
-        // fall through to next candidate
-      }
+    // Configured path first (skip if it points nowhere), then known app names.
+    const candidates = [configured, ...MAC_APP_NAMES]
+      .filter(Boolean)
+      .filter((c) => !c.startsWith('/') || existsSync(c))
+    for (const cand of candidates) {
+      if (await openWithApp(cand, csdPath)) return { ok: true, method: `open -a "${cand}"` }
     }
-    // Last-ditch: hand off to the OS, which uses the user's default .csd handler.
-    void shell.openPath(csdPath)
-    return { ok: true, method: 'shell.openPath' }
+    // Last resort: the OS default .csd handler. openPath returns '' on success
+    // or an error string — only treat empty as a real open.
+    const err = await shell.openPath(csdPath)
+    if (!err) return { ok: true, method: 'default .csd handler' }
+    return {
+      ok: false,
+      method: 'open',
+      error: 'No Cabbage app found. Set its path in Settings → Cabbage.',
+    }
   }
+
   if (platform === 'win32') {
-    // Windows: rely on the file association (Cabbage's installer registers it).
-    void shell.openPath(csdPath)
-    return { ok: true, method: 'shell.openPath' }
+    if (configured && existsSync(configured)) return spawnBinary(configured, csdPath)
+    const err = await shell.openPath(csdPath)
+    if (!err) return { ok: true, method: 'default .csd handler' }
+    return { ok: false, method: 'openPath', error: 'No Cabbage app found. Set its path in Settings → Cabbage.' }
   }
+
   // linux & friends
+  if (configured && existsSync(configured)) return spawnBinary(configured, csdPath)
   try {
     const child = spawn('xdg-open', [csdPath], { detached: true, stdio: 'ignore' })
     child.unref()
@@ -67,19 +100,27 @@ export function handleExportIPC(ipcMain: IpcMain): void {
   // directly so we don't need to round-trip through session storage.
   ipcMain.handle('export:openInCabbage', async (_event, content: string, title: string) => {
     if (!content || !content.includes('<Cabbage>')) {
-      return { success: false, error: 'CSD has no <Cabbage> section — convert it to a VST first.' }
+      return { success: false, error: 'CSD has no <Cabbage> section — convert it to Cabbage first.' }
     }
     try {
       const path = join(cabbageDir(), safeFileName(title))
       writeFileSync(path, content, 'utf-8')
-      const result = launchCabbage(path)
+      const result = await launchCabbage(path)
       if (!result.ok) {
-        return { success: false, error: `Saved to ${path} but couldn't launch Cabbage: ${result.error}`, path }
+        return { success: false, error: `${result.error} Saved to ${path}`, path }
       }
       return { success: true, path, launchedVia: result.method }
     } catch (err: any) {
       return { success: false, error: err?.message ?? 'Failed to write CSD' }
     }
+  })
+
+  // Reveal the saved CSD in Finder/Explorer — the fallback when Cabbage can't be
+  // launched so the user can open it manually.
+  ipcMain.handle('export:revealFile', async (_event, path: string) => {
+    if (!path || !existsSync(path)) return { success: false, error: 'File not found' }
+    shell.showItemInFolder(path)
+    return { success: true }
   })
 
   // Legacy alias — the old preload bridge calls export:cabbage. Kept so an

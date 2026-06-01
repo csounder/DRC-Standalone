@@ -1,115 +1,104 @@
 export type ConvertTarget = 'webapp' | 'vst' | 'csd' | 'player'
 
-const WEBAPP_TEMPLATE = `Convert the Csound project below into a standalone, runnable web app using the canonical DrC pattern — matched against the reference apps that already ship with DrC (FM Bell, Drum Machine, Etude). This pattern is PROVEN to work; do not invent variations.
+const WEBAPP_TEMPLATE = `Convert the Csound project below into a web-ready orchestra CSD. DrC's web host builds the entire UI (controls, on/off, keyboard) deterministically from the \`chn_k\` declarations you emit — your ONLY job is the Csound. Do not write any HTML or JavaScript.
 
 OUTPUT FORMAT (strict):
-- Emit exactly ONE complete HTML document.
-- First characters must be \`<!DOCTYPE html>\`. Last characters must be \`</html>\`.
-- No code fences. No prose before or after. No markdown. No commentary.
+- Emit exactly ONE complete CSD: \`<CsoundSynthesizer>…</CsoundSynthesizer>\`.
+- No <Cabbage>, no HTML, no JavaScript, no code fences, no prose.
+- <CsOptions> is exactly: -odac -d
 
-REQUIRED CSOUND PATTERN (follow exactly):
+HOW THE WEB HOST USES YOUR CSD (so you emit the right thing):
+- It compiles ONLY your <CsInstruments> body (via compileOrc) and DISCARDS <CsScore>. So every function table MUST be created with \`ftgen\` at orchestra scope — NEVER as a score \`f\` statement (score f-statements will not run).
+- It builds one slider per \`chn_k\` declaration and writes values live with setControlChannel while audio runs. Responsive sliders depend on you reading channels k-rate INSIDE instruments (see rule 4).
+- It provides the master Start/Stop and (for note-based patches) a keyboard. It fires your always-on instruments for you — do NOT pre-schedule them in the score.
 
-\`\`\`
-// Lazy ESM import — do NOT use a <script src="..."> tag
-const { Csound } = await import(
-  "https://cdn.jsdelivr.net/npm/@csound/browser@7.0.0-beta26/dist/csound.js"
-);
+ADAPTATION RULES — follow precisely:
 
-// Create instance with these options — they matter
-csound = await Csound({
-  useWorker: false,
-  useSPN: false,
-  outputChannelCount: 2,
-});
+1. **Preserve the source's character.** FM stays FM, a filter synth stays a filter synth, a granular texture keeps its grains. You are re-wiring, not re-composing.
 
-// Set options via JS, NOT in a <CsOptions> tag
-await csound.setOption("-odac");
-await csound.setOption("-m0");
+2. **Declare every control with \`chn_k\` at orchestra scope** (top of <CsInstruments>, before any \`instr\`). Pick 4–10 controls that meaningfully shape THIS patch. Signature:
 
-// Compile the ORCHESTRA ONLY — not a full CSD, not compileCsd
-await csound.compileOrc(ORC);  // ORC is a JS template literal
-await csound.start();
+       chn_k "<channelName>", 3, <itype>, <dflt>, <min>, <max>, 0, 0, 0, 0, "unit=<unit> label=<Label>"
 
-// Always-on FX / bed instruments use negative duration
-await csound.inputMessage("i 99 0 -1");
+   - \`channelName\`: camelCase, unique (e.g. \`cutoff\`, \`fmIndex\`, \`grainDensity\`)
+   - \`3\` = both (host writes, orchestra reads)
+   - \`itype\`: 1 = integer, 2 = linear, 3 = exponential (use 3 for frequency / time / decibel ranges; 2 for mix/depth/ratio; 1 for discrete counts)
+   - \`dflt\`, \`min\`, \`max\` = default and bounds
+   - Trailing metadata string: label and unit are SINGLE tokens. Underscores become spaces in the UI. **DO NOT escape quotes inside the string** (Csound has no \\" escape); use an underscore for a space in a label.
 
-// k-rate params: setControlChannel driven by <input type=range>
-slider.addEventListener("input", () =>
-  csound.setControlChannel("cutoff", Number(slider.value))
-);
+   Examples (NO escaped quotes anywhere):
 
-// Note triggers: inputMessage with p-fields
-csound.inputMessage(\`i 1 0 \${dur} \${freq} \${amp}\`);
-\`\`\`
+       chn_k "cutoff",     3, 3, 1200, 20,    18000, 0, 0, 0, 0, "unit=Hz label=Cutoff"
+       chn_k "resonance",  3, 2, 0.3,  0,     1,     0, 0, 0, 0, "unit= label=Resonance"
+       chn_k "fmIndex",    3, 2, 6,    0,     30,    0, 0, 0, 0, "unit= label=FM_Index"
+       chn_k "attack",     3, 3, 0.01, 0.001, 2,     0, 0, 0, 0, "unit=s label=Attack"
+       chn_k "release",    3, 3, 0.5,  0.01,  6,     0, 0, 0, 0, "unit=s label=Release"
+       chn_k "reverbMix",  3, 2, 0.3,  0,     1,     0, 0, 0, 0, "unit= label=Reverb_Mix"
 
-SOURCE CONVERSION RULES:
+3. **Initialize each channel.** Right after the chn_k block, emit \`chnset <dflt>, "<name>"\` for every channel, using the same defaults you declared.
 
-The source is a complete CSD with <CsoundSynthesizer>, <CsOptions>, <CsInstruments>, <CsScore> tags. Rewrite it into the web pattern above:
-
-1. **ORC string (JS template literal)**: Extract the body of <CsInstruments> verbatim. Do NOT include the <CsoundSynthesizer>, <CsOptions>, <CsInstruments>, <CsScore> tags themselves. The orchestra must start with \`sr = 44100\` / \`ksmps = ...\` / \`nchnls = 2\` / \`0dbfs = 1\`.
-
-2. **CsOptions**: discard. Use \`setOption("-odac")\` and \`setOption("-m0")\` in JS.
-
-3. **CsScore**: discard. Replace with:
-   - \`inputMessage("i N 0 -1")\` calls for any instruments that should run continuously (drones, reverb, master FX).
-   - \`inputMessage("i 1 0 dur p4 p5 ...")\` calls triggered from UI (knob/key/mouse events).
-
-4. **Control channels — CRITICAL**: \`chnget\` MUST live inside each instrument body, NOT at global scope. Global \`chnget\` runs once at init and returns 0 — slider moves will have no effect. Correct pattern, inside EVERY instrument that uses the parameter:
+4. **Read channels INSIDE instrument bodies, never at global scope** (a global chnget runs once at init and returns 0 — that is the #1 cause of dead sliders). Port-smooth slow-moving knobs:
 
        instr 1
-         kCutoff chnget "cutoff"
-         kCutoff port kCutoff, 0.01    ; smoothing to avoid clicks
-         kRes    chnget "resonance"
-         kRes    port kRes, 0.01
-         ; ... now use kCutoff, kRes in the signal path
-         aFilt moogladder aIn, kCutoff, kRes
-         ...
+         kCut chnget "cutoff"
+         kRes chnget "resonance"
+         kCut port kCut, 0.02
+         kRes port kRes, 0.02
+         ; ... use kCut, kRes in the signal path
+
+   Drop any \`gk<Name> init …\` knob globals from the source — they become \`chn_k\` + in-instrument \`chnget\` instead.
+
+5. **Choose the patch shape:**
+
+   **A. Note-based** (a played/melodic/percussive instrument) — \`instr 1\` is the voice:
+   - \`p4\` = pitch in Hz (the keyboard delivers Hz; if the source used MIDI/cpspch, convert at the boundary). \`p5\` = velocity 0..1.
+   - \`p3 = -1\`: notes are held and turned off by the host. Use a release-aware \`linsegr\` envelope.
+   - **Envelope rates — CRITICAL.** \`linsegr\`, \`expsegr\`, \`linenr\`, \`madsr\` accept ONLY i-rate arguments — EVERY one: every time AND every breakpoint VALUE (attack, decay, **sustain level**, release). Read each of them via the i-rate form of chnget (output var starts with \`i\`). Read params you only use elsewhere in the signal path at k-rate:
+
+         instr 1
+           iAtt chnget "attack"
+           iDec chnget "decay"
+           iSus chnget "sustain"      ; the SUSTAIN LEVEL feeds linsegr, so read it i-rate
+           iRel chnget "release"
+           kAmp chnget "amplitude"    ; only multiplies the signal, so k-rate is fine
+           kAmp port kAmp, 0.02
+           iFreq = p4
+           iVel  = p5
+           kEnv linsegr 0, iAtt, 1, iDec, iSus, iRel, 0
+           ; signal path uses kEnv * kAmp * iVel
+
+     Passing ANY k-rate var to \`linsegr\`/\`expsegr\` (a k-rate sustain is the usual slip) causes "Unable to find opcode entry for 'linsegr' with matching argument types" and the WHOLE orchestra fails to compile — silent app. If a value goes into the envelope opcode, read it i-rate.
+
+   **B. Continuous texture** (drone, granular cloud, generative pad, ambient bed) — \`instr 1\` runs always-on:
+   - Do NOT reference \`p4\`. The host renders no keyboard and starts the instrument for you with \`i 1 0 -1\`.
+   - Drive it entirely from \`chn_k\` controls (density, pitch center, filter, mix, etc.). Use a steady or self-evolving output; no note triggering.
+   - Pick this shape whenever the source is fundamentally a texture rather than a played note.
+
+6. **Optional reverb bus — \`instr 99\`** (always-on; the host fires \`i 99 0 -1\` if present). Voices send via \`chnmix\` to \`"revL"\`/\`"revR"\`:
+
+       instr 99
+         kMix  chnget "reverbMix"
+         kSize chnget "reverbSize"
+         aL chnget "revL"
+         aR chnget "revR"
+         awL, awR reverbsc aL, aR, kSize, 12000
+         outs awL * kMix, awR * kMix
+         chnclear "revL"
+         chnclear "revR"
        endin
 
-   Drop any \`gk<Name> init <value>\` globals from the source — they become channel reads inside instruments instead. If an instrument needs an i-rate snapshot of a channel at note start (rare), use \`iCutoff = i(kCutoff)\` AFTER reading kCutoff via chnget.
+   Voices still \`outs\` their dry signal; reverb is additive. If the source had its own reverb, REPLACE it with this bus.
 
-5. **Channel initialization**: after \`await csound.start()\`, call \`csound.setControlChannel(name, defaultValue)\` for EVERY channel used by the orchestra, matching the slider's default value. Without this the first k-period reads 0 from every channel.
+7. **Function tables**: create them all with \`ftgen\` in the orchestra (the score is discarded). Keep wavetables and init-time setup. Drop MIDI opcodes, OSC, and hard-coded score melodies.
 
-       await csound.start();
-       await csound.inputMessage("i 2 0 -1");  // always-on FX first if any
+8. **Score**: <CsScore> is ignored by the web host, so emit just a keep-alive: \`f 0 3600\`.
 
-       // Initialize all control channels to their slider defaults
-       csound.setControlChannel("cutoff", 2000);
-       csound.setControlChannel("resonance", 0.3);
-       csound.setControlChannel("volume", 0.7);
-
-6. **Parameter → UI mapping**:
-   - One \`<input type="range">\` per channel. Range heuristic: default ∈ [0,1] → [0, 1, 0.001]; default ∈ [0, 127] → [0, 127, 1]; default ∈ [20, 20000] → [20, 20000, 1] (prefer log-scaled slider if feasible); else [default*0.1, default*3, (max-min)/200].
-   - Label = Name (split camelCase, e.g. "Cutoff Freq"). Channel name is the camelCase original lowercased on the first letter (gkCutoffFreq → "cutoffFreq").
-   - Show the current value to 2 decimals next to the slider.
-   - Event handler: \`csound.setControlChannel("<name>", Number(slider.value))\`.
-   - The initial slider \`value\` attribute MUST match the setControlChannel init call from step 5.
-
-6. **Note triggers**: if instr 1 uses p4 (pitch in Hz or MIDI), render a 2-octave keyboard of buttons for MIDI 48..72 where each click does:
-       csound.inputMessage(\`i 1 0 \${DUR} \${MIDI_TO_HZ(note)} 0.5\`);
-   Use \`440 * Math.pow(2, (midi - 69) / 12)\` for Hz. If the source comments suggest a different default duration, use that.
-
-7. **AudioContext**: do NOT manually create one. \`Csound({ outputChannelCount: 2 })\` handles it. Do NOT pass \`audioContext\` in options.
-
-UI & STYLE:
-- Dark theme: background \`#111110\`, text \`#e0e0e0\`, accent \`#7cb8a4\`, muted \`#6b7670\`.
-- System font stack + monospace for numeric readouts.
-- Container max-width 720px, centered, padding 20px.
-- Single big "Start Audio" button at the top. Disabled after successful start; label flips to "Audio Running".
-- Status text below the button: "Loading Csound..." → "Starting engine..." → "Ready — drag knobs / click keys." → "Error: <msg>" on failure.
-- Rounded corners 10–14px. Subtle border \`1px solid #2a2a28\`.
-
-CONSTRAINTS:
-- Self-contained HTML file. No build step. No external CSS or JS frameworks.
-- Target ~300–400 lines. Simpler beats fancier.
-- No \`<script type="text/csound">\` tag. The orchestra lives in a JS \`const ORC = \\\`…\\\`;\` template literal only.
-- Do not wrap the output in code fences.
-- NO emojis anywhere — not in headings, labels, buttons, tooltips, status text, or comments. Keep text plain (e.g. "Start Audio", not "▶ Start Audio" or "🔔 Start").
+9. **Quality bar**: compiles with stock Csound 6/7, renders stereo to -odac, and is audible with default control values — a held key for shape A, or immediately after Start for shape B.
 
 SOURCE CSD:
 <<<SOURCE>>>
 
-Emit the HTML document now.`
+Emit the adapted CSD now.`
 
 const VST_TEMPLATE = `Convert the Csound project below into a Cabbage VST/AU plugin.
 
