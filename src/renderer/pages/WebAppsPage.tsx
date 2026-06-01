@@ -9,6 +9,8 @@ import etude1Html from '../assets/apps/etude1.html?raw'
 import fibonacciFmHtml from '../assets/apps/fibonacci-fm.html?raw'
 import fractalExplorerHtml from '../assets/apps/fractal-explorer.html?raw'
 import weatherSonificationHtml from '../assets/apps/weather-sonification.html?raw'
+import starchartSonificationHtml from '../assets/apps/starchart-sonification.html?raw'
+import mandelbrotExplorerHtml from '../assets/apps/mandelbrot-explorer.html?raw'
 
 interface AppTemplate {
   id: string
@@ -130,6 +132,40 @@ instr 1  ; warm pad
 
   kEnv madsr 2, 1, 0.7, 3
   outs aMix*kEnv, aMix*kEnv
+endin`,
+  },
+  {
+    id: 'starchart-sonification',
+    name: 'StarChart Sonification',
+    desc: 'Real-time star sonification — catalog stars mapped to voices by temperature, magnitude, and constellation',
+    tags: ['sonification', 'astronomy', 'granular', 'generative'],
+    html: starchartSonificationHtml,
+    csd: `; StarSound - a single star's voice
+instr 1
+  iFreq = p4  ; pitch from stellar temperature
+  iAmp  = p5  ; loudness from apparent magnitude
+  kEnv madsr 0.4, 0.3, 0.6, 1.5
+  aOsc oscili iAmp*kEnv, iFreq
+  aShimmer oscili iAmp*kEnv*0.3, iFreq*2.002
+  aMix moogladder aOsc + aShimmer, 1200 + iAmp*4000, 0.2
+  outs aMix, aMix
+endin`,
+  },
+  {
+    id: 'mandelbrot-explorer',
+    name: 'Mandelbrot Explorer',
+    desc: 'Explore the Mandelbrot set as sound — escape-time orbits drive pluck synthesis with zoomable fractal navigation',
+    tags: ['fractal', 'sonification', 'pluck synthesis', 'interactive'],
+    html: mandelbrotExplorerHtml,
+    csd: `; Mandelbrot Explorer - escape-time pluck voice
+instr 1
+  iFreq = p4  ; pitch from orbit position
+  iAmp  = p5  ; loudness from escape iteration count
+  kEnv linsegr 0, 0.005, iAmp, 0.4, 0
+  aSig pluck kEnv, iFreq, iFreq, 0, 1
+  aSig tone aSig, 500 + iAmp*3000
+  aL, aR pan2 aSig, 0.5
+  outs aL, aR
 endin`,
   },
 ]
