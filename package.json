@@ -1,6 +1,6 @@
 {
   "name": "drc",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "DrC — AI-powered Csound creative tool",
   "main": "./out/main/index.js",
   "scripts": {
@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.0",
-    "@ai-sdk/google": "^3.0.59",
+    "@ai-sdk/google": "^1.2.22",
     "@ai-sdk/openai": "^1.2.0",
     "@electron-toolkit/utils": "^3.0.0",
     "@monaco-editor/react": "^4.7.0",

@@ -108,30 +108,46 @@ export default function AgentPage() {
         hasKeyboard: /\bp4\b/.test(orc),
         hasReverbBus: /\binstr\s+99\b/.test(orc),
       })
-      const artifact = addArtifact({ type: 'webapp', title, content: html })
+      const artifact = addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last.id })
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
       setActive(artifact.id)
       return
     }
 
-    const existingId = msgArtifactMap.get(last.id)
+    let existingId = msgArtifactMap.get(last.id)
     if (!existingId) {
+      // Re-adopt an artifact already built for this message in a previous mount.
+      // The store survives navigation but our local map doesn't, so without this
+      // a remount would re-derive a brand-new artifact from the message text —
+      // and for converted web apps that text is an orchestra CSD, not the HTML,
+      // so it would clobber the web app with a spurious CSD version.
+      const adopted = useArtifactStore.getState().artifacts.find((a) => a.sourceMessageId === last.id)
+      if (adopted) {
+        setMsgArtifactMap((prev) => new Map(prev).set(last.id, adopted.id))
+        return
+      }
       // If this turn was an edit of the artifact loaded in the panel, branch the
       // new version from THAT version (same title/lineage), not the newest one.
       const base = editBaseRef.current
         ? useArtifactStore.getState().artifacts.find((a) => a.id === editBaseRef.current)
         : null
       if (base && base.type === detected.type) {
-        const artifact = updatePrimary(base.id, detected.code)
+        const artifact = updatePrimary(base.id, detected.code, last.id)
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
         editBaseRef.current = null
         return
       }
       const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
-      const artifact = addArtifact({ type: detected.type, title, content: detected.code })
+      const artifact = addArtifact({ type: detected.type, title, content: detected.code, sourceMessageId: last.id })
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
       return
     }
+
+    // Never overwrite an artifact whose type no longer matches the message text
+    // (e.g. a converted web app derived from an orchestra-CSD message). The
+    // message isn't the source of truth for those, so re-deriving would corrupt it.
+    const existing = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
+    if (existing && existing.type !== detected.type) return
 
     updateInPlace(existingId, detected.code)
 

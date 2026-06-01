@@ -10,9 +10,11 @@ export default function SettingsPage() {
   const [available, setAvailable] = useState<string[]>([])
   const [saving, setSaving] = useState('')
   const [testing, setTesting] = useState('')
+  const [removing, setRemoving] = useState('')
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({})
   const [cabbagePath, setCabbagePath] = useState('')
   const [cabbageExists, setCabbageExists] = useState<boolean | null>(null)
+  const [cabbageDetected, setCabbageDetected] = useState('')
   const [cabbageSaving, setCabbageSaving] = useState(false)
 
   // Load saved keys + Cabbage path on mount
@@ -24,6 +26,7 @@ export default function SettingsPage() {
     window.api?.config?.getCabbagePath?.().then((result: any) => {
       setCabbagePath(result?.path || '')
       setCabbageExists(result?.path ? !!result?.exists : null)
+      setCabbageDetected(result?.detected || '')
     }).catch(() => {})
   }, [])
 
@@ -34,6 +37,23 @@ export default function SettingsPage() {
       setCabbageExists(result?.path ? !!result?.exists : null)
     } catch {}
     setCabbageSaving(false)
+  }
+
+  const handleChooseCabbage = async () => {
+    try {
+      const result = await window.api?.config?.chooseCabbagePath?.()
+      if (result && !result.canceled) {
+        setCabbagePath(result.path || '')
+        setCabbageExists(result.path ? !!result.exists : null)
+      }
+    } catch {}
+  }
+
+  const handleDetectCabbage = async () => {
+    try {
+      const result = await window.api?.config?.detectCabbage?.()
+      setCabbageDetected(result?.detected || '')
+    } catch {}
   }
 
   const handleSaveKey = async (provider: string, key: string) => {
@@ -53,6 +73,27 @@ export default function SettingsPage() {
       }
     } catch {}
     setSaving('')
+  }
+
+  const handleRemoveKey = async (provider: string) => {
+    const label = provider === 'google' ? 'Google AI (Gemini)' : provider === 'anthropic' ? 'Anthropic' : 'OpenAI'
+    if (!window.confirm(`Remove the saved ${label} key? You can paste a new one any time.`)) return
+    setRemoving(provider)
+    try {
+      const result = await window.api?.config?.deleteApiKey?.(provider)
+      if (result?.success) {
+        setAvailable(result.available || [])
+        const updated = await window.api?.config?.getApiKeys()
+        setSavedKeys(updated?.keys || {})
+        // Drop any stale test result for the now-removed key.
+        setTestResults((prev) => {
+          const nextResults = { ...prev }
+          delete nextResults[provider]
+          return nextResults
+        })
+      }
+    } catch {}
+    setRemoving('')
   }
 
   const handleTestKey = async (provider: string) => {
@@ -165,6 +206,13 @@ export default function SettingsPage() {
                 >
                   {testing === 'google' ? 'Testing…' : 'Test'}
                 </button>
+                <button
+                  onClick={() => handleRemoveKey('google')}
+                  disabled={removing === 'google'}
+                  style={styles.removeButton}
+                >
+                  {removing === 'google' ? 'Removing…' : 'Remove'}
+                </button>
                 {testResults.google && (
                   <span style={testResults.google.ok ? styles.testOk : styles.testErr}>
                     {testResults.google.ok ? '✓ ' : '✗ '}{testResults.google.message}
@@ -210,6 +258,13 @@ export default function SettingsPage() {
                 >
                   {testing === 'anthropic' ? 'Testing…' : 'Test'}
                 </button>
+                <button
+                  onClick={() => handleRemoveKey('anthropic')}
+                  disabled={removing === 'anthropic'}
+                  style={styles.removeButton}
+                >
+                  {removing === 'anthropic' ? 'Removing…' : 'Remove'}
+                </button>
                 {testResults.anthropic && (
                   <span style={testResults.anthropic.ok ? styles.testOk : styles.testErr}>
                     {testResults.anthropic.ok ? '✓ ' : '✗ '}{testResults.anthropic.message}
@@ -252,6 +307,13 @@ export default function SettingsPage() {
                 >
                   {testing === 'openai' ? 'Testing…' : 'Test'}
                 </button>
+                <button
+                  onClick={() => handleRemoveKey('openai')}
+                  disabled={removing === 'openai'}
+                  style={styles.removeButton}
+                >
+                  {removing === 'openai' ? 'Removing…' : 'Remove'}
+                </button>
                 {testResults.openai && (
                   <span style={testResults.openai.ok ? styles.testOk : styles.testErr}>
                     {testResults.openai.ok ? '✓ ' : '✗ '}{testResults.openai.message}
@@ -280,83 +342,57 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Csound */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Csound</h2>
-        <div style={styles.row}>
-          <div>
-            <span style={styles.label}>Csound Path</span>
-            <span style={styles.hint}>Auto-detected if on PATH</span>
-          </div>
-          <input type="text" placeholder="/usr/local/bin/csound" style={styles.input} />
-        </div>
-      </section>
-
       {/* Cabbage */}
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Cabbage</h2>
         <div style={styles.keyRow}>
           <div style={styles.keyInfo}>
-            <span style={styles.label}>Cabbage Path</span>
+            <span style={styles.label}>Cabbage App</span>
             <span style={styles.hint}>
-              Where "Open in Cabbage" launches your plugin. Leave blank to auto-detect.
-              On macOS, point at the app bundle (e.g. <code>/Applications/CabbagePro.app</code>);
-              on Windows/Linux, the Cabbage executable.
+              Where "Open in Cabbage" launches your plugin. We try to find it automatically;
+              set it here if that misses.
             </span>
-            {cabbagePath && cabbageExists === false && (
-              <span style={styles.testErr}>✗ Nothing found at that path — double-check it.</span>
-            )}
-            {cabbagePath && cabbageExists === true && (
-              <span style={styles.testOk}>✓ Found</span>
+            {/* What we'll actually use, in priority order: explicit choice → auto-detected → nothing. */}
+            {cabbagePath ? (
+              <span style={cabbageExists === false ? styles.testErr : styles.testOk}>
+                {cabbageExists === false ? `✗ Not found: ${cabbagePath}` : `✓ Using: ${cabbagePath}`}
+              </span>
+            ) : cabbageDetected ? (
+              <span style={styles.testOk}>✓ Auto-detected: {cabbageDetected}</span>
+            ) : (
+              <span style={styles.testErr}>
+                No Cabbage found automatically — choose it below, or install Cabbage and re-scan.
+              </span>
             )}
           </div>
           <div style={styles.keyInput}>
-            <input
-              type="text"
-              value={cabbagePath}
-              onChange={(e) => setCabbagePath(e.target.value)}
-              placeholder="/Applications/CabbagePro.app"
-              style={styles.input}
-              onKeyDown={(e) => e.key === 'Enter' && handleSaveCabbagePath()}
-            />
-            <button
-              onClick={handleSaveCabbagePath}
-              disabled={cabbageSaving}
-              style={styles.saveButton}
-            >
-              {cabbageSaving ? '...' : 'Save'}
+            <button onClick={handleChooseCabbage} style={styles.saveButton}>
+              Choose Cabbage…
             </button>
+            {!cabbagePath && (
+              <button onClick={handleDetectCabbage} style={styles.testButton}>
+                Re-scan
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Power-user fallback: type/paste an exact path. */}
+        <div style={styles.keyInput}>
+          <input
+            type="text"
+            value={cabbagePath}
+            onChange={(e) => setCabbagePath(e.target.value)}
+            placeholder="/Applications/CabbagePro.app (or leave blank to auto-detect)"
+            style={styles.input}
+            onKeyDown={(e) => e.key === 'Enter' && handleSaveCabbagePath()}
+          />
+          <button onClick={handleSaveCabbagePath} disabled={cabbageSaving} style={styles.saveButton}>
+            {cabbageSaving ? '...' : 'Save'}
+          </button>
         </div>
       </section>
 
-      {/* Profile */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Profile</h2>
-        <div style={styles.row}>
-          <div>
-            <span style={styles.label}>Expertise Level</span>
-            <span style={styles.hint}>Adjusts agent explanations and complexity</span>
-          </div>
-          <select style={styles.select}>
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
-        </div>
-        <div style={styles.row}>
-          <div>
-            <span style={styles.label}>Narration</span>
-            <span style={styles.hint}>Computer music history context during sessions</span>
-          </div>
-          <select style={styles.select}>
-            <option value="off">Off</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </div>
-      </section>
     </div>
   )
 }
@@ -397,6 +433,11 @@ const styles: Record<string, CSSProperties> = {
     background: 'transparent', color: 'var(--text-secondary)', fontSize: 11,
     fontFamily: 'var(--font-primary)', cursor: 'pointer',
   },
+  removeButton: {
+    padding: '3px 10px', borderRadius: 6, border: 'var(--border-width) solid var(--border)',
+    background: 'transparent', color: 'var(--warning)', fontSize: 11,
+    fontFamily: 'var(--font-primary)', cursor: 'pointer',
+  },
   extLink: {
     color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer',
   },
@@ -417,10 +458,5 @@ const styles: Record<string, CSSProperties> = {
     background: 'var(--accent)', color: 'var(--bg-primary)', fontSize: 13,
     fontWeight: 500, fontFamily: 'var(--font-primary)', cursor: 'pointer',
     flexShrink: 0,
-  },
-  select: {
-    padding: '6px 12px', borderRadius: 8, border: 'var(--border-width) solid var(--border)',
-    background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
-    fontFamily: 'var(--font-primary)', outline: 'none', minWidth: 140,
   },
 }

@@ -55,6 +55,7 @@ export namespace Provider {
         throw new Error(`Unknown provider: ${providerID}. Supported: google, anthropic, openai`)
     }
 
+    assertV1(providerID, model)
     modelCache.set(cacheKey, model)
     Log.info(`Loaded model ${providerID}/${modelID}`)
     return model
@@ -103,9 +104,31 @@ export namespace Provider {
     return { providerID: 'google', modelID: 'gemini-2.5-flash' }
   }
 
+  // The whole app runs on AI SDK 4, which only drives spec-version "v1" models.
+  // If an `@ai-sdk/*` package is ever pulled at a 2.x/3.x (AI SDK 5) version, its
+  // models advertise "v2" and streamText throws the opaque "upgrade to AI SDK 5"
+  // error on EVERY turn — the exact bug that bricked Gemini. Catch it here, at
+  // model-load time, with a message that tells the user what to actually do.
+  function assertV1(providerID: string, model: LanguageModelV1): void {
+    const spec = (model as { specificationVersion?: string }).specificationVersion
+    if (spec && spec !== 'v1') {
+      throw new Error(
+        `The ${providerID} integration is on an incompatible version (model spec "${spec}"; this build needs "v1"). ` +
+        `This is a packaging bug, not your key. Switch to another provider in Settings, or reinstall the app.`,
+      )
+    }
+  }
+
   export function humanizeError(providerID: string, err: unknown): string {
     const raw = err instanceof Error ? err.message : String(err)
     const lower = raw.toLowerCase()
+
+    // SDK version mismatch (see assertV1) — surfaces from streamText if a model
+    // slips past the load-time guard. Tell the user to switch providers, since
+    // no API key change can fix a packaging mismatch.
+    if (lower.includes('specification version') || lower.includes('upgrade to ai sdk')) {
+      return `The ${providerID} integration is on an incompatible SDK version in this build. Switch to another provider in Settings while this is fixed.`
+    }
 
     if (providerID === 'google') {
       if (lower.includes('api_key_invalid') || lower.includes('api key not valid')) {

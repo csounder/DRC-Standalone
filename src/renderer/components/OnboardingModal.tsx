@@ -46,13 +46,24 @@ export default function OnboardingModal({ onClose }: Props) {
     setKeyError('')
     try {
       const result = await window.api?.config?.setApiKey('google', googleKey.trim())
-      if (result?.success) {
-        setAvailable(result.available || [])
-        setGoogleKey('')
-        setStep('done')
-      } else {
+      if (!result?.success) {
         setKeyError('Could not save that key. Check the format and try again.')
+        setSaving(false)
+        return
       }
+      setAvailable(result.available || [])
+      // Verify the key actually works BEFORE telling the user they're set up.
+      // Catching a typo'd/Vertex/expired key here beats a cryptic failure on
+      // their first generation. The key is already saved either way, so on a
+      // failed test we surface the reason and let them re-paste or proceed.
+      const test = await window.api?.config?.testApiKey?.('google')
+      if (test && !test.ok) {
+        setKeyError(`Key saved, but it didn't work: ${test.message}`)
+        setSaving(false)
+        return
+      }
+      setGoogleKey('')
+      setStep('done')
     } catch (e) {
       setKeyError(e instanceof Error ? e.message : 'Could not save that key.')
     }
@@ -201,7 +212,7 @@ function KeyStep({
               disabled={!value.trim() || saving}
               style={{ ...styles.primaryButton, opacity: !value.trim() ? 0.4 : 1 }}
             >
-              {saving ? 'Saving...' : 'Save key'}
+              {saving ? 'Checking…' : 'Save key'}
             </button>
           </div>
           {error && <div style={styles.errorLine}>{error}</div>}

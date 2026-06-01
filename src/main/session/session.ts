@@ -149,7 +149,7 @@ export namespace SessionManager {
       model = Provider.getLanguageModel(resolvedModel.providerID, resolvedModel.modelID)
     } catch (err: any) {
       Log.error('Model load error:', err.message)
-      yield { type: 'error', content: err.message }
+      yield { type: 'error', content: Provider.humanizeError(resolvedModel.providerID, err) }
       return
     }
 
@@ -241,7 +241,7 @@ export namespace SessionManager {
         }
       } catch (err: any) {
         Log.error('Stream error:', err.message)
-        push({ type: 'error', content: `LLM Error: ${err.message}` })
+        push({ type: 'error', content: `LLM Error: ${Provider.humanizeError(resolvedModel.providerID, err)}` })
       } finally {
         mainDone = true
         wake?.()

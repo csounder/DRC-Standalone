@@ -3,6 +3,7 @@ import { spawn, execFile } from 'child_process'
 import { writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getConfigValue } from '../util/config'
+import { detectCabbagePath } from '../util/cabbage-path'
 
 // Saves a Cabbage-ified CSD to a stable path and tries to launch the Cabbage
 // Studio app on it. We save first regardless — that way even if no Cabbage
@@ -49,12 +50,14 @@ function spawnBinary(bin: string, csdPath: string): { ok: boolean; method: strin
 // honest failure (with a Settings hint) when no Cabbage install can be found,
 // instead of silently claiming success.
 async function launchCabbage(csdPath: string): Promise<{ ok: boolean; method: string; error?: string }> {
+  // Explicit setting wins; otherwise fall back to whatever we can auto-detect.
   const configured = (getConfigValue('cabbagePath') ?? '').trim()
+  const preferred = configured || ((await detectCabbagePath()) ?? '')
   const platform = process.platform
 
   if (platform === 'darwin') {
-    // Configured path first (skip if it points nowhere), then known app names.
-    const candidates = [configured, ...MAC_APP_NAMES]
+    // Preferred path first (skip if it points nowhere), then known app names.
+    const candidates = [preferred, ...MAC_APP_NAMES]
       .filter(Boolean)
       .filter((c) => !c.startsWith('/') || existsSync(c))
     for (const cand of candidates) {
@@ -72,14 +75,14 @@ async function launchCabbage(csdPath: string): Promise<{ ok: boolean; method: st
   }
 
   if (platform === 'win32') {
-    if (configured && existsSync(configured)) return spawnBinary(configured, csdPath)
+    if (preferred && existsSync(preferred)) return spawnBinary(preferred, csdPath)
     const err = await shell.openPath(csdPath)
     if (!err) return { ok: true, method: 'default .csd handler' }
     return { ok: false, method: 'openPath', error: 'No Cabbage app found. Set its path in Settings → Cabbage.' }
   }
 
   // linux & friends
-  if (configured && existsSync(configured)) return spawnBinary(configured, csdPath)
+  if (preferred && existsSync(preferred)) return spawnBinary(preferred, csdPath)
   try {
     const child = spawn('xdg-open', [csdPath], { detached: true, stdio: 'ignore' })
     child.unref()

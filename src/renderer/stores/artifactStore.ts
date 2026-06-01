@@ -21,6 +21,12 @@ export interface Artifact {
   version: number
   timestamp: number
   parentId?: string
+  // The assistant message this artifact was derived from. Lets the chat page
+  // re-adopt an already-built artifact after it remounts (e.g. navigating away
+  // and back) instead of re-deriving a fresh one from the message text — which
+  // is wrong for converted web apps whose message holds an orchestra CSD, not
+  // the generated HTML.
+  sourceMessageId?: string
 }
 
 // Which file is the source of truth for each artifact type.
@@ -109,8 +115,8 @@ interface ArtifactState {
   activeArtifactId: string | null
   panelOpen: boolean
 
-  addArtifact: (input: { type: ArtifactType; title: string; content: string }) => Artifact
-  updatePrimary: (id: string, content: string) => Artifact
+  addArtifact: (input: { type: ArtifactType; title: string; content: string; sourceMessageId?: string }) => Artifact
+  updatePrimary: (id: string, content: string, sourceMessageId?: string) => Artifact
   updateInPlace: (id: string, content: string) => void
   setActive: (id: string | null) => void
   setActiveFile: (id: string, fileIndex: number) => void
@@ -141,6 +147,7 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
       version,
       timestamp: Date.now(),
       parentId,
+      sourceMessageId: input.sourceMessageId,
     }
     set((s) => ({
       artifacts: [...s.artifacts, artifact],
@@ -150,7 +157,7 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
     return artifact
   },
 
-  updatePrimary: (id, newContent) => {
+  updatePrimary: (id, newContent, sourceMessageId) => {
     const existing = get().artifacts.find((a) => a.id === id)
     if (!existing) return existing!
 
@@ -164,6 +171,7 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
       version: existing.version + 1,
       timestamp: Date.now(),
       parentId: id,
+      sourceMessageId,
     }
     set((s) => ({
       artifacts: [...s.artifacts, artifact],

@@ -92,12 +92,16 @@ const api = {
   config: {
     setApiKey: (provider: string, key: string) =>
       ipcRenderer.invoke('config:setApiKey', provider, key),
+    deleteApiKey: (provider: string) =>
+      ipcRenderer.invoke('config:deleteApiKey', provider),
     getApiKeys: () => ipcRenderer.invoke('config:getApiKeys'),
     testApiKey: (provider: string) =>
       ipcRenderer.invoke('config:testApiKey', provider),
     getCabbagePath: () => ipcRenderer.invoke('config:getCabbagePath'),
     setCabbagePath: (path: string) =>
       ipcRenderer.invoke('config:setCabbagePath', path),
+    detectCabbage: () => ipcRenderer.invoke('config:detectCabbage'),
+    chooseCabbagePath: () => ipcRenderer.invoke('config:chooseCabbagePath'),
   },
 
   llm: {
