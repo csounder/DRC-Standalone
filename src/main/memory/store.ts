@@ -259,6 +259,20 @@ export namespace MemoryStore {
     }
   }
 
+  // Attach a distilled one-line "avoidance rule" to a stored error→fix pair.
+  // Populated best-effort by ErrorLessons.distill after a successful autofix; it
+  // is what the proactive <previous-errors> prompt block surfaces.
+  export function setErrorFixSummary(id: string, summary: string): void {
+    if (!MemoryDB.isReady()) return
+    try {
+      MemoryDB.raw()
+        .prepare(`UPDATE error_fixes SET diff_summary = ? WHERE id = ?`)
+        .run(summary.slice(0, 280), id)
+    } catch (err: any) {
+      Log.warn(`memory setErrorFixSummary failed: ${err?.message}`)
+    }
+  }
+
   // --- remembered instructions (lessons) ------------------------------------
 
   function normalizeLesson(text: string): string {

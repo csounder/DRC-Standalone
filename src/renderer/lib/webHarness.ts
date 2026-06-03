@@ -201,6 +201,19 @@ function setStatus(msg, cls) {
   statusEl.className = "status" + (cls ? " " + cls : "");
 }
 
+// Bound an await so a stalled network/WASM load never hangs forever on a loading
+// status — whichever loses the race rejects with a clear, user-visible message.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise(function (_, reject) {
+      setTimeout(function () {
+        reject(new Error(label + " timed out after " + (ms / 1000) + "s — check your network connection and press Start Audio again."));
+      }, ms);
+    })
+  ]);
+}
+
 // ── Slider value mapping. Exponential channels with a positive floor get a log
 // response so wide ranges (20Hz..20kHz, 1ms..2s) feel right at the low end. ──
 function isExp(ch) { return ch.curve === "exp" && ch.min > 0; }
@@ -324,10 +337,10 @@ async function start() {
   powerBtn.disabled = true;
   try {
     setStatus("Loading Csound from CDN...", "");
-    var mod = await import(CSOUND_CDN);
+    var mod = await withTimeout(import(CSOUND_CDN), 20000, "Loading Csound from CDN");
     var Csound = mod.Csound;
     setStatus("Creating audio engine...", "");
-    csound = await Csound({ useWorker: false, useSPN: false, outputChannelCount: 2 });
+    csound = await withTimeout(Csound({ useWorker: false, useSPN: false, outputChannelCount: 2 }), 20000, "Starting the audio engine");
     await csound.setOption("-odac");
     await csound.setOption("-m0");
     setStatus("Compiling orchestra...", "");

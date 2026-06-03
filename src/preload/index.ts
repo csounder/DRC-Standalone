@@ -102,6 +102,10 @@ const api = {
       ipcRenderer.invoke('config:setCabbagePath', path),
     detectCabbage: () => ipcRenderer.invoke('config:detectCabbage'),
     chooseCabbagePath: () => ipcRenderer.invoke('config:chooseCabbagePath'),
+    listAudioDevices: () => ipcRenderer.invoke('config:listAudioDevices'),
+    getAudioConfig: () => ipcRenderer.invoke('config:getAudioConfig'),
+    setAudioDevice: (field: string, value: string) =>
+      ipcRenderer.invoke('config:setAudioDevice', field, value),
   },
 
   llm: {

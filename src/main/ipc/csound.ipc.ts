@@ -7,6 +7,20 @@ import { app } from 'electron'
 import { normalizeNamedInstruments } from '../csound/normalize'
 import { Log } from '../util/log'
 import { withCsoundPath } from '../util/csound-path'
+import { getConfigValue } from '../util/config'
+
+// Build the realtime I/O flags for playback from the user's Audio/MIDI setup.
+// Output always present (chosen device or system default); input + MIDI only when
+// the user picked a device. A command-line -odacN overrides the CSD's own -odac.
+function realtimeIoFlags(): string[] {
+  const out = (getConfigValue('audioOutputDevice') ?? '').trim()
+  const inp = (getConfigValue('audioInputDevice') ?? '').trim()
+  const midi = (getConfigValue('midiInputDevice') ?? '').trim()
+  const flags = [`-odac${/^\d+$/.test(out) ? out : ''}`]
+  if (/^\d+$/.test(inp)) flags.push(`-iadc${inp}`)
+  if (/^\d+$/.test(midi)) flags.push('-+rtmidi=portmidi', `-M${midi}`)
+  return flags
+}
 
 const execFileAsync = promisify(execFile)
 
@@ -166,7 +180,11 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
       // -Lstdin lets us push live score events (i 1 0 2 440 0.8\n) into csound's
       // stdin while it's running. Without this the keyboard and knobs are dead.
       // pipe stdin so we can write to it from event/setChannel handlers.
-      playProcess = spawn('csound', ['-odac', '-d', '-m0', '-Lstdin', csdPath], {
+      // Realtime I/O (output/input/MIDI device) comes from the user's Audio/MIDI
+      // setup; -odacN overrides the CSD's own -odac so the chosen device wins.
+      const ioFlags = realtimeIoFlags()
+      Log.info(`csound play io flags: ${ioFlags.join(' ')}`)
+      playProcess = spawn('csound', [...ioFlags, '-d', '-m0', '-Lstdin', csdPath], {
         timeout: 120000,
         stdio: ['pipe', 'pipe', 'pipe'],
         env: withCsoundPath(),

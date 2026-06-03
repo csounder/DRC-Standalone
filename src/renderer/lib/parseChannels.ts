@@ -49,6 +49,22 @@ export function extractOrchestra(csd: string): string {
   return m ? m[1].trim() : csd.trim()
 }
 
+// Decide whether a web-ready orchestra is keyboard-driven (shape A: instr 1 IS the
+// voice the keyboard fires) vs an always-on texture (shape B: instr 1 runs on its
+// own and the host must fire `i 1 0 -1`).
+//
+// The discriminator is whether `instr 1`'s OWN body reads p4 — not whether p4
+// appears anywhere in the orchestra. A texture whose instr 1 is a scheduler
+// (metro → schedkwhen) that fires a p4-based SUB-voice (instr 2) has p4 in the orc
+// but NOT in instr 1; treating it as a keyboard patch left the scheduler unfired,
+// so the whole patch was silent. Checking instr 1's body fixes that case while
+// still detecting a true keyboard voice.
+export function usesKeyboard(orc: string): boolean {
+  const block = orc.match(/\binstr\s+1\b([\s\S]*?)\bendin\b/i)
+  if (!block) return /\bp4\b/.test(orc) // no instr 1 — fall back to whole-orc scan
+  return /\bp4\b/.test(block[1])
+}
+
 // Tokenize a chn_k argument list, keeping double-quoted strings intact. We
 // can't just split on commas because Sattributes is a quoted string that may
 // contain spaces.

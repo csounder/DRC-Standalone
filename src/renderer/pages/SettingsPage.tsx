@@ -17,6 +17,39 @@ export default function SettingsPage() {
   const [cabbageDetected, setCabbageDetected] = useState('')
   const [cabbageSaving, setCabbageSaving] = useState(false)
 
+  type Device = { index: number; id: string; name: string }
+  const [audioDevices, setAudioDevices] = useState<{ outputs: Device[]; inputs: Device[]; midiInputs: Device[] }>({
+    outputs: [], inputs: [], midiInputs: [],
+  })
+  const [audioCfg, setAudioCfg] = useState({ output: '', input: '', midiInput: '' })
+  const [audioBusy, setAudioBusy] = useState(false)
+
+  // Enumerate devices + load the saved selection. Reused by the Refresh button.
+  const loadAudio = async () => {
+    setAudioBusy(true)
+    try {
+      const [devs, cfg]: any[] = await Promise.all([
+        window.api?.config?.listAudioDevices?.(),
+        window.api?.config?.getAudioConfig?.(),
+      ])
+      if (devs) setAudioDevices({
+        outputs: devs.outputs ?? [], inputs: devs.inputs ?? [], midiInputs: devs.midiInputs ?? [],
+      })
+      if (cfg) setAudioCfg({ output: cfg.output ?? '', input: cfg.input ?? '', midiInput: cfg.midiInput ?? '' })
+    } catch { /* csound may be missing — leave lists empty */ } finally {
+      setAudioBusy(false)
+    }
+  }
+
+  const updateDevice = async (
+    configKey: string,
+    stateKey: 'output' | 'input' | 'midiInput',
+    value: string,
+  ) => {
+    setAudioCfg((c) => ({ ...c, [stateKey]: value })) // optimistic
+    await window.api?.config?.setAudioDevice?.(configKey, value)
+  }
+
   // Load saved keys + Cabbage path on mount
   useEffect(() => {
     window.api?.config?.getApiKeys().then((result: any) => {
@@ -28,6 +61,7 @@ export default function SettingsPage() {
       setCabbageExists(result?.path ? !!result?.exists : null)
       setCabbageDetected(result?.detected || '')
     }).catch(() => {})
+    void loadAudio()
   }, [])
 
   const handleSaveCabbagePath = async () => {
@@ -342,6 +376,80 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Audio & MIDI */}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>Audio & MIDI</h2>
+
+        <div style={styles.deviceRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>Output device</span>
+            <span style={styles.hint}>
+              Where playback is sent. If everything compiles but you hear nothing, pick your
+              speakers/headphones here instead of the system default.
+            </span>
+          </div>
+          <select
+            style={styles.select}
+            value={audioCfg.output}
+            onChange={(e) => updateDevice('audioOutputDevice', 'output', e.target.value)}
+          >
+            <option value="">System default</option>
+            {audioDevices.outputs.map((d) => (
+              <option key={d.index} value={String(d.index)}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={styles.deviceRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>Input device</span>
+            <span style={styles.hint}>
+              For live DSP — feeds your mic/interface into instruments that read live input (adc).
+              Leave off unless a patch processes incoming audio.
+            </span>
+          </div>
+          <select
+            style={styles.select}
+            value={audioCfg.input}
+            onChange={(e) => updateDevice('audioInputDevice', 'input', e.target.value)}
+          >
+            <option value="">Off</option>
+            {audioDevices.inputs.map((d) => (
+              <option key={d.index} value={String(d.index)}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={styles.deviceRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>MIDI input</span>
+            <span style={styles.hint}>
+              {audioDevices.midiInputs.length === 0
+                ? 'No MIDI devices detected. Connect a controller and Refresh.'
+                : 'Hardware MIDI keyboard/controller for note input.'}
+            </span>
+          </div>
+          <select
+            style={styles.select}
+            value={audioCfg.midiInput}
+            onChange={(e) => updateDevice('midiInputDevice', 'midiInput', e.target.value)}
+            disabled={audioDevices.midiInputs.length === 0}
+          >
+            <option value="">Off</option>
+            {audioDevices.midiInputs.map((d) => (
+              <option key={d.index} value={String(d.index)}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ ...styles.keyInput, marginTop: 12 }}>
+          <button onClick={() => void loadAudio()} disabled={audioBusy} style={styles.testButton}>
+            {audioBusy ? 'Scanning…' : 'Refresh devices'}
+          </button>
+          <span style={styles.hint}>Changes apply on the next Play.</span>
+        </div>
+      </section>
+
       {/* Cabbage */}
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Cabbage</h2>
@@ -419,7 +527,17 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex', flexDirection: 'column', gap: 10,
   },
   keyInfo: { display: 'flex', flexDirection: 'column', gap: 2 },
-  keyInput: { display: 'flex', gap: 8 },
+  keyInput: { display: 'flex', gap: 8, alignItems: 'center' },
+  deviceRow: {
+    padding: '14px 0', borderBottom: '1px solid var(--border-subtle)',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24,
+  },
+  select: {
+    padding: '8px 12px', borderRadius: 8, border: 'var(--border-width) solid var(--border)',
+    background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
+    fontFamily: 'var(--font-primary)', cursor: 'pointer', minWidth: 200, maxWidth: 280,
+    flexShrink: 0,
+  },
   label: { display: 'block', fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 },
   hint: { display: 'block', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 },
   savedKey: {

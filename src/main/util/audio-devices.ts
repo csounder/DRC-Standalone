@@ -1,0 +1,81 @@
+import { execFile } from 'child_process'
+import { withCsoundPath } from './csound-path'
+
+// Enumerate the audio + MIDI devices csound can see, by parsing `csound --devices`.
+// The indices csound prints here are exactly what the `-odacN` / `-iadcN` / `-MN`
+// flags expect — so selecting a device in Settings and passing its index back is a
+// stable round-trip. We deliberately use csound's own view rather than CoreAudio
+// directly: it guarantees the index we store is the one the play engine honors.
+
+export interface AudioDevice {
+  index: number // csound device index — used as -odacN / -iadcN
+  id: string // e.g. "dac1" / "adc0"
+  name: string // friendly name, e.g. "MacBook Pro Speakers"
+}
+
+export interface DeviceList {
+  outputs: AudioDevice[]
+  inputs: AudioDevice[]
+  midiInputs: AudioDevice[]
+}
+
+function run(args: string[]): Promise<string> {
+  return new Promise((resolve) => {
+    execFile('csound', args, { timeout: 8000, env: withCsoundPath() }, (_err, stdout, stderr) => {
+      // csound prints the device list to stderr and exits non-zero on the bare
+      // --devices probe; that's expected, so we ignore the error and read stderr.
+      resolve(`${stdout}\n${stderr}`)
+    })
+  })
+}
+
+function stripAnsi(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/\x1b\[[0-9;]*m/g, '')
+}
+
+// Lines look like: " 1: dac1 (MacBook Pro Speakers [Core Audio, 0 in, 2 out]) [ch:2]"
+// or for MIDI:      " 0: In Name"
+function parseDeviceLine(line: string): AudioDevice | null {
+  const m = line.match(/^\s*(\d+):\s*(\S+)\s*(.*)$/)
+  if (!m) return null
+  const index = parseInt(m[1], 10)
+  const id = m[2]
+  let rest = m[3].trim()
+  // Prefer the friendly name inside the first parentheses, before the [Core Audio…]
+  const paren = rest.match(/^\(([^[\]]+?)\s*(?:\[|\))/)
+  const name = (paren ? paren[1] : rest).replace(/[()]/g, '').trim() || id
+  return { index, id, name }
+}
+
+export async function listAudioDevices(): Promise<DeviceList> {
+  const audioRaw = stripAnsi(await run(['-+rtaudio=portaudio', '--devices']))
+  const midiRaw = stripAnsi(await run(['-+rtmidi=portmidi', '--midi-devices']))
+
+  const outputs: AudioDevice[] = []
+  const inputs: AudioDevice[] = []
+  let section: 'in' | 'out' | null = null
+  for (const line of audioRaw.split('\n')) {
+    if (/audio input devices/i.test(line)) { section = 'in'; continue }
+    if (/audio output devices/i.test(line)) { section = 'out'; continue }
+    if (!section) continue
+    const dev = parseDeviceLine(line)
+    if (!dev) continue
+    if (section === 'in' && /^adc/i.test(dev.id)) inputs.push(dev)
+    if (section === 'out' && /^dac/i.test(dev.id)) outputs.push(dev)
+  }
+
+  // MIDI lines have no dac/adc id token (e.g. " 0: IAC Driver Bus 1"), so take the
+  // index and treat the entire remainder as the name.
+  const midiInputs: AudioDevice[] = []
+  let inMidiIn = false
+  for (const line of midiRaw.split('\n')) {
+    if (/MIDI input devices/i.test(line)) { inMidiIn = true; continue }
+    if (/MIDI output devices/i.test(line)) { inMidiIn = false; continue }
+    if (!inMidiIn) continue
+    const m = line.match(/^\s*(\d+):\s*(.+?)\s*$/)
+    if (m) midiInputs.push({ index: parseInt(m[1], 10), id: `midi${m[1]}`, name: m[2] })
+  }
+
+  return { outputs, inputs, midiInputs }
+}

@@ -7,6 +7,16 @@ import type { ErrorFixRow } from './schema'
 // rather than introducing embeddings — it's fast over the small error_fixes
 // table and adds no dependencies.
 
+// Query-independent importance of a stored fix, for the proactive previous-errors
+// block: a distilled rule is worth far more than a raw pair, recurring mistakes
+// (uses) outrank one-offs, and recent beats stale.
+function rankFix(row: ErrorFixRow): number {
+  const hasRule = row.diffSummary ? 100 : 0
+  const ageDays = (Date.now() - row.createdAt) / 86_400_000
+  const recency = Math.exp(-ageDays / 30)
+  return hasRule + row.uses * 4 + recency
+}
+
 function scoreFix(queryTokens: Set<string>, row: ErrorFixRow, queryKind?: string): number {
   let overlap = 0
   for (const t of row.tokens) if (queryTokens.has(t)) overlap += 1
@@ -95,6 +105,51 @@ export namespace MemoryRetrieval {
     lines.push(`Treat as soft preference learned from feedback, not a hard requirement.`)
     lines.push(`</learned-guidance>`)
     return lines.join('\n').slice(0, maxChars)
+  }
+
+  // Proactive "previous errors" memory — injected on EVERY real generation turn
+  // (next to remembered-instructions), NOT keyed to a current error. Surfaces the
+  // distilled avoidance rules (diffSummary) from past autofixes so the model writes
+  // code that sidesteps known failure modes from the start, instead of generating a
+  // broken first draft and relying on the reactive autofix loop.
+  //
+  // Prioritizes pairs that (a) have a distilled rule, (b) recurred most (uses), and
+  // (c) are most recent. Deduped by error signature so one class of mistake counts
+  // once. Compact by design (no full CSDs — those belong in errorFixBlock).
+  export function previousErrorsBlock(maxChars = 1200, max = 5): string {
+    const all = MemoryStore.allErrorFixes()
+    if (all.length === 0) return ''
+
+    // Keep the strongest row per signature: prefer one with a distilled rule,
+    // then more uses, then more recent.
+    const bySig = new Map<string, ErrorFixRow>()
+    for (const row of all) {
+      const cur = bySig.get(row.signature)
+      if (!cur || rankFix(row) > rankFix(cur)) bySig.set(row.signature, row)
+    }
+
+    const ranked = Array.from(bySig.values())
+      .sort((a, b) => rankFix(b) - rankFix(a))
+      .slice(0, max)
+
+    // Only worth a prompt block once at least one rule has been distilled — a list
+    // of raw error strings with no takeaway is noise.
+    if (!ranked.some((r) => r.diffSummary)) return ''
+
+    const lines = [
+      `<previous-errors>`,
+      `Mistakes that have broken your CSDs before. Write code that avoids these from the START — do not reproduce the broken pattern and lean on a later fix. Each rule is binding when it applies:`,
+    ]
+    let budget = maxChars
+    for (const r of ranked) {
+      const rule = r.diffSummary ?? `Avoid whatever caused: ${r.errorRaw.slice(0, 120)}`
+      const entry = `- [${r.kind}] ${rule}`
+      if (entry.length > budget) break
+      lines.push(entry)
+      budget -= entry.length
+    }
+    lines.push(`</previous-errors>`)
+    return lines.length > 3 ? lines.join('\n') : ''
   }
 
   // Only injected on autofix turns: prior fixes for similar errors.

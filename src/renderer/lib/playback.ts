@@ -146,7 +146,7 @@ async function requestAutofix(
 
   const hint = kind === 'runtime'
     ? `Hint: INIT/PERF errors usually come from rate mismatches at init time. Common traps: \`i(kVar)\` on a k-var that's only written inside the instrument body (reads 0 at init); passing a k-rate ftable index to \`table\` instead of \`tablekt\`; expseg endpoints of 0; unknown opcodes; or silent output from unscheduled instruments / missing \`out\`.`
-    : `Hint: rate-mismatch assignments (e.g. "ifreq = ifreqs[kIdx]") are the most common cause — use a "k" prefix or wrap in i() to snapshot.`
+    : `Hint: "Unable to find opcode entry for '<opcode>' with matching argument types" means you passed a WRONG-RATE argument to that opcode — most often a k-rate value into an envelope generator (linseg/expseg/linsegr/expsegr/transeg/madsr), whose time AND level args MUST be i-rate (constants, p-fields, i-vars). Fix it by making those args i-rate and instead modulating the envelope's OUTPUT (e.g. \`aSig = oscili(kEnv * kShimmer, ...)\`) — do NOT just rename the variable. For a plain "i = k" assignment, use a "k" prefix or wrap the RHS in i() to snapshot at init.`
 
   const prompt =
     `The CSD you just wrote failed to ${kind === 'runtime' ? 'run' : 'compile'}. Fix it and emit the full corrected <CsoundSynthesizer>…</CsoundSynthesizer> block (one short sentence, then the CSD).\n\n` +

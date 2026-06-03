@@ -37,9 +37,22 @@ function ThumbDown({ filled }: { filled: boolean }) {
   )
 }
 
+// Quick-pick reasons for a thumbs-down, tuned to this app's failure modes. The
+// model uses the chosen reason + free text to distill a durable avoidance rule.
+const DOWN_REASONS = [
+  'Wrong sound',
+  'Errors / would not play',
+  'Ignored my request',
+  'Too generic',
+] as const
+
 // Thumbs on a completed assistant turn. The single manual learning signal the
 // user can give per message — it feeds the heuristic profile + technique
 // preferences in main/memory. Once given it locks, so we don't double-count.
+//
+// Thumbs-up sends immediately. Thumbs-down opens an inline composer (reason chips
+// + free text, like Claude on the web) so the user can say WHY — that critique is
+// distilled into a remembered avoidance rule on the backend.
 export default function MessageFeedback({
   messageId,
   content,
@@ -49,38 +62,171 @@ export default function MessageFeedback({
 }) {
   const sendFeedback = useSessionStore((s) => s.sendFeedback)
   const [picked, setPicked] = useState<'up' | 'down' | null>(null)
+  const [composing, setComposing] = useState(false)
+  const [reason, setReason] = useState<string | null>(null)
+  const [text, setText] = useState('')
 
-  const send = (which: 'up' | 'down') => {
+  const sendUp = () => {
     if (picked) return
-    setPicked(which)
-    sendFeedback(which === 'up' ? 'thumbs_up' : 'thumbs_down', { messageId, content })
+    setPicked('up')
+    sendFeedback('thumbs_up', { messageId, content })
+  }
+
+  const openDown = () => {
+    if (picked) return
+    setComposing(true)
+  }
+
+  // Submit with whatever detail was given; Skip records the bare down signal.
+  const submitDown = (withDetail: boolean) => {
+    setPicked('down')
+    setComposing(false)
+    const critique = text.trim()
+    sendFeedback('thumbs_down', {
+      messageId,
+      content,
+      ...(withDetail && reason ? { reason } : {}),
+      ...(withDetail && critique ? { critique } : {}),
+    })
   }
 
   return (
-    <div style={styles.row}>
-      <button
-        title="This was good"
-        aria-label="Good response"
-        onClick={() => send('up')}
-        style={{ ...styles.btn, ...(picked === 'up' ? styles.activeUp : {}) }}
-      >
-        <ThumbUp filled={picked === 'up'} />
-      </button>
-      <button
-        title="Not what I wanted"
-        aria-label="Bad response"
-        onClick={() => send('down')}
-        style={{ ...styles.btn, ...(picked === 'down' ? styles.activeDown : {}) }}
-      >
-        <ThumbDown filled={picked === 'down'} />
-      </button>
-      {picked && <span style={styles.note}>noted — I'll remember</span>}
+    <div style={styles.wrap}>
+      <div style={styles.row}>
+        <button
+          title="This was good"
+          aria-label="Good response"
+          onClick={sendUp}
+          style={{ ...styles.btn, ...(picked === 'up' ? styles.activeUp : {}) }}
+        >
+          <ThumbUp filled={picked === 'up'} />
+        </button>
+        <button
+          title="Not what I wanted"
+          aria-label="Bad response"
+          onClick={openDown}
+          style={{ ...styles.btn, ...(picked === 'down' || composing ? styles.activeDown : {}) }}
+        >
+          <ThumbDown filled={picked === 'down'} />
+        </button>
+        {picked && <span style={styles.note}>noted — I'll remember</span>}
+      </div>
+
+      {composing && (
+        <div style={styles.composer}>
+          <div style={styles.composerTitle}>What went wrong?</div>
+          <div style={styles.chips}>
+            {DOWN_REASONS.map((r) => (
+              <button
+                key={r}
+                onClick={() => setReason((cur) => (cur === r ? null : r))}
+                style={{ ...styles.chip, ...(reason === r ? styles.chipActive : {}) }}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <textarea
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Optional: tell me what to do differently next time (e.g. brighter tone, longer decay, no clipping)…"
+            style={styles.textarea}
+            rows={3}
+          />
+          <div style={styles.actions}>
+            <button onClick={() => submitDown(false)} style={styles.skip}>
+              Skip
+            </button>
+            <button
+              onClick={() => submitDown(true)}
+              disabled={!reason && !text.trim()}
+              style={{
+                ...styles.submit,
+                ...(!reason && !text.trim() ? styles.submitDisabled : {}),
+              }}
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 const styles: Record<string, CSSProperties> = {
+  wrap: { display: 'flex', flexDirection: 'column', gap: 0 },
   row: { display: 'flex', alignItems: 'center', gap: 2, marginTop: 6 },
+  composer: {
+    marginTop: 8,
+    padding: 12,
+    maxWidth: 460,
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    background: 'var(--bg-secondary)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  composerTitle: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+  },
+  chips: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  chip: {
+    fontSize: 11,
+    padding: '4px 9px',
+    borderRadius: 999,
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    transition: 'background 120ms ease, color 120ms ease, border-color 120ms ease',
+  },
+  chipActive: {
+    background: 'var(--accent-muted)',
+    color: 'var(--accent)',
+    borderColor: 'var(--accent)',
+  },
+  textarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    resize: 'vertical',
+    fontSize: 12,
+    lineHeight: 1.5,
+    padding: 8,
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    fontFamily: 'inherit',
+  },
+  actions: { display: 'flex', justifyContent: 'flex-end', gap: 8 },
+  skip: {
+    fontSize: 12,
+    padding: '5px 12px',
+    borderRadius: 7,
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+  },
+  submit: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '5px 14px',
+    borderRadius: 7,
+    border: 'none',
+    background: 'var(--accent)',
+    color: 'var(--bg-primary)',
+    cursor: 'pointer',
+  },
+  submitDisabled: {
+    opacity: 0.45,
+    cursor: 'not-allowed',
+  },
   btn: {
     display: 'inline-flex',
     alignItems: 'center',

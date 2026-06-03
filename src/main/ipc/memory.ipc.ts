@@ -2,6 +2,8 @@ import { IpcMain } from 'electron'
 import { MemoryStore } from '../memory/store'
 import { MemoryRetrieval } from '../memory/retrieve'
 import { Learning, type FeedbackEvent } from '../memory/learning'
+import { ErrorLessons } from '../memory/error_lessons'
+import { FeedbackLessons } from '../memory/feedback_lessons'
 import { Log } from '../util/log'
 
 export function handleMemoryIPC(ipcMain: IpcMain): void {
@@ -36,13 +38,25 @@ export function handleMemoryIPC(ipcMain: IpcMain): void {
   // stores the error→fix pair so the agent can reuse it next time.
   ipcMain.handle('memory:feedback', async (_event, kind: string, payload: any = {}) => {
     if (kind === 'accepted_fix' && payload?.fixedCsd) {
-      MemoryStore.saveErrorFix({
+      const fixKind = payload.kind === 'runtime' ? 'runtime' : 'compile'
+      const errorRaw = String(payload.errorRaw ?? '')
+      const fixedCsd = String(payload.fixedCsd)
+      const id = MemoryStore.saveErrorFix({
         sessionId: payload.sessionId ?? null,
-        kind: payload.kind === 'runtime' ? 'runtime' : 'compile',
-        errorRaw: String(payload.errorRaw ?? ''),
+        kind: fixKind,
+        errorRaw,
         brokenCsd: payload.brokenCsd ?? null,
-        fixedCsd: String(payload.fixedCsd),
+        fixedCsd,
         diffSummary: payload.diffSummary ?? null,
+      })
+      // Background: distill a durable avoidance rule from this fix so the
+      // proactive <previous-errors> block can prevent the same mistake next time.
+      void ErrorLessons.distill({
+        id,
+        kind: fixKind,
+        errorRaw,
+        brokenCsd: payload.brokenCsd ?? null,
+        fixedCsd,
       })
     }
 
@@ -53,6 +67,9 @@ export function handleMemoryIPC(ipcMain: IpcMain): void {
         techniques: payload.techniques,
         opcodes: payload.opcodes,
         content: payload.content ?? payload.fixedCsd,
+        // Captured from the thumbs-down composer for telemetry + distillation.
+        reason: payload.reason,
+        critique: payload.critique,
       },
     }
     const id = MemoryStore.saveFeedback({
@@ -63,6 +80,18 @@ export function handleMemoryIPC(ipcMain: IpcMain): void {
       signals: ev.signals,
     })
     Learning.applyFeedback(ev)
+
+    // A thumbs-down WITH a stated reason becomes a durable avoidance rule, so the
+    // critique improves future generations instead of being an opaque -1.
+    if (kind === 'thumbs_down' && (payload.reason || payload.critique)) {
+      void FeedbackLessons.fromCritique({
+        reason: payload.reason ?? null,
+        critique: payload.critique ?? null,
+        content: payload.content ?? null,
+        sessionId: payload.sessionId ?? null,
+      })
+    }
+
     Log.info(`memory:feedback ${kind}`)
     return { id }
   })

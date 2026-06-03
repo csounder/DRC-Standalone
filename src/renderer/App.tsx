@@ -59,6 +59,9 @@ export default function App() {
           <Route path="/player" element={<PlayerPage />} />
           <Route path="/graph" element={<GraphPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          {/* Any unknown path (e.g. a stale or unexpected entry URL) falls back to
+              the agent view rather than rendering a blank screen. */}
+          <Route path="*" element={<Navigate to="/agent" replace />} />
         </Routes>
       </main>
       <PlaybackBar />

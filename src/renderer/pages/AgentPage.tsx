@@ -14,8 +14,12 @@ import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../
 import { playArtifact, stopPlayback, resetAutofix } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
-import { parseChannels, extractOrchestra } from '../lib/parseChannels'
+import { parseChannels, extractOrchestra, usesKeyboard } from '../lib/parseChannels'
 import { buildWebApp } from '../lib/webHarness'
+
+// Strip a stray leading web-app wrapper so a fresh turn's CSD can be recovered.
+const DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/gi
+const HTML_FENCE_RE = /```(?:html|HTML)\s*\n/g
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
@@ -76,7 +80,13 @@ export default function AgentPage() {
   // ONE turn and, on completion, deterministically wrap the orchestra into a web
   // app via buildWebApp. The flag is consumed (cleared) the moment that turn is
   // handled, so it can never leak into a later, unrelated generation.
-  const pendingWebappConvertRef = useRef<{ title: string } | null>(null)
+  // `editBaseId` is set when this turn is a FOLLOW-UP edit of an existing web app
+  // (vs a first-time conversion): the rebuilt web app becomes a new VERSION of that
+  // artifact rather than a brand-new one.
+  const pendingWebappConvertRef = useRef<{ title: string; editBaseId?: string } | null>(null)
+  // True only on a turn that explicitly requested a format conversion. A fresh
+  // generation leaves it false, so a stray DOCTYPE is never made a webapp/vst.
+  const convertTurnRef = useRef<boolean>(false)
   useEffect(() => {
     // Look for the most recent non-narration assistant message. Narration messages
     // are ambient context and never contain artifacts.
@@ -105,10 +115,14 @@ export default function AgentPage() {
         orc,
         channels: parseChannels(csd),
         title,
-        hasKeyboard: /\bp4\b/.test(orc),
+        hasKeyboard: usesKeyboard(orc),
         hasReverbBus: /\binstr\s+99\b/.test(orc),
       })
-      const artifact = addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last.id })
+      // A follow-up edit rebuilds as a NEW VERSION of the existing web app; a
+      // first-time conversion creates a fresh artifact.
+      const artifact = pendingConvert.editBaseId
+        ? updatePrimary(pendingConvert.editBaseId, html, last.id)
+        : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last.id })
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
       setActive(artifact.id)
       return
@@ -124,6 +138,22 @@ export default function AgentPage() {
       const adopted = useArtifactStore.getState().artifacts.find((a) => a.sourceMessageId === last.id)
       if (adopted) {
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, adopted.id))
+        return
+      }
+      // Fresh-turn guard: a non-conversion generation must be a CSD. A stray
+      // DOCTYPE/HTML outranks the CSD in findStart, so without this a model that
+      // wrongly emits a web app on a first turn would render as a webapp. Refuse
+      // it; recover an embedded CSD if the message has one, else ignore the turn.
+      if (!convertTurnRef.current && detected.type !== 'csd') {
+        if (!isStreaming) {
+          const stripped = last.content.replace(DOCTYPE_RE, '').replace(HTML_FENCE_RE, '')
+          const csdFallback = detect(stripped)
+          if (csdFallback && csdFallback.type === 'csd') {
+            const t = deriveTitle(csdFallback.code, 'csd', lastUserPrompt)
+            const a = addArtifact({ type: 'csd', title: t, content: csdFallback.code, sourceMessageId: last.id })
+            setMsgArtifactMap((prev) => new Map(prev).set(last.id, a.id))
+          }
+        }
         return
       }
       // If this turn was an edit of the artifact loaded in the panel, branch the
@@ -172,6 +202,8 @@ export default function AgentPage() {
     // The webapp conversion now returns an orchestra CSD that we wrap ourselves
     // (see the detection effect). Mark the turn so it's intercepted.
     pendingWebappConvertRef.current = targetType === 'webapp' ? { title: active.title } : null
+    // Explicit conversion — the fresh-turn guard must NOT suppress the artifact.
+    convertTurnRef.current = true
 
     setInput('')
     // Show a compact user-visible message, not the full template
@@ -199,9 +231,15 @@ export default function AgentPage() {
     void stopPlayback()
     resetAutofix(sessionID)
     startNewSession()
+    // Clear ALL artifact state too — otherwise the previous session's artifact
+    // stays loaded in the panel and becomes the edit base for the new session's
+    // first message, so "nothing works" in what should be a clean session.
+    useArtifactStore.getState().reset()
+    editBaseRef.current = null
     setMsgArtifactMap(new Map())
     autoPlayedRef.current = new Set()
     pendingWebappConvertRef.current = null
+    convertTurnRef.current = false
   }, [sessionID, startNewSession])
 
   // Reopen a persisted chat. We pre-seed autoPlayedRef with the loaded message
@@ -213,8 +251,14 @@ export default function AgentPage() {
     void stopPlayback()
     resetAutofix(sessionID)
     clearMessages()
+    // Drop the prior session's artifact state before loading this one, so it can't
+    // leak across sessions. The artifact-detection effect rebuilds this session's
+    // final artifact from its loaded messages.
+    useArtifactStore.getState().reset()
+    editBaseRef.current = null
     setMsgArtifactMap(new Map())
     pendingWebappConvertRef.current = null
+    convertTurnRef.current = false
     setSessionID(data.id)
     if (['csound', 'csound-sine'].includes(data.agent)) setAgentMode(data.agent)
     const loaded = new Set<string>()
@@ -241,6 +285,7 @@ export default function AgentPage() {
 
     setLastUserPrompt(text)
     resetAutofix(sessionID)  // Fresh user prompt — clear any accumulated autofix attempts.
+    convertTurnRef.current = false  // default: a fresh turn is a CSD; convert branches re-set this below.
     addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
     setInput('')
     setStreaming(true)
@@ -260,15 +305,48 @@ export default function AgentPage() {
         // the current type. Plain follow-ups keep the format-preserving hint.
         const active = useArtifactStore.getState().getActive()
         const convertTo = active ? detectConvertIntent(text, active.type) : null
-        // A plain follow-up edits the loaded version in place (branch from it).
-        // A format conversion changes type, so it starts a fresh artifact chain.
-        editBaseRef.current = active && !convertTo ? active.id : null
-        // A "make it a web app" intent returns an orchestra CSD we wrap ourselves.
-        pendingWebappConvertRef.current =
-          convertTo === 'webapp' && active ? { title: active.title } : null
-        const payload = convertTo && active
-          ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
-          : wrapWithArtifactContext(text)
+
+        let payload: string
+        if (active && active.type === 'webapp' && !convertTo) {
+          // CRITICAL: a follow-up on a web app must edit the underlying web-ready
+          // CSD and rebuild deterministically via buildWebApp — NEVER hand the
+          // generated HTML to the model. The model rewriting HTML drops the Csound
+          // engine (Csound()/compileOrc/start/inputMessage) and the app becomes
+          // unplayable. Recover the source CSD from the message this web app was
+          // built from, re-run the webapp template with the user's note, and let
+          // the detection effect re-wrap it as a new version.
+          const msgs = useSessionStore.getState().messages
+          const srcMsg = active.sourceMessageId
+            ? msgs.find((m) => m.id === active.sourceMessageId)
+            : null
+          // Only usable if the source message is actually a CSD (a web app built
+          // by the deterministic path). Legacy web apps whose source is HTML fall
+          // back so we don't feed HTML into the orchestra template.
+          const srcDet = srcMsg ? detect(srcMsg.content) : null
+          const srcCsd = srcDet && srcDet.type === 'csd' ? srcDet.code : null
+          if (srcCsd) {
+            editBaseRef.current = null
+            pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id }
+            convertTurnRef.current = true
+            payload = `${buildConvertPrompt('webapp', srcCsd)}\n\n<user-note>${text}</user-note>`
+          } else {
+            // Source CSD unrecoverable (rare) — fall back to in-place edit.
+            editBaseRef.current = active.id
+            pendingWebappConvertRef.current = null
+            payload = wrapWithArtifactContext(text)
+          }
+        } else {
+          // A plain follow-up edits the loaded version in place (branch from it).
+          // A format conversion changes type, so it starts a fresh artifact chain.
+          editBaseRef.current = active && !convertTo ? active.id : null
+          // A "make it a web app" intent returns an orchestra CSD we wrap ourselves.
+          pendingWebappConvertRef.current =
+            convertTo === 'webapp' && active ? { title: active.title } : null
+          convertTurnRef.current = Boolean(convertTo && active)
+          payload = convertTo && active
+            ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
+            : wrapWithArtifactContext(text)
+        }
         await window.api.session.send(sid, payload)
       } else {
         addMessage({ id: `msg_${Date.now()}`, role: 'assistant', content: 'Not connected — restart app.', timestamp: Date.now() })

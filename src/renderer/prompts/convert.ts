@@ -107,7 +107,8 @@ OUTPUT FORMAT (strict):
 - No code fences. No prose before or after.
 
 CABBAGE LAYOUT:
-- form caption("<Title>") size(620, 360) guiMode("queue") colour(17,17,16)
+- form caption("<Title>") size(620, 360) pluginId("Dcb1") guiMode("queue") colour(17,17,16)
+  * \`pluginId(...)\` is MANDATORY and MUST be exactly 4 alphanumeric characters starting with a letter (e.g. \`Dcb1\`). An empty or missing pluginId — \`pluginId("")\` — makes the plugin invalid and Cabbage rejects it.
 - groupbox bounds(10, 10, 600, 90) text("Controls") colour(30,30,28) fontColour(224,224,224)
 - For every \`gk<Name> init <value>\` in the source, add an rslider inside the groupbox with:
     channel("<Name>") text("<Name>") trackerColour(124,184,164)
@@ -118,7 +119,28 @@ CABBAGE LAYOUT:
 
 CSD CHANGES:
 - Add <CsOptions> flags: -n -d -+rtmidi=NULL -M0
-- For each gk<Name>: add "gk<Name> chnget \\"<Name>\\"" right after its \`init\` so the Cabbage slider controls it (keep the init line as the default).
+- **Read Cabbage controls at PERF-TIME, never at global scope.** A \`chnget\` written at global/orchestra scope is "perf-time code in global space" and is SILENTLY IGNORED by Csound — the sliders would do nothing and the plugin plays frozen/silent. So DO NOT add \`gk<Name> chnget\` lines next to the global \`init\`s. Instead:
+  - Keep each existing \`gk<Name> init <value>\` line (it is the startup default).
+  - Add ONE always-on reader instrument that refreshes every gk global each k-cycle:
+
+        instr 1000   ; Cabbage control reader — always on
+          gk<NameA> chnget "<NameA>"
+          gk<NameB> chnget "<NameB>"
+          ; ...one line per control channel
+        endin
+
+  - Activate it at orchestra scope (i-time, so this is allowed in global space) by adding, right after the gk \`init\` block: \`alwayson 1000\`
+- **MIDI note input — the #1 cause of a silent Cabbage plugin.** The Cabbage \`keyboard\` widget (and the host) send notes to Csound as MIDI, NOT as score p-fields. A MIDI-activated instrument has p4 = p5 = 0, so any voice that reads pitch/velocity from p-fields plays note 0 at amplitude 0 → total silence. So when the voice is note-based (a keyboard was added):
+  - Route MIDI to the voice: add \`massign 0, 1\` at orchestra scope (all channels → instr 1).
+  - In \`instr 1\`, read pitch and velocity from MIDI, replacing any p4/p5 pitch/velocity reads from the source:
+
+        instr 1
+          iFreq cpsmidi        ; frequency of the played MIDI note (Hz)
+          iVel  ampmidi 1      ; note velocity, 0..1
+          ; ... the rest of the voice is unchanged; multiply the signal by iVel
+
+  - Keep the release-aware envelope (\`linsegr\`/\`expsegr\`) so MIDI note-off releases the tail cleanly.
+  - Do NOT use \`cpsmidinn(p4)\`, \`= p4\`, or \`= p5\` for a MIDI voice — those are 0 under MIDI activation.
 - Everything else in the CsInstruments and CsScore sections stays verbatim.
 
 SOURCE CSD:

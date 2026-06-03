@@ -122,6 +122,10 @@ export namespace SessionManager {
     const ragContext = Agent.isSineMode(agent) ? '' : Retrieval.formatForPrompt(content)
     const memory = {
       lessons: MemoryRetrieval.lessonsBlock(),
+      // Proactive "previous errors" on real generation turns only. On autofix turns
+      // the detailed errorFixBlock (full before/after) already fires for the exact
+      // error, so the compact proactive list would be redundant.
+      previousErrors: isAutofix ? '' : MemoryRetrieval.previousErrorsBlock(),
       guidance: MemoryRetrieval.learningBlock(),
       errorFixes: isAutofix
         ? MemoryRetrieval.errorFixBlock(content, content.includes('Runtime error') ? 'runtime' : 'compile')
@@ -293,6 +297,7 @@ function lastAssistantCsd(session: Session): string {
 
 interface MemoryBundle {
   lessons?: string
+  previousErrors?: string
   guidance?: string
   errorFixes?: string
 }
@@ -308,6 +313,11 @@ function buildSystemPrompt(
   // user rules frame everything. They are non-negotiable unless the request
   // overrides them.
   if (memory.lessons) parts.push(memory.lessons)
+
+  // Previous-errors memory sits right beside remembered-instructions: both are
+  // strong, always-on framing. Distilled avoidance rules from past autofixes so the
+  // model sidesteps known failure modes instead of regenerating a broken draft.
+  if (memory.previousErrors) parts.push(memory.previousErrors)
 
   if (agent.prompt) {
     parts.push(agent.prompt)

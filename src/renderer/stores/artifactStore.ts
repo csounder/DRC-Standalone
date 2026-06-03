@@ -125,6 +125,7 @@ interface ArtifactState {
   togglePanel: () => void
   getVersions: (id: string) => Artifact[]
   getActive: () => Artifact | null
+  reset: () => void
 }
 
 export const useArtifactStore = create<ArtifactState>((set, get) => ({
@@ -214,4 +215,9 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
     const { artifacts, activeArtifactId } = get()
     return artifacts.find((a) => a.id === activeArtifactId) || null
   },
+
+  // Wipe all artifact state. Called when starting a new chat so the previous
+  // session's artifact can't linger in the panel or become the edit base for the
+  // new session's first message.
+  reset: () => set({ artifacts: [], activeArtifactId: null, panelOpen: false }),
 }))
