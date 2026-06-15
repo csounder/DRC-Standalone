@@ -93,3 +93,19 @@ Format:
   - **`@ai-sdk/google` pinned to 1.x on purpose (concurrent fix, committed here).** This app is AI SDK 4 (`ai@^4`, model spec `v1`). `@ai-sdk/google` 2.x/3.x are AI SDK 5 (spec `v2`) and make `streamText` throw "upgrade to AI SDK 5" on EVERY turn — this had bricked Gemini. `package.json` now `^1.2.22`; `assertV1` in provider.ts fails fast at model-load with an actionable message; `humanizeError` maps the SDK-mismatch string. **Do NOT bump the @ai-sdk/* packages without migrating the whole app to AI SDK 5.** Also added `config:deleteApiKey` (Remove button) + Settings/onboarding polish (not mine — committed as part of "commit everything").
   - **INSTALLATION.md is an agent-oriented runbook** (distinct from the human-facing README): ordered steps with a **Verify** gate each, key setup both ways (`.env` dev / Settings packaged), an end-to-end smoke test, packaging + `gh release` steps, and a Gotchas section (the AI-SDK v1 pin is #1). Keep it in sync with README's Releases filename patterns.
   - **Shipped mac only.** `dist:win`/`dist:linux` not run (need Windows/Linux tooling). Unsigned — Gatekeeper note still applies. tsc baseline unchanged (only new errors in touched files would be mine; none).
+
+## [2026-06-14] Cursor agent — LAC 2026 workshop: CsoundQt, free-tier UX, timeout/cancel/retry
+- files (Standalone, branch `lac-2026-csound7`, **uncommitted**):
+  - CsoundQt: `src/main/util/{csoundqt-path,launch-external}.ts`, `export.ipc.ts`, `ArtifactPanel.tsx`, Settings
+  - Free-tier UX: `ApiKeyPromptDialog.tsx`, `AgentPage.tsx` (banner removal), `AgentActivityBar.tsx`
+  - Stuck stream: `session.ts` (120s timeout, cancel), `agent.ipc.ts`, `useStream.ts` watchdog
+  - Retry: `PromptRetryBar.tsx`, `AgentPage.tsx` (clickable prompts, try again/edit/variation), `session.ts` (`SendOptions.retry|variant`), `sessionStore.ts` (`removeFailedAssistantTurn`)
+  - Ollama: `src/main/provider/ollama.ts`, Settings, `config.ipc.ts`
+  - Docs: `WORKSHOP.md`, `INSTALLATION.md`, **`LAC-2026-SESSION-HANDOFF.md`** (human resume doc)
+- files (Terminal, **uncommitted**): `dialog-settings.tsx`, `workshop.ts`, `server/routes/workshop.ts`, `external-apps.ts`, `csd-panel.tsx`, `launch-drc-terminal.sh`
+- notes:
+  - **User blocker at handoff:** free Gemini/Groq keys often hang or return empty — timers spin, no CSD/sound. UX fixes (cancel, timeout, one-click retry) shipped; **end-to-end free-tier generation not yet verified.**
+  - **Retry must not duplicate user turns:** `session:send` third arg `{ retry, variant }` skips appending another user message; renderer stores `lastSendRef` payload for one-click retry.
+  - **Variant retry** bumps temperature ~+0.18 and appends inline hint with random Csound `seed N` (not persisted to DB).
+  - **Richard's machine:** CsoundQt 7 beta4.1 at `/Applications/CsoundQt-d-html-cs7.app`; Gemini + Groq configured; workshop-lite on via `launch-drc.sh`.
+  - **Next:** sine-tone smoke test on free keys → add full API keys → commit both repos if green.

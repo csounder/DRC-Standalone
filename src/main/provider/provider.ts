@@ -3,12 +3,18 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { generateText, type LanguageModelV1 } from 'ai'
 import { Log } from '../util/log'
+import { defaultOllamaModel, probeOllama } from './ollama'
+import { isProPlus, isWorkshopLite } from '../util/tier'
 
 interface ProviderConfig {
   anthropicKey?: string
   openaiKey?: string
   googleKey?: string
   groqKey?: string
+  ollamaEnabled?: boolean
+  ollamaModel?: string
+  ollamaBaseUrl?: string
+  preferOllama?: boolean
 }
 
 // Free AI Studio keys resolve against the Gemini Developer API. Pin it so an
@@ -16,12 +22,42 @@ interface ProviderConfig {
 const GOOGLE_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 
 let config: ProviderConfig = {}
+let ollamaReachable = false
+let ollamaModels: string[] = []
 const modelCache = new Map<string, LanguageModelV1>()
 
 export namespace Provider {
   export function configure(cfg: ProviderConfig) {
     config = { ...config, ...cfg }
     modelCache.clear()
+  }
+
+  export async function refreshOllamaStatus(forceProbe = false): Promise<{ ok: boolean; models: string[] }> {
+    if (!config.ollamaEnabled && !forceProbe) {
+      ollamaReachable = false
+      ollamaModels = []
+      return { ok: false, models: [] }
+    }
+    const probe = await probeOllama(config.ollamaBaseUrl)
+    ollamaReachable = probe.ok
+    ollamaModels = probe.models.map((m) => m.name)
+    if (probe.ok && !config.ollamaModel) {
+      config.ollamaModel = defaultOllamaModel(probe.models)
+    }
+    return { ok: probe.ok, models: ollamaModels }
+  }
+
+  export function ollamaStatus(): { enabled: boolean; ok: boolean; models: string[]; model?: string } {
+    return {
+      enabled: Boolean(config.ollamaEnabled),
+      ok: ollamaReachable,
+      models: ollamaModels,
+      model: config.ollamaModel,
+    }
+  }
+
+  function ollamaAvailable(): boolean {
+    return Boolean(config.ollamaEnabled && ollamaReachable && (config.ollamaModel || ollamaModels.length))
   }
 
   export function getLanguageModel(providerID: string, modelID: string): LanguageModelV1 {
@@ -63,8 +99,14 @@ export namespace Provider {
         model = groq(modelID) as unknown as LanguageModelV1
         break
       }
+      case 'ollama': {
+        const baseURL = `${(config.ollamaBaseUrl || 'http://127.0.0.1:11434').replace(/\/$/, '')}/v1`
+        const ollama = createOpenAI({ apiKey: 'ollama', baseURL })
+        model = ollama(modelID) as unknown as LanguageModelV1
+        break
+      }
       default:
-        throw new Error(`Unknown provider: ${providerID}. Supported: google, anthropic, openai`)
+        throw new Error(`Unknown provider: ${providerID}. Supported: google, groq, anthropic, openai, ollama`)
     }
 
     assertV1(providerID, model)
@@ -76,6 +118,7 @@ export namespace Provider {
   // Check which providers are available
   export function availableProviders(): string[] {
     const available: string[] = []
+    if (ollamaAvailable()) available.push('ollama')
     if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) available.push('google')
     if (config.groqKey || process.env.GROQ_API_KEY) available.push('groq')
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) available.push('anthropic')
@@ -87,13 +130,120 @@ export namespace Provider {
     return availableProviders().length > 0
   }
 
-  // Prefer free-tier providers first: Gemini, then Groq. Paid fallbacks after.
+  function hasGoogle(): boolean {
+    return Boolean(config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY)
+  }
+
+  function hasGroq(): boolean {
+    return Boolean(config.groqKey || process.env.GROQ_API_KEY)
+  }
+
+  function workshopLite(): boolean {
+    return isWorkshopLite()
+  }
+
+  export function tierLabel(): string {
+    return isProPlus() ? 'Pro+' : 'Standard'
+  }
+
+  export function providerLabel(providerID: string): string {
+    if (providerID === 'google') return 'Gemini'
+    if (providerID === 'groq') return 'Groq'
+    if (providerID === 'ollama') return 'Ollama (local)'
+    if (providerID === 'anthropic') return 'Anthropic'
+    if (providerID === 'openai') return 'OpenAI'
+    return providerID
+  }
+
+  /** True when another provider in the chain may succeed (quota / empty output). */
+  export function shouldTryNextProvider(err: unknown, emptyStream: boolean): boolean {
+    if (emptyStream) return true
+    const raw = err instanceof Error ? err.message : String(err ?? '')
+    const lower = raw.toLowerCase()
+    return (
+      lower.includes('quota') ||
+      lower.includes('rate limit') ||
+      lower.includes('429') ||
+      lower.includes('resource_exhausted') ||
+      lower.includes('exceeded') ||
+      lower.includes('returned no output')
+    )
+  }
+
+  function mainModelFor(providerID: string): string {
+    if (providerID === 'groq') return 'llama-3.3-70b-versatile'
+    if (providerID === 'google') return isProPlus() ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
+    if (providerID === 'ollama') return config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b'
+    if (providerID === 'anthropic') return 'claude-sonnet-4-5'
+    if (providerID === 'openai') return 'gpt-4.1'
+    return 'gemini-2.5-flash'
+  }
+
+  function smallModelFor(providerID: string): string {
+    if (providerID === 'groq') return 'llama-3.1-8b-instant'
+    if (providerID === 'google') return 'gemini-2.5-flash'
+    if (providerID === 'ollama') return config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b'
+    if (providerID === 'anthropic') return 'claude-haiku-4-5'
+    if (providerID === 'openai') return 'gpt-4.1-mini'
+    return 'gemini-2.5-flash'
+  }
+
+  /** Ordered providers to try — primary first, then alternate free keys, then paid/local. */
+  export function providerChain(
+    primary: { providerID: string; modelID: string },
+    size: 'main' | 'small' = 'main',
+  ): Array<{ providerID: string; modelID: string }> {
+    const chain: Array<{ providerID: string; modelID: string }> = []
+    const seen = new Set<string>()
+    const pick = (providerID: string) =>
+      size === 'small' ? smallModelFor(providerID) : mainModelFor(providerID)
+
+    const add = (providerID: string, modelID?: string) => {
+      const mid = modelID ?? pick(providerID)
+      const key = `${providerID}:${mid}`
+      if (seen.has(key)) return
+      seen.add(key)
+      chain.push({ providerID, modelID: mid })
+    }
+
+    add(primary.providerID, primary.modelID)
+
+    // Alternate free-tier keys — Groq ↔ Gemini automatic fallback.
+    if (hasGroq() && primary.providerID !== 'groq') add('groq')
+    if (hasGoogle() && primary.providerID !== 'google') add('google')
+    if (ollamaAvailable() && primary.providerID !== 'ollama') add('ollama')
+    if ((config.anthropicKey || process.env.ANTHROPIC_API_KEY) && primary.providerID !== 'anthropic') {
+      add('anthropic')
+    }
+    if ((config.openaiKey || process.env.OPENAI_API_KEY) && primary.providerID !== 'openai') {
+      add('openai')
+    }
+
+    return chain
+  }
+
   export function defaultProvider(): { providerID: string; modelID: string } {
-    if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) {
+    if (config.preferOllama && ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
+    // Both free keys: Groq first — faster and more reliable when Gemini throttles.
+    if (hasGroq() && hasGoogle()) {
+      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
+    }
+    if (workshopLite() && hasGroq()) {
+      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
+    }
+    if (isProPlus() && hasGoogle()) {
+      return { providerID: 'google', modelID: 'gemini-2.5-pro' }
+    }
+    if (hasGroq()) {
+      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
+    }
+    if (hasGoogle()) {
       return { providerID: 'google', modelID: 'gemini-2.5-flash' }
     }
-    if (config.groqKey || process.env.GROQ_API_KEY) {
-      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
+    if (ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
       return { providerID: 'anthropic', modelID: 'claude-sonnet-4-5' }
@@ -106,11 +256,23 @@ export namespace Provider {
 
   // Small/fast model for narration, summaries, sine mode.
   export function smallModel(): { providerID: string; modelID: string } {
-    if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) {
+    if (config.preferOllama && ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
+    if (hasGroq() && hasGoogle()) {
+      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
+    }
+    if (workshopLite() && hasGroq()) {
+      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
+    }
+    if (hasGroq()) {
+      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
+    }
+    if (isProPlus() && hasGoogle()) {
       return { providerID: 'google', modelID: 'gemini-2.5-flash' }
     }
-    if (config.groqKey || process.env.GROQ_API_KEY) {
-      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
+    if (hasGoogle()) {
+      return { providerID: 'google', modelID: 'gemini-2.5-flash' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
       return { providerID: 'anthropic', modelID: 'claude-haiku-4-5' }
@@ -151,6 +313,12 @@ export namespace Provider {
         'Wait for the countdown and try again, or add a Gemini key in Settings as a backup.'
       )
     }
+    if (providerID === 'ollama') {
+      return (
+        'Ollama returned no output. Check that Ollama is running, the model is pulled ' +
+        '(e.g. ollama pull qwen2.5-coder:7b), and Settings → Local model is configured.'
+      )
+    }
     return (
       'The model returned no output. Check your API key in Settings, wait a moment, and try again.'
     )
@@ -178,7 +346,7 @@ export namespace Provider {
         return 'Permission denied. The key may be a Vertex AI credential — the free tier needs a key from aistudio.google.com/apikey.'
       }
       if (lower.includes('resource_exhausted') || lower.includes('quota')) {
-        return 'Gemini free-tier rate limit reached. Wait about 60 seconds, then try again. Add a Groq key in Settings for a backup.'
+        return 'Gemini free-tier rate limit reached. Dr.C will try Groq automatically if that key is saved in Settings.'
       }
     }
 
@@ -187,7 +355,16 @@ export namespace Provider {
         return 'Invalid Groq API key. Get a free one at console.groq.com/keys.'
       }
       if (lower.includes('rate limit') || lower.includes('429') || lower.includes('quota')) {
-        return 'Groq free-tier rate limit reached. Wait about 60 seconds, then try again.'
+        return 'Groq free-tier rate limit reached. Dr.C will try Gemini automatically if that key is saved in Settings.'
+      }
+    }
+
+    if (providerID === 'ollama') {
+      if (lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
+        return 'Cannot reach Ollama. Install from ollama.com, run `ollama serve`, and pull a model.'
+      }
+      if (lower.includes('not found') && lower.includes('model')) {
+        return `Model not found in Ollama. Run: ollama pull ${config.ollamaModel || 'qwen2.5-coder:7b'}`
       }
     }
 
@@ -218,10 +395,40 @@ export namespace Provider {
     try {
       const { modelID } = pickTestModel(providerID)
       const model = getLanguageModel(providerID, modelID)
-      await generateText({ model, prompt: 'ping', maxTokens: 1 })
-      return { ok: true, message: `${providerID} key works (${modelID}).` }
+      const result = await generateText({ model, prompt: 'Reply with exactly: OK', maxTokens: 16 })
+      if (!result.text.trim()) {
+        return {
+          ok: false,
+          message:
+            `${providerLabel(providerID)} accepted the key but returned no text — usually rate limit or quota. ` +
+            'Wait a minute and try again, or use another provider.',
+        }
+      }
+      return { ok: true, message: `${providerLabel(providerID)} key works (${modelID}).` }
     } catch (err) {
       return { ok: false, message: humanizeError(providerID, err) }
+    }
+  }
+
+  export async function testOllama(): Promise<{ ok: boolean; message: string }> {
+    const status = await refreshOllamaStatus(true)
+    if (!status.ok) {
+      return { ok: false, message: 'Ollama is not running. Install from ollama.com and start the app.' }
+    }
+    const prevEnabled = config.ollamaEnabled
+    config.ollamaEnabled = true
+    const modelID = config.ollamaModel || defaultOllamaModel(status.models.map((n) => ({ name: n })))
+    try {
+      const model = getLanguageModel('ollama', modelID)
+      const result = await generateText({ model, prompt: 'Reply with exactly: OK', maxTokens: 16 })
+      if (!result.text.trim()) {
+        return { ok: false, message: 'Ollama responded but returned no text. Check the model is fully pulled.' }
+      }
+      return { ok: true, message: `Ollama works (${modelID}).` }
+    } catch (err) {
+      return { ok: false, message: humanizeError('ollama', err) }
+    } finally {
+      config.ollamaEnabled = prevEnabled
     }
   }
 
@@ -231,6 +438,7 @@ export namespace Provider {
       case 'groq': return { modelID: 'llama-3.1-8b-instant' }
       case 'anthropic': return { modelID: 'claude-haiku-4-5' }
       case 'openai': return { modelID: 'gpt-4.1-mini' }
+      case 'ollama': return { modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
       default: throw new Error(`Unknown provider: ${providerID}`)
     }
   }

@@ -115,7 +115,10 @@ interface ArtifactState {
   activeArtifactId: string | null
   panelOpen: boolean
 
-  addArtifact: (input: { type: ArtifactType; title: string; content: string; sourceMessageId?: string }) => Artifact
+  addArtifact: (
+    input: { type: ArtifactType; title: string; content: string; sourceMessageId?: string },
+    opts?: { openPanel?: boolean },
+  ) => Artifact
   updatePrimary: (id: string, content: string, sourceMessageId?: string) => Artifact
   updateInPlace: (id: string, content: string) => void
   setActive: (id: string | null) => void
@@ -133,7 +136,7 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
   activeArtifactId: null,
   panelOpen: false,
 
-  addArtifact: (input) => {
+  addArtifact: (input, opts) => {
     const existing = get().artifacts
     const sameTitle = existing.filter((a) => a.title === input.title && a.type === input.type)
     const version = sameTitle.length + 1
@@ -150,10 +153,11 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
       parentId,
       sourceMessageId: input.sourceMessageId,
     }
+    const openPanel = opts?.openPanel !== false
     set((s) => ({
       artifacts: [...s.artifacts, artifact],
       activeArtifactId: artifact.id,
-      panelOpen: true,
+      panelOpen: openPanel ? true : s.panelOpen,
     }))
     return artifact
   },

@@ -1,0 +1,24 @@
+# Authoritative sources (HARD — standing rule from Dr. Richard Boulanger)
+
+Before writing any Csound code, look up **proven working models** from these authorities, in this order:
+
+1. **FLOSS Manual** (highest priority) — bundled catalog IDs `flossmanual-*`; CsoundQt `FLOSS Manual Examples/`; online https://flossmanual.csound.com/
+2. **Iain McCurdy Instrument Catalog** — CsoundQt `McCurdy Collection/` and `McCurdy Haikus/` (indexed at runtime when CsoundQt is installed)
+3. **The Csound Book** (Richard Boulanger) — `resources/knowledge/csound_book.txt`, book-passages, `hornerbook-*` catalog examples
+4. **Csound 7 Manual** — official opcode signatures: https://csound.com/manual/opcodes/{opcode_name}/
+5. **Curated knowledge docs** — `resources/knowledge/sources/` (antipatterns, patterns, syntax-rules, opcodes) and `csound7-reference.txt`
+6. **Csound Catalog** — bundled `bundle-csd.json` library (`flossmanual-*`, `lazzarini*`, `hornerbook-*` IDs)
+7. **Lazzarini books** — `lazzarini-instruments`, `lazzarini-csound`, `lazzarinispectral-*`, `lazzarinicsound-*` catalog IDs
+
+Rules:
+- If retrieval supplies a **catalog CSD**, **CsoundQt example**, **knowledge-doc**, or **golden pattern**, **adapt it** — do not reinvent opcode wiring from memory
+- Read **antipatterns** before generating — avoid the common AI mistakes listed there (wrong rates, missing 0dbfs, expseg starting at 0, split foscili lines)
+- Match **opcode argument types and rates** to the Manual page for Csound 7
+- Prefer **FLOSS + McCurdy + Lazzarini** for envelopes, score, MIDI, and web-style instruments
+- Prefer **Boulanger / Horner** examples for classic synthesis (FM, physical models, reverb sends)
+- When sources disagree, follow **FLOSS Manual** first, then **Csound 7 Manual**, then The Csound Book
+
+Manual quick links:
+- Opcodes index: https://csound.com/manual/opcodesIndex/
+- FM synthesis: https://csound.com/manual/siggen/fmsynth/
+- Envelopes: https://csound.com/manual/siggen/envelope/

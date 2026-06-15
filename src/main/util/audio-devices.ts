@@ -79,3 +79,9 @@ export async function listAudioDevices(): Promise<DeviceList> {
 
   return { outputs, inputs, midiInputs }
 }
+
+/** Best-effort Mac speakers index for workshop playback. */
+export function findMacSpeakersIndex(outputs: AudioDevice[]): number | null {
+  const mac = outputs.find((d) => /macbook.*speaker|built-?in.*speaker/i.test(d.name))
+  return mac?.index ?? null
+}

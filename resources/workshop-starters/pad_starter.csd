@@ -20,7 +20,7 @@ instr 1
   kCut  = 1200
   kRes  = 0.4
   kEnv  linsegr 0, 0.5, 0.7, p3 - 1.0, 0.6, 0.5, 0
-  aOsc  vco2 kEnv * iAmp, iFreq, 4
+  aOsc  oscili kEnv * iAmp, iFreq, giSine
   aFilt moogladder aOsc, kCut, kRes
   aL, aR pan2 aFilt, 0.5
   gaRvbL += aL * 0.4
@@ -36,7 +36,14 @@ instr 99
 endin
 </CsInstruments>
 <CsScore>
-i 99 0 3
-i 1  0 3 55 0.25
+i 99 0 8
+i 1  0.00 1.20 55 0.25
+i 1  1.50 1.20 60 0.25
+i 1  3.00 0.80 64 0.22
+i 1  3.80 0.80 67 0.22
+i 1  4.60 0.80 71 0.22
+i 1  5.50 2.50 60 0.18
+i 1  5.50 2.50 64 0.16
+i 1  5.50 2.50 67 0.14
 </CsScore>
 </CsoundSynthesizer>

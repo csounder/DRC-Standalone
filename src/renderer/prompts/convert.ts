@@ -366,7 +366,7 @@ export function needsPlayerAdapt(source: string): boolean {
 //
 // Conservative by design: only fires on phrasings that name a target format,
 // and only returns a target that differs from the artifact already open.
-const CONVERT_INTENT: { type: ConvertTarget; re: RegExp }[] = [
+const CONVERT_INTENT: { type: 'csd' | 'webapp' | 'vst'; re: RegExp }[] = [
   {
     type: 'webapp',
     re: /\b(web\s?app|web\s?site|web version|html (?:page|app|document|version)|in the browser|as html|browser app)\b/i,

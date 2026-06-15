@@ -4,12 +4,13 @@ import { formatCountdown } from '../lib/providerGuide'
 
 interface Props {
   until: number
+  providerLabel?: string | null
   onExpired?: () => void
   compact?: boolean
 }
 
-/** Countdown after a free-tier rate limit; shows time left before retrying. */
-export default function QuotaCooldown({ until, onExpired, compact }: Props) {
+/** Countdown after free-tier rate limits — shown on Agent and Player. */
+export default function QuotaCooldown({ until, providerLabel, onExpired, compact }: Props) {
   const [remaining, setRemaining] = useState(() => Math.max(0, until - Date.now()))
 
   useEffect(() => {
@@ -25,21 +26,29 @@ export default function QuotaCooldown({ until, onExpired, compact }: Props) {
 
   if (remaining <= 0) return null
 
+  const who = providerLabel ? `${providerLabel} ` : ''
+
   return (
-    <div style={compact ? styles.compact : styles.box}>
+    <div style={compact ? styles.compact : styles.box} role="status" aria-live="polite">
       <span style={styles.timerLabel}>
-        {compact ? 'Rate limit' : 'Free-tier rate limit reached'}
+        {compact ? 'Rate limit' : `${who}rate limit — wait before retrying`}
       </span>
       <span style={compact ? styles.timerCompact : styles.timer}>{formatCountdown(remaining)}</span>
-      <span style={styles.hint}>
-        {compact
-          ? ' — wait, then send again'
-          : ' Wait for the timer, then try your prompt again. Each generation uses one API call.'}
-      </span>
       {!compact && (
-        <Link to="/settings" style={styles.link}>
-          Add a Groq or Gemini backup key in Settings →
-        </Link>
+        <>
+          <span style={styles.hint}>
+            Dr.C tries Groq automatically when Gemini is limited (and vice versa) if both keys are saved in Settings.
+            When both are throttled, wait for the timer, then use Try again.
+          </span>
+          <Link to="/settings" style={styles.link}>
+            Add Gemini + Groq keys in Settings →
+          </Link>
+        </>
+      )}
+      {compact && (
+        <span style={styles.hintCompact}>
+          {' '}— save both keys in Settings for automatic fallback
+        </span>
       )}
     </div>
   )
@@ -47,7 +56,8 @@ export default function QuotaCooldown({ until, onExpired, compact }: Props) {
 
 const styles: Record<string, CSSProperties> = {
   box: {
-    marginTop: 12,
+    width: '100%',
+    marginBottom: 10,
     padding: '12px 14px',
     borderRadius: 10,
     border: '1px solid var(--border)',
@@ -61,7 +71,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'baseline',
     flexWrap: 'wrap',
     gap: 4,
-    marginTop: 8,
+    marginBottom: 8,
     fontSize: 12,
     color: 'var(--text-muted)',
   },
@@ -88,6 +98,10 @@ const styles: Record<string, CSSProperties> = {
   hint: {
     fontSize: 12,
     lineHeight: 1.45,
+    color: 'var(--text-muted)',
+  },
+  hintCompact: {
+    fontSize: 11,
     color: 'var(--text-muted)',
   },
   link: {

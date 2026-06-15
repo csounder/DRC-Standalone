@@ -33,6 +33,7 @@ function lookupPricing(providerID: string, modelID: string) {
   // Fuzzy: same provider family
   if (providerID === 'google') return PRICING['google:gemini-2.5-flash']
   if (providerID === 'groq') return PRICING['groq:llama-3.3-70b-versatile']
+  if (providerID === 'ollama') return { input: 0, output: 0, free: true }
   if (providerID === 'anthropic' && modelID.includes('haiku')) {
     return PRICING['anthropic:claude-haiku-4-5']
   }
@@ -53,7 +54,7 @@ export function computeCost(
   const p = lookupPricing(providerID, modelID)
   const costUSD =
     (inputTokens * p.input + outputTokens * p.output) / 1_000_000
-  return { costUSD, freeTier: p.free === true || (p.input === 0 && p.output === 0 && providerID === 'google') }
+  return { costUSD, freeTier: p.free === true || providerID === 'ollama' || (p.input === 0 && p.output === 0 && providerID === 'google') }
 }
 
 /** Normalize AI SDK v4 usage objects (field names vary by provider). */

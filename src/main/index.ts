@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllIPC } from './ipc/register'
 import { MemoryDB } from './memory/db'
+import { seedBuiltinLessons } from './memory/seed-builtin'
 import { refreshCsoundEnvironment } from './util/csound-version'
 
 // Prevent GPU crashes in Electron
@@ -89,6 +90,7 @@ app.whenReady().then(() => {
   })
 
   MemoryDB.init() // open the persistent memory DB before any memory:* handler can fire
+  seedBuiltinLessons()
   void refreshCsoundEnvironment()
   registerAllIPC()
   createWindow()

@@ -1,6 +1,7 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppStore } from '../../stores/appStore'
+import { useCsoundConsoleStore } from '../../stores/csoundConsoleStore'
 import { audioFeedback } from '../../styles/audio-feedback'
 import { TAB_META } from '../../lib/tabMeta'
 
@@ -10,7 +11,18 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme, audioFeedbackEnabled } = useAppStore()
+  const consoleEnabled = useCsoundConsoleStore((s) => s.enabled)
+  const toggleConsole = useCsoundConsoleStore((s) => s.toggle)
   const [hoverKey, setHoverKey] = useState<string | null>(null)
+  const lastMainTab = useRef('/agent')
+
+  useEffect(() => {
+    if (location.pathname !== '/settings') {
+      lastMainTab.current = location.pathname
+    }
+  }, [location.pathname])
+
+  const consoleKey = 'console'
 
   const navItems = NAV_PATHS
     .map((p) => TAB_META.find((t) => t.path === p)!)
@@ -73,6 +85,32 @@ export default function Sidebar() {
       <div style={styles.bottom}>
         <div
           style={styles.navCell}
+          onMouseEnter={() => setHoverKey(consoleKey)}
+          onMouseLeave={() => setHoverKey((k) => (k === consoleKey ? null : k))}
+        >
+          <button
+            onClick={() => {
+              if (audioFeedbackEnabled) audioFeedback.click()
+              toggleConsole()
+            }}
+            style={{
+              ...styles.navButton,
+              ...(consoleEnabled ? styles.navButtonActive : {}),
+            }}
+            aria-label="Csound output console"
+            className="no-drag"
+          >
+            <span style={styles.navIcon}>&gt;_</span>
+          </button>
+          {hoverKey === consoleKey && (
+            <Tooltip
+              label={consoleEnabled ? 'Hide Csound console' : 'Show Csound console'}
+              desc="Diagnostic log at the bottom — render commands, errors, device routing."
+            />
+          )}
+        </div>
+        <div
+          style={styles.navCell}
           onMouseEnter={() => setHoverKey(themeKey)}
           onMouseLeave={() => setHoverKey((k) => (k === themeKey ? null : k))}
         >
@@ -94,7 +132,11 @@ export default function Sidebar() {
           <button
             onClick={() => {
               if (audioFeedbackEnabled) audioFeedback.click()
-              navigate('/settings')
+              if (location.pathname === settings.path) {
+                navigate(lastMainTab.current || '/agent')
+              } else {
+                navigate('/settings')
+              }
             }}
             style={{
               ...styles.navButton,

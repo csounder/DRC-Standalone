@@ -68,6 +68,8 @@ export default function ArtifactPanel({ onConvert }: Props) {
   // When a launch fails we keep the saved path around so the user can reveal it
   // in Finder/Explorer and open it manually.
   const [cabbageSavedPath, setCabbageSavedPath] = useState<string>('')
+  const [csoundQtStatus, setCsoundQtStatus] = useState<string>('')
+  const [csoundQtSavedPath, setCsoundQtSavedPath] = useState<string>('')
   const handleOpenInCabbage = useCallback(async () => {
     if (!active || active.type !== 'vst') return
     setCabbageStatus('Saving and launching Cabbage…')
@@ -85,6 +87,24 @@ export default function ArtifactPanel({ onConvert }: Props) {
   const handleRevealCabbageFile = useCallback(() => {
     if (cabbageSavedPath) void window.api?.export?.revealFile?.(cabbageSavedPath)
   }, [cabbageSavedPath])
+
+  const handleOpenInCsoundQt = useCallback(async () => {
+    if (!active || active.type === 'webapp') return
+    setCsoundQtStatus('Saving and launching CsoundQt…')
+    setCsoundQtSavedPath('')
+    const res = await window.api?.export?.openInCsoundQt?.(primaryContent(active), active.title)
+    if (res?.success) {
+      setCsoundQtStatus(`Opened ${res.path?.split('/').pop() ?? 'CSD'} in CsoundQt`)
+      setTimeout(() => setCsoundQtStatus(''), 6000)
+    } else {
+      setCsoundQtStatus(res?.error ? `CsoundQt: ${String(res.error).slice(0, 200)}` : 'CsoundQt launch failed')
+      if (res?.path) setCsoundQtSavedPath(res.path)
+    }
+  }, [active])
+
+  const handleRevealCsoundQtFile = useCallback(() => {
+    if (csoundQtSavedPath) void window.api?.export?.revealFile?.(csoundQtSavedPath)
+  }, [csoundQtSavedPath])
 
   const handleSave = useCallback(() => {
     if (!active) return
@@ -206,9 +226,19 @@ export default function ArtifactPanel({ onConvert }: Props) {
           </button>
         )}
         <button onClick={handleSave} style={styles.secondary}>↓ Save</button>
+        {active.type !== 'webapp' && (
+          <button onClick={handleOpenInCsoundQt} style={styles.secondary}>
+            ⌨ Open in CsoundQt
+          </button>
+        )}
         {active.type === 'vst' && (
           <button onClick={handleOpenInCabbage} style={styles.secondary}>
             ⬡ Open in Cabbage
+          </button>
+        )}
+        {csoundQtSavedPath && (
+          <button onClick={handleRevealCsoundQtFile} style={styles.secondary}>
+            Reveal CSD
           </button>
         )}
         {cabbageSavedPath && (
@@ -217,7 +247,9 @@ export default function ArtifactPanel({ onConvert }: Props) {
           </button>
         )}
         {onConvert && <ConvertMenu currentType={active.type} onConvert={onConvert} />}
-        {(status || cabbageStatus) && <span style={styles.status}>{cabbageStatus || status}</span>}
+        {(status || cabbageStatus || csoundQtStatus) && (
+          <span style={styles.status}>{csoundQtStatus || cabbageStatus || status}</span>
+        )}
       </div>
     </div>
   )

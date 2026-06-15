@@ -26,7 +26,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     hint: 'Default. Gemini 2.5 Flash is free on the Gemini Developer API (not Vertex AI).',
     soloWarning:
       'With only a free Gemini key, Dr.C may pause when you hit Google\'s rate limit (~20 requests/minute). ' +
-      'Wait for the countdown. Add a Groq key in Settings as a backup (used when Gemini is not configured). ' +
+      'Wait for the countdown on the Agent tab. Add a Groq key in Settings as a backup — Dr.C switches automatically when Gemini is throttled. ' +
       'Web Apps work with no key at all.',
   },
   {
@@ -37,9 +37,9 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     signupUrl: 'https://console.groq.com/keys',
     signupLabel: 'console.groq.com/keys',
     keyPlaceholder: 'gsk_...',
-    hint: 'Optional backup. Free, no credit card. OpenAI-compatible; good when Gemini is throttled.',
+    hint: 'Optional backup. Free, no credit card. OpenAI-compatible; Dr.C tries Groq first when both keys are saved.',
     soloWarning:
-      'Groq\'s free tier also has rate limits (~30 requests/minute). If Dr.C pauses, wait for the countdown or add a Gemini key.',
+      'Groq\'s free tier also has rate limits (~30 requests/minute). If Dr.C pauses, wait for the countdown or add a Gemini key — Dr.C switches between them automatically.',
   },
   {
     id: 'anthropic',

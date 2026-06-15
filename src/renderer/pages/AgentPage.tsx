@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useSessionStore, type AgentMode, type Message } from '../stores/sessionStore'
 import { useArtifactStore, primaryContent, type Artifact } from '../stores/artifactStore'
 import ArtifactPanel from '../components/artifacts/ArtifactPanel'
+import ErrorBoundary from '../components/ErrorBoundary'
+import { useEditorStore } from '../stores/editorStore'
 import ArtifactCard from '../components/chat/ArtifactCard'
 import MessageFeedback from '../components/chat/MessageFeedback'
 import ProfileBadge from '../components/chat/ProfileBadge'
@@ -11,21 +13,35 @@ import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
 import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../prompts/convert'
-import { playArtifact, stopPlayback, resetAutofix } from '../lib/playback'
+import { playArtifact, stopPlayback, resetAutofix, isAutofixUserMessage } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
 import { parseChannels, extractOrchestra, usesKeyboard } from '../lib/parseChannels'
 import { buildWebApp } from '../lib/webHarness'
 import { compileCheckCsd } from '../lib/playback'
-import QuotaCooldown from '../components/QuotaCooldown'
 import UsageBar from '../components/chat/UsageBar'
+import AgentActivityBar from '../components/chat/AgentActivityBar'
+import PromptRetryBar from '../components/chat/PromptRetryBar'
+import QuotaCooldown from '../components/QuotaCooldown'
+import ApiKeyPromptDialog from '../components/ApiKeyPromptDialog'
 import { useUsageStore } from '../stores/usageStore'
-import { isSoloFreeProvider, providerOption } from '../lib/providerGuide'
+import { isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
 import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
+import { readWorkshopStarter } from '../lib/workshopDemos'
 
 // Strip a stray leading web-app wrapper so a fresh turn's CSD can be recovered.
 const DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/gi
 const HTML_FENCE_RE = /```(?:html|HTML)\s*\n/g
+
+function userMessageBeforeAssistant(messages: Message[], assistantId: string): Message | null {
+  const idx = messages.findIndex((m) => m.id === assistantId)
+  if (idx <= 0) return null
+  for (let i = idx - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return messages[i]
+    if (messages[i].role === 'assistant' && messages[i].type !== 'narration') break
+  }
+  return null
+}
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
@@ -51,13 +67,20 @@ function cleanChatText(text: string): string {
 }
 
 export default function AgentPage() {
+  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [lastUserPrompt, setLastUserPrompt] = useState('')
   const [providersAvailable, setProvidersAvailable] = useState<string[] | null>(null)
   const playingArtifactId = usePlaybackStore((s) => s.artifactId)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID, startNewSession, clearMessages, quotaCooldownUntil, clearQuotaCooldown } = useSessionStore()
+  /** Last successful send — powers one-click retry without retyping. */
+  const lastSendRef = useRef<{ displayText: string; payload: string } | null>(null)
+  const { messages, agentMode, setAgentMode, isStreaming, agentActivity, addMessage, setStreaming, setSessionID, sessionID, startNewSession, clearMessages, removeFailedAssistantTurn } = useSessionStore()
+  const rateLimitUntil = useRateLimitStore((s) => s.until)
+  const rateLimitProvider = useRateLimitStore((s) => s.providerLabel)
+  const clearRateLimit = useRateLimitStore((s) => s.clearCooldown)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
   const { artifacts, panelOpen, addArtifact, updatePrimary, updateInPlace, setActive } = useArtifactStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
 
@@ -138,6 +161,29 @@ export default function AgentPage() {
     }
 
     let existingId = msgArtifactMap.get(last.id)
+    const userBefore = userMessageBeforeAssistant(messages, last.id)
+    const isAutofixTurn = !!(userBefore && isAutofixUserMessage(userBefore.content))
+    const autofixTargetId = isAutofixTurn
+      ? (useSessionStore.getState().pendingAutofixArtifactId
+        ?? useSessionStore.getState().lastFailure?.artifactId
+        ?? null)
+      : null
+
+    // Auto-fix: update the broken artifact in place — never spawn a second one.
+    if (autofixTargetId && (!existingId || existingId !== autofixTargetId)) {
+      updateInPlace(autofixTargetId, detected.code)
+      setMsgArtifactMap((prev) => new Map(prev).set(last.id, autofixTargetId))
+      if (detected.complete && !useArtifactStore.getState().panelOpen) {
+        useArtifactStore.getState().openPanel()
+      }
+      if (!isStreaming && detected.complete && detected.type === 'csd' && !autoPlayedRef.current.has(last.id)) {
+        autoPlayedRef.current.add(last.id)
+        const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === autofixTargetId)
+        if (artifact) void playArtifact(artifact, { allowAutofix: false })
+      }
+      return
+    }
+
     if (!existingId) {
       // Re-adopt an artifact already built for this message in a previous mount.
       // The store survives navigation but our local map doesn't, so without this
@@ -159,7 +205,7 @@ export default function AgentPage() {
           const csdFallback = detect(stripped)
           if (csdFallback && csdFallback.type === 'csd') {
             const t = deriveTitle(csdFallback.code, 'csd', lastUserPrompt)
-            const a = addArtifact({ type: 'csd', title: t, content: csdFallback.code, sourceMessageId: last.id })
+            const a = addArtifact({ type: 'csd', title: t, content: csdFallback.code, sourceMessageId: last.id }, { openPanel: true })
             setMsgArtifactMap((prev) => new Map(prev).set(last.id, a.id))
           }
         }
@@ -177,7 +223,10 @@ export default function AgentPage() {
         return
       }
       const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
-      const artifact = addArtifact({ type: detected.type, title, content: detected.code, sourceMessageId: last.id })
+      const artifact = addArtifact(
+        { type: detected.type, title, content: detected.code, sourceMessageId: last.id },
+        { openPanel: detected.complete },
+      )
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
       return
     }
@@ -190,7 +239,11 @@ export default function AgentPage() {
 
     updateInPlace(existingId, detected.code)
 
-    if (!isStreaming && detected.complete && detected.type === 'csd' && !autoPlayedRef.current.has(last.id)) {
+    if (detected.complete && !useArtifactStore.getState().panelOpen) {
+      useArtifactStore.getState().openPanel()
+    }
+
+    if (!isStreaming && detected.complete && detected.type === 'csd' && !isAutofixTurn && !autoPlayedRef.current.has(last.id)) {
       autoPlayedRef.current.add(last.id)
       const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
       if (artifact) void playArtifact(artifact)
@@ -201,6 +254,10 @@ export default function AgentPage() {
   const requestConversion = useCallback(async (targetType: ConvertTarget) => {
     const active = useArtifactStore.getState().getActive()
     if (!active) return
+    if (providersAvailable !== null && providersAvailable.length === 0) {
+      setShowApiKeyDialog(true)
+      return
+    }
 
     const prompt = buildConvertPrompt(targetType, primaryContent(active))
     const shortLabel =
@@ -222,19 +279,16 @@ export default function AgentPage() {
 
     try {
       if (window.api?.session) {
-        let sid = sessionID
-        if (!sid) {
-          const session = await window.api.session.create(agentMode)
-          sid = session.id
-          setSessionID(sid)
-        }
-        await window.api.session.send(sid, prompt)
+        const activeSid = sessionID ?? (await window.api.session.create(agentMode)).id
+        if (!sessionID) setSessionID(activeSid)
+        lastSendRef.current = { displayText: shortLabel, payload: prompt }
+        await window.api.session.send(activeSid, prompt)
       }
     } catch (err: any) {
       addMessage({ id: `msg_${Date.now()}`, role: 'assistant', content: `Error: ${err.message}`, timestamp: Date.now() })
       setStreaming(false)
     }
-  }, [sessionID, agentMode])
+  }, [sessionID, agentMode, providersAvailable])
 
   const newChat = useCallback(() => {
     void stopPlayback()
@@ -249,6 +303,7 @@ export default function AgentPage() {
     autoPlayedRef.current = new Set()
     pendingWebappConvertRef.current = null
     convertTurnRef.current = false
+    lastSendRef.current = null
   }, [sessionID, startNewSession])
 
   // Reopen a persisted chat. We pre-seed autoPlayedRef with the loaded message
@@ -288,77 +343,96 @@ export default function AgentPage() {
     void stopPlayback()
   }, [])
 
-  const handleSend = async (overrideText?: string) => {
-    const text = (overrideText ?? input).trim()
-    if (!text || isStreaming) return
-    if (quotaCooldownUntil && quotaCooldownUntil > Date.now()) return
-    if (audioEnabled) audioFeedback.click()
+  const handleCancel = useCallback(async () => {
+    const sid = useSessionStore.getState().sessionID
+    useSessionStore.getState().setAgentActivity('Cancelling…')
+    if (sid && window.api?.session?.cancel) {
+      await window.api.session.cancel(sid)
+    }
+  }, [])
 
-    setLastUserPrompt(text)
-    resetAutofix(sessionID)  // Fresh user prompt — clear any accumulated autofix attempts.
-    convertTurnRef.current = false  // default: a fresh turn is a CSD; convert branches re-set this below.
-    addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
-    setInput('')
+  const buildPayloadFromText = useCallback((text: string): string => {
+    const active = useArtifactStore.getState().getActive()
+    const convertTo = active ? detectConvertIntent(text, active.type) : null
+
+    if (active && active.type === 'webapp' && !convertTo) {
+      const msgs = useSessionStore.getState().messages
+      const srcMsg = active.sourceMessageId
+        ? msgs.find((m) => m.id === active.sourceMessageId)
+        : null
+      const srcDet = srcMsg ? detect(srcMsg.content) : null
+      const srcCsd = srcDet && srcDet.type === 'csd' ? srcDet.code : null
+      if (srcCsd) {
+        editBaseRef.current = null
+        pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id }
+        convertTurnRef.current = true
+        return `${buildConvertPrompt('webapp', srcCsd)}\n\n<user-note>${text}</user-note>`
+      }
+      editBaseRef.current = active.id
+      pendingWebappConvertRef.current = null
+      return wrapWithArtifactContext(text)
+    }
+
+    editBaseRef.current = active && !convertTo ? active.id : null
+    pendingWebappConvertRef.current =
+      convertTo === 'webapp' && active ? { title: active.title } : null
+    convertTurnRef.current = Boolean(convertTo && active)
+    return convertTo && active
+      ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
+      : wrapWithArtifactContext(text)
+  }, [])
+
+  const handleSend = async (
+    overrideText?: string,
+    opts?: { retry?: boolean; variant?: boolean; refillOnly?: boolean },
+  ) => {
+    const retry = Boolean(opts?.retry || opts?.variant)
+
+    if (opts?.refillOnly) {
+      setInput(overrideText ?? lastUserPrompt)
+      return
+    }
+
+    const text = (overrideText ?? input).trim()
+    if (!retry && !text) return
+    if (isStreaming) return
+    if (isRateLimited()) return
+    if (providersAvailable !== null && providersAvailable.length === 0) {
+      setShowApiKeyDialog(true)
+      return
+    }
+
+    let displayText: string
+    let payload: string
+
+    if (retry) {
+      if (!lastSendRef.current) return
+      displayText = lastSendRef.current.displayText
+      payload = lastSendRef.current.payload
+      removeFailedAssistantTurn()
+    } else {
+      displayText = text
+      resetAutofix(sessionID)
+      convertTurnRef.current = false
+      payload = buildPayloadFromText(text)
+      lastSendRef.current = { displayText, payload }
+      addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
+      setInput('')
+    }
+
+    if (audioEnabled) audioFeedback.click()
+    useSessionStore.getState().setAgentActivity(retry ? 'Retrying…' : 'Sending to the Agent…')
+    setLastUserPrompt(displayText)
     setStreaming(true)
 
     try {
       if (window.api?.session) {
-        let sid = sessionID
-        if (!sid) {
-          const session = await window.api.session.create(agentMode)
-          sid = session.id
-          setSessionID(sid)
-        }
-        // If the message is really a request to switch the open artifact to a
-        // different format ("make it a web app"), route it through the same
-        // proven convert template the "Convert to" button uses — otherwise the
-        // preserve-format hint below would fight the switch and keep emitting
-        // the current type. Plain follow-ups keep the format-preserving hint.
-        const active = useArtifactStore.getState().getActive()
-        const convertTo = active ? detectConvertIntent(text, active.type) : null
-
-        let payload: string
-        if (active && active.type === 'webapp' && !convertTo) {
-          // CRITICAL: a follow-up on a web app must edit the underlying web-ready
-          // CSD and rebuild deterministically via buildWebApp — NEVER hand the
-          // generated HTML to the model. The model rewriting HTML drops the Csound
-          // engine (Csound()/compileOrc/start/inputMessage) and the app becomes
-          // unplayable. Recover the source CSD from the message this web app was
-          // built from, re-run the webapp template with the user's note, and let
-          // the detection effect re-wrap it as a new version.
-          const msgs = useSessionStore.getState().messages
-          const srcMsg = active.sourceMessageId
-            ? msgs.find((m) => m.id === active.sourceMessageId)
-            : null
-          // Only usable if the source message is actually a CSD (a web app built
-          // by the deterministic path). Legacy web apps whose source is HTML fall
-          // back so we don't feed HTML into the orchestra template.
-          const srcDet = srcMsg ? detect(srcMsg.content) : null
-          const srcCsd = srcDet && srcDet.type === 'csd' ? srcDet.code : null
-          if (srcCsd) {
-            editBaseRef.current = null
-            pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id }
-            convertTurnRef.current = true
-            payload = `${buildConvertPrompt('webapp', srcCsd)}\n\n<user-note>${text}</user-note>`
-          } else {
-            // Source CSD unrecoverable (rare) — fall back to in-place edit.
-            editBaseRef.current = active.id
-            pendingWebappConvertRef.current = null
-            payload = wrapWithArtifactContext(text)
-          }
-        } else {
-          // A plain follow-up edits the loaded version in place (branch from it).
-          // A format conversion changes type, so it starts a fresh artifact chain.
-          editBaseRef.current = active && !convertTo ? active.id : null
-          // A "make it a web app" intent returns an orchestra CSD we wrap ourselves.
-          pendingWebappConvertRef.current =
-            convertTo === 'webapp' && active ? { title: active.title } : null
-          convertTurnRef.current = Boolean(convertTo && active)
-          payload = convertTo && active
-            ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
-            : wrapWithArtifactContext(text)
-        }
-        await window.api.session.send(sid, payload)
+        const activeSid = sessionID ?? (await window.api.session.create(agentMode)).id
+        if (!sessionID) setSessionID(activeSid)
+        await window.api.session.send(activeSid, payload, {
+          retry: opts?.retry,
+          variant: opts?.variant,
+        })
       } else {
         addMessage({ id: `msg_${Date.now()}`, role: 'assistant', content: 'Not connected — restart app.', timestamp: Date.now() })
         setStreaming(false)
@@ -369,25 +443,85 @@ export default function AgentPage() {
     }
   }
 
+  const showRetryBar = useMemo(() => {
+    if (isStreaming || !lastUserPrompt) return false
+    const last = messages[messages.length - 1]
+    if (!last) return false
+    if (last.type === 'error') return true
+    if (last.role === 'assistant' && last.type !== 'narration' && !detect(last.content)) return true
+    return false
+  }, [messages, isStreaming, lastUserPrompt])
+
+  const lastUserMsgId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') return messages[i].id
+    }
+    return null
+  }, [messages])
+
   const renderMessage = (msg: Message) => {
     if (msg.role === 'user') {
+      const isLastUser = msg.id === lastUserMsgId
+      const retryDisabled = isStreaming
       return (
         <div key={msg.id} style={styles.userRow}>
-          <div style={styles.userBubble}>
-            <p style={styles.msgText}>{msg.content}</p>
+          <div style={styles.userBubbleCol}>
+            <button
+              type="button"
+              style={{
+                ...styles.userPromptBtn,
+                ...(retryDisabled ? styles.userPromptBtnDisabled : {}),
+              }}
+              disabled={retryDisabled}
+              onClick={() => {
+                if (isLastUser && lastSendRef.current) {
+                  handleSend(undefined, { retry: true })
+                } else {
+                  handleSend(msg.content, { refillOnly: true })
+                }
+              }}
+              title={isLastUser ? 'Try again with this prompt' : 'Put this prompt in the text field'}
+            >
+              {msg.content}
+            </button>
+            {isLastUser && !retryDisabled && (
+              <div style={styles.userPromptActions}>
+                <button type="button" style={styles.userPromptAction} onClick={() => handleSend(undefined, { retry: true })}>
+                  Try again
+                </button>
+                <button type="button" style={styles.userPromptAction} onClick={() => handleSend(msg.content, { refillOnly: true })}>
+                  Edit
+                </button>
+                <button type="button" style={styles.userPromptAction} onClick={() => handleSend(undefined, { variant: true })}>
+                  Variation
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )
     }
 
     if (msg.type === 'error') {
-      const showTimer = quotaCooldownUntil && quotaCooldownUntil > Date.now()
+      const retryDisabled = isStreaming
       return (
         <div key={msg.id} style={styles.assistantRow}>
           <div style={styles.errorBubble}>
             <span style={styles.errorLabel}>Could not generate</span>
             <p style={styles.errorText}>{msg.content}</p>
-            {showTimer && <QuotaCooldown until={quotaCooldownUntil} onExpired={clearQuotaCooldown} />}
+            {lastUserPrompt && (
+              <div style={styles.errorActions}>
+                <button type="button" style={styles.errorActionPrimary} disabled={retryDisabled} onClick={() => handleSend(undefined, { retry: true })}>
+                  Try again
+                </button>
+                <button type="button" style={styles.errorAction} disabled={retryDisabled} onClick={() => handleSend(lastUserPrompt, { refillOnly: true })}>
+                  Edit prompt
+                </button>
+                <button type="button" style={styles.errorAction} disabled={retryDisabled} onClick={() => handleSend(undefined, { variant: true })}>
+                  Try variation
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )
@@ -459,23 +593,48 @@ export default function AgentPage() {
     )
   }
 
-  const quotaBlocked = Boolean(quotaCooldownUntil && quotaCooldownUntil > Date.now())
-  const soloFreeHint = isSoloFreeProvider(providersAvailable ?? []) && providersAvailable?.[0]
-    ? providerOption(providersAvailable[0])?.soloWarning
-    : null
+  const needsApiKey = providersAvailable !== null && providersAvailable.length === 0
+  const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
+
+  const loadWorkshopStarter = useCallback(async () => {
+    const r = await readWorkshopStarter('fm_bell')
+    if (!r) return
+    addArtifact(
+      { type: 'csd', title: r.meta.title, content: r.content, sourceMessageId: `workshop_${Date.now()}` },
+      { openPanel: true },
+    )
+    navigate('/player')
+  }, [addArtifact, navigate])
 
   function inputBar(centered: boolean) {
     return (
       <>
-        {quotaBlocked && quotaCooldownUntil && (
-          <div style={centered ? styles.quotaBannerCentered : styles.quotaBanner}>
-            <QuotaCooldown until={quotaCooldownUntil} onExpired={clearQuotaCooldown} compact={!centered} />
-            {!centered && (
-              <Link to="/settings" style={styles.quotaLink}>Add a backup free key →</Link>
-            )}
-          </div>
+        {showRateLimit && (
+          <QuotaCooldown
+            until={rateLimitUntil!}
+            providerLabel={rateLimitProvider}
+            onExpired={clearRateLimit}
+            compact={centered}
+          />
+        )}
+        <AgentActivityBar compact={!centered} onCancel={isStreaming ? handleCancel : undefined} />
+        {showRetryBar && (
+          <PromptRetryBar
+            prompt={lastUserPrompt}
+            disabled={isStreaming}
+            onTryAgain={() => handleSend(undefined, { retry: true })}
+            onEdit={() => handleSend(lastUserPrompt, { refillOnly: true })}
+            onVariant={() => handleSend(undefined, { variant: true })}
+          />
         )}
         <div style={centered ? styles.inputBlockCentered : styles.inputBlock}>
+          {needsApiKey && (
+            <p style={centered ? styles.promptKeyHintCentered : styles.promptKeyHint}>
+              Add a free or personal API key in{' '}
+              <Link to="/settings" style={styles.promptKeyLink}>Settings</Link>
+              {' '}before your first sound — Web Apps need no key.
+            </p>
+          )}
           <div style={styles.inputInner}>
             <textarea
               value={input}
@@ -486,19 +645,28 @@ export default function AgentPage() {
                   handleSend()
                 }
               }}
-              placeholder={quotaBlocked ? 'Wait for the timer…' : 'Describe a sound...'}
+              placeholder={
+                isStreaming
+                  ? 'Dr.C is working on your request…'
+                  : showRateLimit
+                    ? 'Free-tier rate limit — wait for the countdown…'
+                  : needsApiKey
+                    ? 'Describe your first sound…'
+                    : 'Describe a sound...'
+              }
               style={styles.textarea}
               rows={1}
-              disabled={quotaBlocked}
+              disabled={isStreaming || showRateLimit}
             />
             <button
-              onClick={() => handleSend()}
-              disabled={!input.trim() || isStreaming || quotaBlocked}
+              onClick={() => (isStreaming ? handleCancel() : handleSend())}
+              disabled={isStreaming ? false : !input.trim() || showRateLimit}
               style={{
                 ...styles.sendBtn,
-                opacity: !input.trim() || isStreaming || quotaBlocked ? 0.3 : 1,
+                opacity: isStreaming ? 1 : !input.trim() ? 0.3 : 1,
               }}
-            >↑</button>
+              title={isStreaming ? 'Cancel this request' : 'Send'}
+            >{isStreaming ? '✕' : '↑'}</button>
           </div>
           <div style={styles.inputFooter}>
             <div style={styles.modeSwitch}>
@@ -546,26 +714,25 @@ export default function AgentPage() {
         {messages.length === 0 ? (
           /* Landing — centered hero + input (Claude-style) */
           <div style={styles.landing}>
-            {providersAvailable !== null && providersAvailable.length === 0 && (
-              <div style={styles.noKeyBanner}>
-                <span>No API key configured. </span>
-                <Link to="/settings" style={styles.noKeyLink}>Add a free Gemini or Groq key →</Link>
-              </div>
-            )}
-            {soloFreeHint && (
-              <div style={styles.freeTierBanner}>
-                <span style={styles.freeTierLabel}>Free API tier</span>
-                <p style={styles.freeTierText}>{soloFreeHint}</p>
-              </div>
-            )}
             <div style={styles.landingInner}>
               <div style={styles.logo}>
                 <span style={styles.logoDr}>Dr</span><span style={styles.logoC}>C</span>
               </div>
               <p style={styles.emptyTitle}>What do you want to hear?</p>
               <p style={styles.emptyDesc}>
-                Describe a sound in your own words. Curated web demos live under the Web Apps tab.
+                {needsApiKey
+                  ? 'No API key yet? Open Web Apps (no key), or load the workshop FM bell and try the Player — both work offline.'
+                  : 'Describe a sound in your own words. Curated web demos live under the Web Apps tab.'}
               </p>
+              {needsApiKey && (
+                <div style={styles.workshopRow}>
+                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter()}>
+                    Load workshop FM bell (no key)
+                  </button>
+                  <Link to="/apps" style={styles.workshopLink}>Web Apps →</Link>
+                  <Link to="/player" style={styles.workshopLink}>Player demo →</Link>
+                </div>
+              )}
               {inputBar(true)}
             </div>
           </div>
@@ -587,7 +754,7 @@ export default function AgentPage() {
                           <span style={{ ...styles.dot, animationDelay: '0.36s' }} />
                         </div>
                         <span style={styles.thinkingLabel}>
-                          {awaitingFirstChunk ? 'Thinking…' : 'Composing…'}
+                          {agentActivity || (awaitingFirstChunk ? 'Waiting for the model…' : 'Writing your CSD…')}
                         </span>
                       </div>
                     </div>
@@ -604,8 +771,16 @@ export default function AgentPage() {
         )}
       </div>
 
-      {/* Artifact panel (co-work) */}
-      {panelOpen && <ArtifactPanel onConvert={requestConversion} />}
+      {/* Artifact panel (co-work) — defer Monaco until CSD is complete */}
+      {panelOpen && (
+        <ErrorBoundary
+          label="Artifact editor"
+          onError={() => useEditorStore.getState().setForcePlain(true)}
+        >
+          <ArtifactPanel onConvert={requestConversion} />
+        </ErrorBoundary>
+      )}
+      {showApiKeyDialog && <ApiKeyPromptDialog onClose={() => setShowApiKeyDialog(false)} />}
     </div>
   )
 }
@@ -636,6 +811,47 @@ const styles: Record<string, CSSProperties> = {
   messages: { flex: 1, overflow: 'auto', padding: '24px 0' },
 
   userRow: { display: 'flex', justifyContent: 'flex-end', padding: '3px 28px' },
+  userBubbleCol: {
+    maxWidth: 560,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  userPromptBtn: {
+    textAlign: 'left',
+    maxWidth: 560,
+    background: 'var(--accent-muted)',
+    borderRadius: '16px 16px 4px 16px',
+    padding: '10px 16px',
+    border: '1px solid transparent',
+    cursor: 'pointer',
+    fontSize: 14,
+    lineHeight: 1.65,
+    color: 'var(--text-primary)',
+    whiteSpace: 'pre-wrap',
+    fontFamily: 'var(--font-primary)',
+  },
+  userPromptBtnDisabled: {
+    opacity: 0.55,
+    cursor: 'not-allowed',
+  },
+  userPromptActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'flex-end',
+  },
+  userPromptAction: {
+    fontSize: 11,
+    fontWeight: 500,
+    padding: '4px 10px',
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+  },
   userBubble: {
     maxWidth: 560, background: 'var(--accent-muted)', borderRadius: '16px 16px 4px 16px', padding: '10px 16px',
   },
@@ -688,6 +904,32 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.55,
     color: 'var(--text-primary)',
     margin: 0,
+  },
+  errorActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  errorActionPrimary: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '6px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--accent)',
+    background: 'var(--accent-muted)',
+    color: 'var(--accent)',
+    cursor: 'pointer',
+  },
+  errorAction: {
+    fontSize: 12,
+    fontWeight: 500,
+    padding: '6px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
   },
   suggestionRow: {
     display: 'flex',
@@ -788,60 +1030,47 @@ const styles: Record<string, CSSProperties> = {
   },
   hint: { fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' },
 
-  noKeyBanner: {
-    position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
-    padding: '8px 14px',
-    borderRadius: 10, border: '1.5px solid var(--warning, #f0b27a)',
-    background: 'var(--bg-secondary)', color: 'var(--text-secondary)',
-    fontSize: 12, display: 'flex', gap: 8, alignItems: 'center',
-  },
-  noKeyLink: {
-    color: 'var(--accent)', textDecoration: 'none', fontWeight: 500,
-  },
-  freeTierBanner: {
-    width: '100%',
-    maxWidth: 520,
-    padding: '12px 16px',
-    borderRadius: 12,
-    border: '1px solid var(--border)',
-    background: 'var(--bg-secondary)',
-    marginBottom: 4,
-  },
-  freeTierLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'var(--accent)',
-  },
-  freeTierText: {
-    fontSize: 12.5,
-    lineHeight: 1.5,
+  promptKeyHint: {
+    fontSize: 12,
+    lineHeight: 1.45,
     color: 'var(--text-muted)',
-    margin: '6px 0 0',
+    margin: '0 0 8px',
   },
-  quotaBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-    padding: '8px 12px',
-    borderRadius: 10,
-    border: '1px solid var(--border)',
-    background: 'var(--bg-secondary)',
-  },
-  quotaBannerCentered: {
-    width: '100%',
-    marginBottom: 10,
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid var(--border)',
-    background: 'var(--bg-secondary)',
+  promptKeyHintCentered: {
+    fontSize: 12.5,
+    lineHeight: 1.45,
+    color: 'var(--text-muted)',
+    margin: '0 0 10px',
     textAlign: 'center',
   },
-  quotaLink: {
-    fontSize: 12, color: 'var(--accent)', textDecoration: 'underline', flexShrink: 0,
+  promptKeyLink: {
+    color: 'var(--accent)',
+    textDecoration: 'none',
+    fontWeight: 500,
+  },
+  workshopRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  workshopBtn: {
+    padding: '8px 14px',
+    borderRadius: 10,
+    border: '1.5px solid var(--accent)',
+    background: 'var(--accent-muted)',
+    color: 'var(--accent)',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'var(--font-primary)',
+  },
+  workshopLink: {
+    fontSize: 12,
+    color: 'var(--accent)',
+    textDecoration: 'none',
+    fontWeight: 500,
   },
 }

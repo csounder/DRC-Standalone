@@ -1,11 +1,16 @@
 import { useState, useEffect, type CSSProperties } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore'
+import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
 import { useUsageStore } from '../stores/usageStore'
 import { isFreeTierOnly, isSoloFreeProvider, PROVIDER_OPTIONS } from '../lib/providerGuide'
 import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
   const { theme, toggleTheme, audioFeedbackEnabled, setAudioFeedback } = useAppStore()
+  const csoundConsoleEnabled = useCsoundConsoleStore((s) => s.enabled)
+  const setCsoundConsoleEnabled = useCsoundConsoleStore((s) => s.setEnabled)
   const agentUsage = useUsageStore((s) => s.agent.totals)
   const playerUsage = useUsageStore((s) => s.player.totals)
   const combinedUsage = {
@@ -27,6 +32,18 @@ export default function SettingsPage() {
   const [cabbageExists, setCabbageExists] = useState<boolean | null>(null)
   const [cabbageDetected, setCabbageDetected] = useState('')
   const [cabbageSaving, setCabbageSaving] = useState(false)
+  const [csoundQtPath, setCsoundQtPath] = useState('')
+  const [csoundQtExists, setCsoundQtExists] = useState<boolean | null>(null)
+  const [csoundQtDetected, setCsoundQtDetected] = useState('')
+  const [csoundQtSaving, setCsoundQtSaving] = useState(false)
+
+  const [ollamaEnabled, setOllamaEnabled] = useState(false)
+  const [preferOllama, setPreferOllama] = useState(false)
+  const [ollamaModel, setOllamaModel] = useState('')
+  const [ollamaModels, setOllamaModels] = useState<string[]>([])
+  const [ollamaRunning, setOllamaRunning] = useState(false)
+  const [ollamaTesting, setOllamaTesting] = useState(false)
+  const [ollamaTestResult, setOllamaTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   type Device = { index: number; id: string; name: string }
   const [audioDevices, setAudioDevices] = useState<{ outputs: Device[]; inputs: Device[]; midiInputs: Device[] }>({
@@ -34,19 +51,38 @@ export default function SettingsPage() {
   })
   const [audioCfg, setAudioCfg] = useState({ output: '', input: '', midiInput: '' })
   const [audioBusy, setAudioBusy] = useState(false)
+  const [memoryReady, setMemoryReady] = useState<boolean | null>(null)
+  const [memoryError, setMemoryError] = useState<string | null>(null)
+
+  const loadMemoryStatus = async () => {
+    try {
+      const s: any = await window.api?.memory?.status?.()
+      setMemoryReady(!!s?.ready)
+      setMemoryError(s?.error ?? null)
+    } catch {
+      setMemoryReady(false)
+    }
+  }
 
   // Enumerate devices + load the saved selection. Reused by the Refresh button.
   const loadAudio = async () => {
     setAudioBusy(true)
     try {
-      const [devs, cfg]: any[] = await Promise.all([
-        window.api?.config?.listAudioDevices?.(),
-        window.api?.config?.getAudioConfig?.(),
-      ])
-      if (devs) setAudioDevices({
-        outputs: devs.outputs ?? [], inputs: devs.inputs ?? [], midiInputs: devs.midiInputs ?? [],
-      })
-      if (cfg) setAudioCfg({ output: cfg.output ?? '', input: cfg.input ?? '', midiInput: cfg.midiInput ?? '' })
+      const devs: any = await window.api?.config?.listAudioDevices?.()
+      if (devs) {
+        setAudioDevices({
+          outputs: devs.outputs ?? [], inputs: devs.inputs ?? [], midiInputs: devs.midiInputs ?? [],
+        })
+      }
+      const sanitized: any = await window.api?.config?.sanitizeAudioDevices?.()
+      const cfg: any = sanitized ?? await window.api?.config?.getAudioConfig?.()
+      if (cfg) {
+        setAudioCfg({
+          output: cfg.output ?? '',
+          input: cfg.input ?? '',
+          midiInput: cfg.midiInput ?? '',
+        })
+      }
     } catch { /* csound may be missing — leave lists empty */ } finally {
       setAudioBusy(false)
     }
@@ -61,7 +97,66 @@ export default function SettingsPage() {
     await window.api?.config?.setAudioDevice?.(configKey, value)
   }
 
+  const resetAudioDefaults = async () => {
+    const r: any = await window.api?.config?.resetAudioDevices?.()
+    if (r) setAudioCfg({ output: '', input: '', midiInput: '' })
+  }
+
+  const resolveOutputLabel = (id: string) => {
+    if (!id) return 'System default output'
+    const d = audioDevices.outputs.find((x) => String(x.index) === id)
+    return d ? d.name : `Device ${id} (not found — reset or pick again)`
+  }
+
+  const resolveInputLabel = (id: string) => {
+    if (!id) return 'System default input'
+    if (id === 'none') return 'None (mic off)'
+    const d = audioDevices.inputs.find((x) => String(x.index) === id)
+    return d ? d.name : `Device ${id} (not found — reset or pick again)`
+  }
+
+  const loadOllama = async () => {
+    try {
+      const r: any = await window.api?.config?.getOllama?.()
+      if (!r) return
+      setOllamaEnabled(!!r.enabled)
+      setPreferOllama(!!r.preferOllama)
+      setOllamaModel(r.model || '')
+      setOllamaModels(r.models || [])
+      setOllamaRunning(!!r.running)
+    } catch {}
+  }
+
+  const saveOllama = async (patch: Record<string, unknown>) => {
+    const r: any = await window.api?.config?.setOllama?.(patch)
+    if (r) {
+      setAvailable(r.available || [])
+      setOllamaRunning(!!r.ok)
+      setOllamaModels(r.models || ollamaModels)
+    }
+  }
+
+  const handleTestOllama = async () => {
+    setOllamaTesting(true)
+    setOllamaTestResult(null)
+    try {
+      const r: any = await window.api?.config?.testOllama?.()
+      setOllamaTestResult(r ?? { ok: false, message: 'Test failed' })
+    } catch {
+      setOllamaTestResult({ ok: false, message: 'Test failed' })
+    }
+    setOllamaTesting(false)
+  }
+
   // Load saved keys + Cabbage path on mount
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') navigate('/agent')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate])
+
   useEffect(() => {
     window.api?.config?.getApiKeys().then((result: any) => {
       setSavedKeys(result.keys || {})
@@ -72,7 +167,14 @@ export default function SettingsPage() {
       setCabbageExists(result?.path ? !!result?.exists : null)
       setCabbageDetected(result?.detected || '')
     }).catch(() => {})
+    window.api?.config?.getCsoundQtPath?.().then((result: any) => {
+      setCsoundQtPath(result?.path || '')
+      setCsoundQtExists(result?.path ? !!result?.exists : null)
+      setCsoundQtDetected(result?.detected || '')
+    }).catch(() => {})
     void loadAudio()
+    void loadOllama()
+    void loadMemoryStatus()
   }, [])
 
   const handleSaveCabbagePath = async () => {
@@ -98,6 +200,32 @@ export default function SettingsPage() {
     try {
       const result = await window.api?.config?.detectCabbage?.()
       setCabbageDetected(result?.detected || '')
+    } catch {}
+  }
+
+  const handleSaveCsoundQtPath = async () => {
+    setCsoundQtSaving(true)
+    try {
+      const result = await window.api?.config?.setCsoundQtPath?.(csoundQtPath.trim())
+      setCsoundQtExists(result?.path ? !!result?.exists : null)
+    } catch {}
+    setCsoundQtSaving(false)
+  }
+
+  const handleChooseCsoundQt = async () => {
+    try {
+      const result = await window.api?.config?.chooseCsoundQtPath?.()
+      if (result && !result.canceled) {
+        setCsoundQtPath(result.path || '')
+        setCsoundQtExists(result.path ? !!result.exists : null)
+      }
+    } catch {}
+  }
+
+  const handleDetectCsoundQt = async () => {
+    try {
+      const result = await window.api?.config?.detectCsoundQt?.()
+      setCsoundQtDetected(result?.detected || '')
     } catch {}
   }
 
@@ -167,7 +295,17 @@ export default function SettingsPage() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Settings</h1>
+      <div style={styles.headerRow}>
+        <h1 style={styles.title}>Settings</h1>
+        <button
+          type="button"
+          style={styles.doneBtn}
+          onClick={() => navigate('/agent')}
+          title="Return to Agent (Esc)"
+        >
+          Done
+        </button>
+      </div>
 
       {/* Status banner — distinguishes "saved in DRC" from "from env var" so a
           shell-exported GEMINI_API_KEY doesn't make us claim a key is set when
@@ -226,6 +364,116 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Memory / learning from 👍 */}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>Memory & learning</h2>
+        {memoryReady ? (
+          <div style={styles.freeTierCallout}>
+            <span style={styles.freeTierCalloutTitle}>Memory is on</span>
+            <p style={styles.freeTierCalloutBody}>
+              When you 👍 an instrument, Dr.C learns which techniques and opcodes you like and steers
+              future generations toward them. Thumbs-down critiques become avoidance rules. Chat history
+              and standing instructions persist across sessions.
+            </p>
+          </div>
+        ) : (
+          <div style={{ ...styles.freeTierCallout, borderColor: 'var(--warning)' }}>
+            <span style={{ ...styles.freeTierCalloutTitle, color: 'var(--warning)' }}>Memory is off</span>
+            <p style={styles.freeTierCalloutBody}>
+              The local database module failed to load, so 👍/👎 feedback is not saved and Dr.C cannot
+              remember your preferences. This usually happens after <code style={styles.codeInline}>npm install</code>{' '}
+              without rebuilding for Electron.
+            </p>
+            {memoryError && (
+              <p style={{ ...styles.hint, margin: '8px 0 0', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+                {memoryError.slice(0, 200)}
+              </p>
+            )}
+            <p style={{ ...styles.freeTierCalloutBody, marginTop: 10 }}>
+              <strong>Fix:</strong> quit Dr.C, then in Terminal run:
+            </p>
+            <pre style={styles.memoryCmd}>cd ~/DRC-Standalone{'\n'}npx electron-builder install-app-deps</pre>
+            <p style={styles.freeTierCalloutBody}>
+              Restart Dr.C — the launcher script rebuilds this automatically when needed.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* Local model (Ollama) */}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>Local model (Ollama)</h2>
+        <div style={styles.freeTierCallout}>
+          <span style={styles.freeTierCalloutTitle}>Free, runs on your Mac</span>
+          <p style={styles.freeTierCalloutBody}>
+            Ollama runs an LLM locally — no API key, no rate limits. Install from{' '}
+            <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer" style={styles.extLink}>
+              ollama.com
+            </a>
+            , then pull a coding model, e.g.{' '}
+            <code style={styles.codeInline}>ollama pull qwen2.5-coder:7b</code>.
+            Slower than Gemini on first reply, but always available.
+          </p>
+        </div>
+        <div style={styles.row}>
+          <div>
+            <span style={styles.label}>Use Ollama for Agent</span>
+            <span style={styles.hint}>
+              {ollamaRunning ? '✓ Ollama is running' : 'Ollama not detected — start the Ollama app'}
+            </span>
+          </div>
+          <button
+            style={{ ...styles.toggle, ...(ollamaEnabled ? styles.toggleOn : {}) }}
+            onClick={() => {
+              const next = !ollamaEnabled
+              setOllamaEnabled(next)
+              void saveOllama({ enabled: next })
+            }}
+          >
+            {ollamaEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+        <div style={styles.row}>
+          <div>
+            <span style={styles.label}>Prefer local over cloud keys</span>
+            <span style={styles.hint}>When on, Agent uses Ollama first even if Gemini/Groq keys are set</span>
+          </div>
+          <button
+            style={{ ...styles.toggle, ...(preferOllama ? styles.toggleOn : {}) }}
+            onClick={() => {
+              const next = !preferOllama
+              setPreferOllama(next)
+              void saveOllama({ preferOllama: next })
+            }}
+          >
+            {preferOllama ? 'On' : 'Off'}
+          </button>
+        </div>
+        <div style={styles.keyInput}>
+          <select
+            style={styles.select}
+            value={ollamaModel}
+            onChange={(e) => {
+              setOllamaModel(e.target.value)
+              void saveOllama({ model: e.target.value })
+            }}
+            disabled={ollamaModels.length === 0}
+          >
+            <option value="">{ollamaModels.length ? 'Choose model…' : 'No models — pull one in Terminal'}</option>
+            {ollamaModels.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+          <button onClick={() => void loadOllama()} style={styles.testButton}>Refresh</button>
+          <button onClick={() => void handleTestOllama()} disabled={ollamaTesting} style={styles.saveButton}>
+            {ollamaTesting ? 'Testing…' : 'Test'}
+          </button>
+        </div>
+        {ollamaTestResult && (
+          <span style={ollamaTestResult.ok ? styles.testOk : styles.testErr}>{ollamaTestResult.message}</span>
+        )}
+      </section>
+
       {/* API Keys */}
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>API Keys</h2>
@@ -235,9 +483,10 @@ export default function SettingsPage() {
             <span style={styles.freeTierCalloutTitle}>Using a free API tier</span>
             <p style={styles.freeTierCalloutBody}>
               Free Gemini and Groq keys work well for workshops, but both have rate limits
-              (roughly 20–30 requests per minute). If Dr.C pauses with no output, wait for the
-              countdown on the Agent screen and try again. Adding <strong>both</strong> keys gives
-              you a backup when one is throttled. The <strong>Web Apps</strong> tab needs no key.
+              (roughly 20–30 requests per minute). The workshop launcher uses <strong>Groq first</strong>{' '}
+              when both keys are saved; Dr.C also switches providers automatically if one returns no output.
+              If Dr.C pauses with no output, use <strong>Try again</strong> on your prompt after the timer clears.
+              The <strong>Web Apps</strong> tab needs no key.
             </p>
             <div style={styles.freeProviderLinks}>
               {PROVIDER_OPTIONS.filter((p) => p.free).map((p) => (
@@ -489,42 +738,53 @@ export default function SettingsPage() {
 
       {/* Audio & MIDI */}
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Audio & MIDI</h2>
+        <h2 style={styles.sectionTitle}>Audio I/O</h2>
+        <p style={styles.sectionIntro}>
+          Choose input/output for the Player page (live MIDI and knobs). Agent playback on macOS
+          renders a WAV and plays it through <code style={{ fontFamily: 'var(--font-mono)' }}>afplay</code>{' '}
+          — that always follows your current macOS output (USB DAC, headphones, speakers, etc.).
+        </p>
 
         <div style={styles.deviceRow}>
           <div style={styles.keyInfo}>
             <span style={styles.label}>Output device</span>
             <span style={styles.hint}>
-              Where playback is sent. If everything compiles but you hear nothing, pick your
-              speakers/headphones here instead of the system default.
+              Speakers or headphones for playback. &quot;System default&quot; uses macOS output
+              (same as most apps). Pick a specific device to force routing — overrides a CSD&apos;s
+              built-in <code style={{ fontFamily: 'var(--font-mono)' }}>-odac</code>.
             </span>
+            <span style={styles.deviceStatus}>Active: {resolveOutputLabel(audioCfg.output)}</span>
           </div>
-          <select
-            style={styles.select}
-            value={audioCfg.output}
-            onChange={(e) => updateDevice('audioOutputDevice', 'output', e.target.value)}
-          >
-            <option value="">System default</option>
-            {audioDevices.outputs.map((d) => (
-              <option key={d.index} value={String(d.index)}>{d.name}</option>
-            ))}
-          </select>
+          <div style={styles.deviceControls}>
+            <select
+              style={styles.select}
+              value={audioCfg.output}
+              onChange={(e) => updateDevice('audioOutputDevice', 'output', e.target.value)}
+            >
+              <option value="">System default</option>
+              {audioDevices.outputs.map((d) => (
+                <option key={d.index} value={String(d.index)}>{d.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div style={styles.deviceRow}>
           <div style={styles.keyInfo}>
             <span style={styles.label}>Input device</span>
             <span style={styles.hint}>
-              For live DSP — feeds your mic/interface into instruments that read live input (adc).
-              Leave off unless a patch processes incoming audio.
+              Microphone or audio interface for live input (adc). &quot;System default&quot; uses the
+              macOS input device. Choose &quot;None&quot; for generated tones that don&apos;t need a mic.
             </span>
+            <span style={styles.deviceStatus}>Active: {resolveInputLabel(audioCfg.input)}</span>
           </div>
           <select
             style={styles.select}
             value={audioCfg.input}
             onChange={(e) => updateDevice('audioInputDevice', 'input', e.target.value)}
           >
-            <option value="">Off</option>
+            <option value="">System default</option>
+            <option value="none">None (mic off)</option>
             {audioDevices.inputs.map((d) => (
               <option key={d.index} value={String(d.index)}>{d.name}</option>
             ))}
@@ -537,7 +797,7 @@ export default function SettingsPage() {
             <span style={styles.hint}>
               {audioDevices.midiInputs.length === 0
                 ? 'No MIDI devices detected. Connect a controller and Refresh.'
-                : 'Hardware MIDI keyboard/controller for note input.'}
+                : 'Hardware MIDI keyboard or controller (optional).'}
             </span>
           </div>
           <select
@@ -553,11 +813,32 @@ export default function SettingsPage() {
           </select>
         </div>
 
-        <div style={{ ...styles.keyInput, marginTop: 12 }}>
-          <button onClick={() => void loadAudio()} disabled={audioBusy} style={styles.testButton}>
+        <div style={{ ...styles.keyInput, marginTop: 12, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => void resetAudioDefaults()} style={styles.saveButton}>
+            Reset to system defaults
+          </button>
+          <button type="button" onClick={() => void loadAudio()} disabled={audioBusy} style={styles.testButton}>
             {audioBusy ? 'Scanning…' : 'Refresh devices'}
           </button>
-          <span style={styles.hint}>Changes apply on the next Play.</span>
+        </div>
+
+        <h3 style={styles.subsectionTitle}>Diagnostics</h3>
+
+        <div style={styles.deviceRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>Show Csound console</span>
+            <span style={styles.hint}>
+              Off by default. Toggle here or from the sidebar (<code style={{ fontFamily: 'var(--font-mono)' }}>&gt;_</code>{' '}
+              above Settings) when you need compile/playback diagnostics.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCsoundConsoleEnabled(!csoundConsoleEnabled)}
+            style={styles.toggle}
+          >
+            {csoundConsoleEnabled ? 'On' : 'Off'}
+          </button>
         </div>
       </section>
 
@@ -612,13 +893,80 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* CsoundQt */}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>CsoundQt</h2>
+        <div style={styles.keyRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>CsoundQt App</span>
+            <span style={styles.hint}>
+              Where "Open in CsoundQt" launches your CSD for editing, manual lookup, and opcode help.
+              Install CsoundQt 7 (beta) after Csound 7 — see install docs.
+            </span>
+            {csoundQtPath ? (
+              <span style={csoundQtExists === false ? styles.testErr : styles.testOk}>
+                {csoundQtExists === false ? `✗ Not found: ${csoundQtPath}` : `✓ Using: ${csoundQtPath}`}
+              </span>
+            ) : csoundQtDetected ? (
+              <span style={styles.testOk}>✓ Auto-detected: {csoundQtDetected}</span>
+            ) : (
+              <span style={styles.testErr}>
+                No CsoundQt found — install from GitHub releases (v7.x) and choose it below, or re-scan.
+              </span>
+            )}
+          </div>
+          <div style={styles.keyInput}>
+            <button onClick={handleChooseCsoundQt} style={styles.saveButton}>
+              Choose CsoundQt…
+            </button>
+            {!csoundQtPath && (
+              <button onClick={handleDetectCsoundQt} style={styles.testButton}>
+                Re-scan
+              </button>
+            )}
+          </div>
+        </div>
+        <div style={styles.keyInput}>
+          <input
+            type="text"
+            value={csoundQtPath}
+            onChange={(e) => setCsoundQtPath(e.target.value)}
+            placeholder="/Applications/CsoundQt.app (or leave blank to auto-detect)"
+            style={styles.input}
+            onKeyDown={(e) => e.key === 'Enter' && handleSaveCsoundQtPath()}
+          />
+          <button onClick={handleSaveCsoundQtPath} disabled={csoundQtSaving} style={styles.saveButton}>
+            {csoundQtSaving ? '...' : 'Save'}
+          </button>
+        </div>
+      </section>
+
     </div>
   )
 }
 
 const styles: Record<string, CSSProperties> = {
   container: { height: '100%', overflow: 'auto', padding: '40px 60px', maxWidth: 720 },
-  title: { fontSize: 28, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '0.04em', marginBottom: 24 },
+  headerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 24,
+  },
+  title: { fontSize: 28, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '0.04em', margin: 0 },
+  doneBtn: {
+    flexShrink: 0,
+    padding: '8px 16px',
+    borderRadius: 10,
+    border: 'var(--border-width) solid var(--border)',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: 'var(--font-primary)',
+  },
   statusBanner: {
     padding: '12px 18px', borderRadius: 12, border: '1.5px solid',
     background: 'var(--bg-secondary)', marginBottom: 32,
@@ -628,6 +976,16 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--text-muted)',
     textTransform: 'uppercase', marginBottom: 16, paddingBottom: 8,
     borderBottom: 'var(--border-width) solid var(--border-subtle)',
+  },
+  subsectionTitle: {
+    fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', color: 'var(--text-muted)',
+    textTransform: 'uppercase', margin: '20px 0 12px',
+  },
+  sectionIntro: {
+    margin: '0 0 16px', fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)',
+  },
+  deviceStatus: {
+    fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-mono)', marginTop: 4,
   },
   row: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -648,6 +1006,9 @@ const styles: Record<string, CSSProperties> = {
     background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13,
     fontFamily: 'var(--font-primary)', cursor: 'pointer', minWidth: 200, maxWidth: 280,
     flexShrink: 0,
+  },
+  deviceControls: {
+    display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', flexShrink: 0,
   },
   label: { display: 'block', fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 },
   hint: { display: 'block', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 },
@@ -670,12 +1031,30 @@ const styles: Record<string, CSSProperties> = {
   extLink: {
     color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer',
   },
+  codeInline: {
+    fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)',
+  },
+  memoryCmd: {
+    margin: '8px 0 0',
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+    lineHeight: 1.5,
+    color: 'var(--text-primary)',
+    whiteSpace: 'pre-wrap',
+  },
   testOk: { fontSize: 11, color: 'var(--success)' },
   testErr: { fontSize: 11, color: 'var(--warning)', lineHeight: 1.4 },
   toggle: {
     padding: '6px 16px', borderRadius: 8, border: 'var(--border-width) solid var(--border)',
     background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: 13,
     fontWeight: 500, fontFamily: 'var(--font-primary)', minWidth: 80, cursor: 'pointer',
+  },
+  toggleOn: {
+    background: 'var(--accent-muted)', color: 'var(--accent)', borderColor: 'var(--accent)',
   },
   input: {
     flex: 1, padding: '8px 12px', borderRadius: 8,

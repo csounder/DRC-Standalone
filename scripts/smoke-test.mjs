@@ -291,6 +291,21 @@ if (playerSrc.includes('toLowerCase()') && playerSrc.includes('no chn_k channel 
 } else {
   bad('PlayerPage lost the MIDI Learn diagnostic — re-check handleCCBinding')
 }
+if (playerSrc.includes('Load current Dr.C CSD') && playerSrc.includes('Load any CSD')) {
+  ok('PlayerPage offers Agent CSD + any-file load buttons')
+} else {
+  bad('PlayerPage missing dual load buttons')
+}
+if (existsSync(join(REPO, 'src/renderer/lib/playerLoad.ts'))) {
+  const pl = readFileSync(join(REPO, 'src/renderer/lib/playerLoad.ts'), 'utf-8')
+  if (pl.includes('resolveAgentCsd') && pl.includes('csdFromArtifact')) {
+    ok('playerLoad resolves CSD from Agent artifacts')
+  } else {
+    bad('playerLoad.ts incomplete')
+  }
+} else {
+  bad('playerLoad.ts missing')
+}
 
 // ───────────────────────────────────────────────────────────────────────
 // 4. End-to-end csound run with the player template
@@ -421,13 +436,23 @@ const TOUCHED = [
   'src/main/util/csound-path.ts',
   'src/main/ipc/csound.ipc.ts',
   'src/main/ipc/llm.ipc.ts',
+  'src/main/ipc/workshop.ipc.ts',
+  'src/main/csound/compile-check.ts',
+  'src/main/csound/audio-flags.ts',
+  'src/main/util/workshop-starters.ts',
+  'src/main/provider/provider.ts',
+  'src/main/session/session.ts',
   'src/main/tool/bash.ts',
   'src/main/tool/csound_compile.ts',
   'src/main/tool/csound_render.ts',
   'src/main/tool/csound_smoke.ts',
   'src/renderer/prompts/convert.ts',
   'src/renderer/pages/PlayerPage.tsx',
+  'src/renderer/pages/AgentPage.tsx',
   'src/renderer/pages/SettingsPage.tsx',
+  'src/renderer/lib/mechanicalPlayerAdapt.ts',
+  'src/renderer/lib/workshopDemos.ts',
+  'src/renderer/components/layout/Sidebar.tsx',
 ]
 
 const BASELINE_NODE = {
@@ -452,6 +477,177 @@ function deltaCheck(label, project, baseline) {
 
 deltaCheck('node', 'tsconfig.node.json', BASELINE_NODE)
 deltaCheck('web', 'tsconfig.web.json', BASELINE_WEB)
+
+// ───────────────────────────────────────────────────────────────────────
+// 7. Knowledge bundle (books, catalog, curated docs)
+// ───────────────────────────────────────────────────────────────────────
+
+section('knowledge bundle')
+
+const KNOWLEDGE = join(REPO, 'resources', 'knowledge')
+const engineSrc = readFileSync(join(REPO, 'src/main/retrieval/engine.ts'), 'utf-8')
+
+if (existsSync(join(KNOWLEDGE, 'bundle-csd.json'))) {
+  const bundle = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-csd.json'), 'utf-8'))
+  const n = Object.keys(bundle.contents ?? {}).length
+  if (n >= 500) ok(`bundle-csd.json has ${n} catalog examples`)
+  else bad('bundle-csd.json too small', String(n))
+} else {
+  bad('bundle-csd.json missing')
+}
+
+if (existsSync(join(KNOWLEDGE, 'book-passages.json'))) {
+  const bp = JSON.parse(readFileSync(join(KNOWLEDGE, 'book-passages.json'), 'utf-8'))
+  const n = bp.passages?.length ?? 0
+  if (n >= 100) ok(`book-passages.json has ${n} extracted passages`)
+  else bad('book-passages.json empty or missing passages')
+} else {
+  bad('book-passages.json missing')
+}
+
+for (const src of [
+  'sources/antipatterns.md',
+  'sources/patterns.md',
+  'sources/syntax-rules.md',
+  'csound7-reference.txt',
+  'csound_book.txt',
+]) {
+  if (existsSync(join(KNOWLEDGE, src))) ok(`knowledge asset present: ${src}`)
+  else bad(`knowledge asset missing: ${src}`)
+}
+
+if (engineSrc.includes('searchKnowledgeSources') && engineSrc.includes('searchCsoundQtExamples')) {
+  ok('RAG engine wires curated knowledge + CsoundQt examples')
+} else {
+  bad('RAG engine missing knowledge-sources or csoundqt-examples integration')
+}
+
+const authSrc = readFileSync(join(REPO, 'src/main/agent/prompts/authoritative-sources.txt'), 'utf-8')
+if (authSrc.includes('McCurdy') && authSrc.includes('resources/knowledge')) {
+  ok('authoritative-sources.txt cites McCurdy + knowledge folder')
+} else {
+  bad('authoritative-sources.txt missing McCurdy/knowledge references')
+}
+
+const mccurdyRoot = '/Applications/CsoundQt-d-html-cs7.app/Contents/Resources/Examples/McCurdy Collection'
+if (existsSync(mccurdyRoot)) {
+  ok('CsoundQt McCurdy Collection found on this machine (runtime indexing)')
+} else {
+  lines.push('  SKIP  CsoundQt McCurdy Collection not at default path — optional for CI')
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// 8. Workshop — starters, player demo, offline adapt, compile-check
+// ───────────────────────────────────────────────────────────────────────
+
+section('workshop')
+
+function shortenHoldScoreForCompile(csd) {
+  return csd.replace(/<CsScore>([\s\S]*?)<\/CsScore>/i, (_, score) => {
+    let s = score
+    s = s.replace(/\bf\s+0\s+(\d{3,})\b/gi, 'f 0 1')
+    s = s.replace(/\bf0\s+z\b/gi, 'f 0 1')
+    s = s.replace(/\bi\s+(\d+)\s+0\s+(\d{3,})\b/gi, 'i $1 0 1')
+    return `<CsScore>${s}</CsScore>`
+  })
+}
+
+function compileStarter(filename, opts = {}) {
+  const path = join(REPO, 'resources/workshop-starters', filename)
+  if (!existsSync(path)) return { ok: false, reason: 'missing file' }
+  let csd = readFileSync(path, 'utf-8')
+  if (opts.shortenScore) csd = shortenHoldScoreForCompile(csd)
+  if (opts.renderScore) {
+    csd = csd.replace(/<CsScore>[\s\S]*?<\/CsScore>/i, opts.renderScore)
+  }
+  csd = normalizeCsOptions(csd)
+  const checkPath = join(TMP, `ws-${filename}`)
+  writeFileSync(checkPath, csd, 'utf-8')
+  const r = spawnSync('csound', ['-n', '-d', '-m0', checkPath], {
+    env: withCsoundPath(),
+    timeout: opts.timeout ?? 20_000,
+  })
+  if (r.error?.code === 'ENOENT') return { ok: null, reason: 'no csound' }
+  if (r.status !== 0) return { ok: false, reason: (r.stderr?.toString() || '').slice(0, 200) }
+  const perfErr = (r.stderr?.toString() || '').match(/(\d+)\s+errors in performance/i)
+  if (perfErr && parseInt(perfErr[1], 10) > 0) return { ok: false, reason: perfErr[0] }
+  return { ok: true }
+}
+
+const compileCheckSrc = readFileSync(join(REPO, 'src/main/csound/compile-check.ts'), 'utf-8')
+if (compileCheckSrc.includes('shortenHoldScoreForCompile') && compileCheckSrc.includes('runCsoundCompileCheck')) {
+  ok('compile-check shortens player hold scores before dry-run')
+} else {
+  bad('compile-check.ts missing hold-score shortening')
+}
+
+if (existsSync(join(REPO, 'src/main/ipc/workshop.ipc.ts')) &&
+    existsSync(join(REPO, 'src/main/util/workshop-starters.ts'))) {
+  ok('workshop IPC + starter loader present')
+} else {
+  bad('workshop IPC files missing')
+}
+
+if (existsSync(join(REPO, 'resources/workshop-starters/player_fm_bell.csd'))) {
+  ok('player_fm_bell.csd bundled (no API demo)')
+} else {
+  bad('player_fm_bell.csd missing')
+}
+
+const mechSrc = existsSync(join(REPO, 'src/renderer/lib/mechanicalPlayerAdapt.ts'))
+  ? readFileSync(join(REPO, 'src/renderer/lib/mechanicalPlayerAdapt.ts'), 'utf-8')
+  : ''
+if (mechSrc.includes('export function mechanicalPlayerAdapt')) {
+  ok('mechanicalPlayerAdapt exported (offline Player wrap)')
+} else {
+  bad('mechanicalPlayerAdapt.ts missing')
+}
+
+const agentSrc = readFileSync(join(REPO, 'src/renderer/pages/AgentPage.tsx'), 'utf-8')
+if (agentSrc.includes('Load workshop FM bell') && agentSrc.includes('readWorkshopStarter')) {
+  ok('Agent offers no-key workshop starter')
+} else {
+  bad('Agent missing workshop starter path')
+}
+
+if (playerSrc.includes('Workshop demo (no key)') && playerSrc.includes('mechanicalPlayerAdapt')) {
+  ok('Player: workshop demo + mechanical adapt before LLM')
+} else {
+  bad('Player missing offline workshop paths')
+}
+
+if (existsSync(join(REPO, 'scripts/launch-workshop-attendee.sh'))) {
+  ok('attendee launcher script (DRC_PRO_PLUS=0, workshop-lite)')
+} else {
+  bad('scripts/launch-workshop-attendee.sh missing')
+}
+
+for (const [file, opts] of [
+  ['fm_bell_starter.csd', {}],
+  ['fm_starter.csd', {}],
+  ['pad_starter.csd', {}],
+  ['player_fm_bell.csd', { shortenScore: true }],
+  ['midi_synth_starter.csd', { shortenScore: true, renderScore: '<CsScore>\ni 1 0 0.2 440 100\n</CsScore>' }],
+]) {
+  const r = compileStarter(file, opts)
+  if (r.ok === null) {
+    lines.push(`  SKIP  ${file} — csound not installed`)
+    break
+  } else if (r.ok) {
+    ok(`${file} compiles`)
+  } else {
+    bad(`${file} compile failed`, r.reason)
+  }
+}
+
+// Mechanical wrap smoke: fm_bell_starter → player-shaped CSD with instr 100 + chn_k
+const bellPath = join(REPO, 'resources/workshop-starters/fm_bell_starter.csd')
+if (existsSync(bellPath) && mechSrc) {
+  const bell = readFileSync(bellPath, 'utf-8')
+  const hasVoice = /\bfoscili\b/i.test(bell) && /\bp4\b/.test(bell)
+  if (hasVoice) ok('fm_bell_starter is mechanical-adapt candidate (foscili + p4)')
+  else bad('fm_bell_starter missing foscili/p4 for mechanical adapt')
+}
 
 // ───────────────────────────────────────────────────────────────────────
 // summary

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { useUsageStore } from '../stores/usageStore'
-import { isQuotaError, parseQuotaRetryMs } from '../lib/providerGuide'
+import { applyQuotaCooldownFromMessage, useRateLimitStore } from '../stores/rateLimitStore'
 import type { UsageRecord } from '../lib/usageFormat'
 
 export function useStream() {
@@ -12,6 +12,15 @@ export function useStream() {
   // the other stream emits in between. Reset on stream:complete.
   const mainIdRef = useRef<string | null>(null)
   const narrationIdRef = useRef<string | null>(null)
+  const lastChunkAtRef = useRef(Date.now())
+
+  useEffect(() => {
+    return useSessionStore.subscribe((state, prev) => {
+      if (state.isStreaming && !prev.isStreaming) {
+        lastChunkAtRef.current = Date.now()
+      }
+    })
+  }, [])
 
   useEffect(() => {
     if (!window.api?.stream) {
@@ -20,9 +29,14 @@ export function useStream() {
     }
 
     const unsubChunk = window.api.stream.onChunk((chunk) => {
+      lastChunkAtRef.current = Date.now()
       const store = storeRef.current.getState()
 
-      if (chunk.type === 'text') {
+      if (chunk.type === 'status') {
+        store.setAgentActivity(chunk.content)
+      } else if (chunk.type === 'text') {
+        useRateLimitStore.getState().clearCooldown()
+        store.setAgentActivity('Writing your CSD…')
         if (mainIdRef.current) {
           store.appendById(mainIdRef.current, chunk.content)
         } else {
@@ -50,7 +64,6 @@ export function useStream() {
           })
         }
       } else if (chunk.type === 'suggestions') {
-        // Clickable follow-up prompts attach to the current CONTEXT message.
         if (narrationIdRef.current) {
           try {
             const arr = JSON.parse(chunk.content)
@@ -69,9 +82,7 @@ export function useStream() {
           /* ignore malformed usage */
         }
       } else if (chunk.type === 'error') {
-        if (isQuotaError(chunk.content)) {
-          store.setQuotaCooldown(Date.now() + parseQuotaRetryMs(chunk.content))
-        }
+        applyQuotaCooldownFromMessage(chunk.content)
         store.addMessage({
           id: `msg_${Date.now()}_e`,
           role: 'assistant',
@@ -79,6 +90,7 @@ export function useStream() {
           type: 'error',
           timestamp: Date.now(),
         })
+        store.setAgentActivity(null)
         store.setStreaming(false)
         mainIdRef.current = null
         narrationIdRef.current = null
@@ -86,14 +98,36 @@ export function useStream() {
     })
 
     const unsubComplete = window.api.stream.onComplete((_result) => {
-      storeRef.current.getState().setStreaming(false)
+      const store = storeRef.current.getState()
+      store.setStreaming(false)
+      store.setAgentActivity(null)
       mainIdRef.current = null
       narrationIdRef.current = null
     })
 
+    // Backup if the main process stream never completes (should not happen after timeout).
+    const watchdog = setInterval(() => {
+      const store = storeRef.current.getState()
+      if (!store.isStreaming) return
+      if (Date.now() - lastChunkAtRef.current < 130_000) return
+      store.addMessage({
+        id: `msg_${Date.now()}_stuck`,
+        role: 'assistant',
+        content:
+          'This request appears stuck. Tap Cancel or restart Dr.C, then try once.',
+        type: 'error',
+        timestamp: Date.now(),
+      })
+      store.setStreaming(false)
+      store.setAgentActivity(null)
+      mainIdRef.current = null
+      narrationIdRef.current = null
+    }, 10_000)
+
     return () => {
       unsubChunk()
       unsubComplete()
+      clearInterval(watchdog)
     }
   }, [])
 }

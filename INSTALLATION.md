@@ -25,7 +25,11 @@ Two external dependencies the app cannot run without:
 1. The **`csound` CLI** on `PATH` (compile/render/play shell out to it).
 2. **An LLM API key** — Gemini (free), Anthropic, or OpenAI.
 
-Optional, only for the "Open in Cabbage" feature: a **Cabbage** install.
+Optional integrations (artifact panel export buttons):
+- **Cabbage** — live MIDI plugin UI testing
+- **CsoundQt 7** — IDE for editing, manual lookup, comparing with Dr.C output
+
+See workshop install docs (`INSTALL-STANDALONE.md` §2.5) for CsoundQt 7 download links.
 
 ---
 
@@ -201,10 +205,12 @@ Everything user-specific lives under Electron's `userData/drc`:
 - Linux: `~/.config/drc/drc/`
 
 Files there:
-- `config.json` — saved API keys **and** the optional `cabbagePath` setting.
+- `config.json` — saved API keys **and** optional `cabbagePath` / `csoundQtPath` settings.
 - `memory.db` — SQLite learning/memory DB (safe to delete to reset learning).
 
-Saved CSDs handed to Cabbage are written to `~/Documents/DrC/cabbage/`.
+Saved CSDs handed to external apps:
+- Cabbage → `~/Documents/DrC/cabbage/`
+- CsoundQt → `~/Documents/DrC/csoundqt/`
 
 To reset the app to a clean state for testing onboarding: quit the app and delete
 the `userData/drc/drc/` directory.
@@ -259,12 +265,11 @@ Releases page and expects these exact filename patterns — keep them consistent
    xattr -cr /Applications/DrC.app
    ```
 
-5. **"Open in Cabbage" does nothing** — the app auto-detects a Cabbage install
-   and lets the user set an explicit path in **Settings → Cabbage** (native file
-   picker or typed path). If launch fails it reports an honest error and offers a
-   **Reveal file** button to the saved `.csd`. If a user reports it silently not
-   opening, have them set the Cabbage path explicitly. Cabbage is **optional** —
-   the rest of the app works without it.
+5. **"Open in Cabbage" / "Open in CsoundQt" fails** — the app auto-detects installs
+   and lets the user set an explicit path in **Settings → Cabbage** or **Settings → CsoundQt**
+   (native file picker or typed path). If launch fails it reports an error and offers
+   **Reveal file** to the saved `.csd` under `~/Documents/DrC/`. Both are **optional** —
+   the rest of the app works without them. CsoundQt requires the **v7.x** build for Csound 7.
 
 6. **`NODE_MODULE_VERSION` mismatch at runtime** — better-sqlite3 was built for
    the wrong ABI. Run `npx electron-builder install-app-deps` (§2). The app won't

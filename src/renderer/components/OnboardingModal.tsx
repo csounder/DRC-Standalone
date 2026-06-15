@@ -91,7 +91,7 @@ export default function OnboardingModal({ onClose }: Props) {
 
         <div style={styles.body}>
           {step === 'welcome' && <Welcome />}
-          {step === 'tour' && <Tour onJump={(path) => { navigate(path); }} />}
+          {step === 'tour' && <Tour onJump={(path) => { navigate(path); onClose(); }} />}
           {step === 'key' && (
             <KeyStep
               googleKey={googleKey}

@@ -1,6 +1,9 @@
 import { useState, useCallback, useRef, useMemo, useEffect, type CSSProperties, type DragEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../stores/playerStore'
 import { useEditorStore } from '../stores/editorStore'
+import { useArtifactStore } from '../stores/artifactStore'
+import { resolveAgentCsd } from '../lib/playerLoad'
 import Knob from '../components/player/Knob'
 import PianoKeyboard from '../components/player/PianoKeyboard'
 import WaveformDisplay from '../components/player/WaveformDisplay'
@@ -12,7 +15,11 @@ import { useMidi } from '../lib/useMidi'
 import { useMidiStore } from '../stores/midiStore'
 import { useUsageStore } from '../stores/usageStore'
 import UsageBar from '../components/chat/UsageBar'
+import QuotaCooldown from '../components/QuotaCooldown'
 import { isQuotaError } from '../lib/providerGuide'
+import { applyQuotaCooldownFromMessage, isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
+import { mechanicalPlayerAdapt } from '../lib/mechanicalPlayerAdapt'
+import { loadWorkshopPlayerDemo } from '../lib/workshopDemos'
 import type { UsageRecord } from '../lib/usageFormat'
 
 type AdaptStatus =
@@ -20,12 +27,38 @@ type AdaptStatus =
   | { kind: 'reading' }
   | { kind: 'adapting' }
   | { kind: 'compiling' }
-  | { kind: 'ready' }
+  | { kind: 'starting' }
+  | { kind: 'ready'; hint?: string }
   | { kind: 'error'; message: string }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Short audible check so load is not silent — Player has no scheduled score. */
+async function playDemoArpeggio(): Promise<void> {
+  if (!window.api?.csound?.event) return
+  const notes = [60, 64, 67, 72]
+  for (const midi of notes) {
+    const hz = 440 * 2 ** ((midi - 69) / 12)
+    const tag = `1.${midi.toString().padStart(3, '0')}`
+    await window.api.csound.event(`i ${tag} 0 -1 ${hz.toFixed(3)} 0.75`)
+    await sleep(320)
+    await window.api.csound.event(`i -${tag} 0 0`)
+    await sleep(60)
+  }
+}
+
 export default function PlayerPage() {
+  const navigate = useNavigate()
   const { isPlaying, currentTime, duration, setPlaying, channels, setChannel } = usePlayerStore()
   const { csdContent, setCsdContent } = useEditorStore()
+  const artifacts = useArtifactStore((s) => s.artifacts)
+  const activeArtifactId = useArtifactStore((s) => s.activeArtifactId)
+  const agentCsd = useMemo(
+    () => resolveAgentCsd(artifacts, activeArtifactId),
+    [artifacts, activeArtifactId],
+  )
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set())
   // Source-of-truth set used by note handlers — synchronous dedupe avoids
@@ -56,6 +89,9 @@ export default function PlayerPage() {
   const [adaptStatus, setAdaptStatus] = useState<AdaptStatus>({ kind: 'idle' })
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const rateLimitUntil = useRateLimitStore((s) => s.until)
+  const rateLimitProvider = useRateLimitStore((s) => s.providerLabel)
+  const clearRateLimit = useRateLimitStore((s) => s.clearCooldown)
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -162,33 +198,55 @@ export default function PlayerPage() {
       return
     }
 
+    // Stop Agent preview / prior Player csound so compile and realtime play don't fight.
+    await window.api.csound.stop().catch(() => {})
+
     let csd = raw.trim()
     if (needsPlayerAdapt(csd)) {
-      setAdaptStatus({ kind: 'adapting' })
-      const prompt = buildConvertPrompt('player', csd)
-      const resp = await window.api.llm.adaptCsd(prompt).catch((err: any) => ({ ok: false, error: err?.message ?? 'adapt failed' })) as {
-        ok: boolean
-        csd?: string
-        usage?: UsageRecord
-        error?: string
+      const wrapped = mechanicalPlayerAdapt(csd)
+      if (wrapped) {
+        csd = wrapped
+      } else {
+        const keys: any = await window.api?.config?.getApiKeys?.().catch(() => null)
+        const hasKey = (keys?.available?.length ?? 0) > 0
+        if (!hasKey) {
+          setAdaptStatus({
+            kind: 'error',
+            message: 'This CSD needs adapting, but no API key is saved. Click Workshop demo (no key) below, or add a free Gemini/Groq key in Settings.',
+          })
+          return
+        }
+        setAdaptStatus({ kind: 'adapting' })
+        const prompt = buildConvertPrompt('player', csd)
+        const resp = await window.api.llm.adaptCsd(prompt).catch((err: any) => ({ ok: false, error: err?.message ?? 'adapt failed' })) as {
+          ok: boolean
+          csd?: string
+          usage?: UsageRecord
+          error?: string
+        }
+        if (resp?.ok && resp.csd) {
+          if (resp.usage) useUsageStore.getState().record('player', resp.usage)
+          csd = resp.csd
+        } else {
+          const msg = resp?.error ?? 'unknown'
+          if (isQuotaError(msg)) applyQuotaCooldownFromMessage(msg)
+          const fallback = mechanicalPlayerAdapt(csd)
+          if (fallback) {
+            csd = fallback
+          } else {
+            setAdaptStatus({
+              kind: 'error',
+              message: isQuotaError(msg)
+                ? `${msg} Try Workshop demo (no key), or wait for the countdown.`
+                : `Adapt failed: ${msg}`,
+            })
+            return
+          }
+        }
       }
-      if (!resp?.ok || !resp.csd) {
-        const msg = resp?.error ?? 'unknown'
-        setAdaptStatus({
-          kind: 'error',
-          message: isQuotaError(msg)
-            ? `${msg} Wait about 60 seconds, or add a Groq backup key in Settings.`
-            : `Adapt failed: ${msg}`,
-        })
-        return
-      }
-      if (resp.usage) useUsageStore.getState().record('player', resp.usage)
-      csd = resp.csd
     }
 
-    // Publish to the editor store so hasCsd / hasP4 / keyboard visibility update.
     setCsdContent(csd)
-
     setAdaptStatus({ kind: 'compiling' })
     try {
       const { path } = await window.api.csound.writeCsd(csd)
@@ -197,12 +255,17 @@ export default function PlayerPage() {
         setAdaptStatus({ kind: 'error', message: `Compile error: ${String(compile.error ?? '').slice(0, 240)}` })
         return
       }
-      setAdaptStatus({ kind: 'ready' })
-      setPlaying(true)
-      const res = await window.api.csound.play(path)
-      if (!res.success) {
-        setAdaptStatus({ kind: 'error', message: `Playback error: ${String(res.error ?? '').slice(0, 240)}` })
+      setAdaptStatus({ kind: 'starting' })
+      const playRes = await window.api.csound.play(path, { realtime: true })
+      if (!playRes.success) {
+        setAdaptStatus({ kind: 'error', message: `Playback error: ${String(playRes.error ?? '').slice(0, 240)}` })
+        setPlaying(false)
+        return
       }
+      setAdaptStatus({ kind: 'ready', hint: 'Playing demo…' })
+      setPlaying(true)
+      await playDemoArpeggio()
+      setAdaptStatus({ kind: 'ready', hint: 'Live — click the keyboard below or use MIDI' })
     } catch (err: any) {
       setAdaptStatus({ kind: 'error', message: err?.message ?? 'Unexpected error' })
     }
@@ -231,6 +294,28 @@ export default function PlayerPage() {
 
   const onPickFile = useCallback(() => fileInputRef.current?.click(), [])
 
+  const loadBusy =
+    adaptStatus.kind === 'reading' ||
+    adaptStatus.kind === 'adapting' ||
+    adaptStatus.kind === 'compiling' ||
+    adaptStatus.kind === 'starting'
+
+  const handleLoadAgentCsd = useCallback(async () => {
+    const resolved = resolveAgentCsd(
+      useArtifactStore.getState().artifacts,
+      useArtifactStore.getState().activeArtifactId,
+    )
+    if (!resolved) {
+      setAdaptStatus({
+        kind: 'error',
+        message: 'No CSD in the current Agent session — generate one on the Agent tab first.',
+      })
+      return
+    }
+    setAdaptStatus({ kind: 'reading' })
+    await loadAndPlayCsd(resolved.csd)
+  }, [loadAndPlayCsd])
+
   const hasCsd = csdContent.trim().length > 0
   const hasP4 = csdContent.includes('p4')
 
@@ -238,9 +323,23 @@ export default function PlayerPage() {
     adaptStatus.kind === 'reading'   ? 'Reading CSD…' :
     adaptStatus.kind === 'adapting'  ? 'Adapting for Player…' :
     adaptStatus.kind === 'compiling' ? 'Compiling…' :
-    adaptStatus.kind === 'ready'     ? 'Playing' :
+    adaptStatus.kind === 'starting'  ? 'Starting audio engine…' :
+    adaptStatus.kind === 'ready'     ? (adaptStatus.hint ?? 'Live — click the keyboard below') :
     adaptStatus.kind === 'error'     ? adaptStatus.message :
     null
+
+  const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
+  const loadDisabled = loadBusy
+
+  const handleWorkshopDemo = useCallback(async () => {
+    setAdaptStatus({ kind: 'reading' })
+    const demo = await loadWorkshopPlayerDemo()
+    if (!demo) {
+      setAdaptStatus({ kind: 'error', message: 'Workshop demo file missing — reinstall Dr.C or use Web Apps (no key).' })
+      return
+    }
+    await loadAndPlayCsd(demo)
+  }, [loadAndPlayCsd])
 
   return (
     <div
@@ -269,12 +368,49 @@ export default function PlayerPage() {
         <h1 style={styles.title}>Player</h1>
         <div style={styles.headerActions}>
           <button
+            type="button"
+            onClick={() => void handleWorkshopDemo()}
+            style={styles.workshopBtn}
+            disabled={loadDisabled}
+            title="FM bell with reverb — keyboard + knobs, no API key"
+          >
+            Workshop demo (no key)
+          </button>
+          <button
+            onClick={() => void handleLoadAgentCsd()}
+            style={{
+              ...styles.loadButton,
+              ...(agentCsd ? styles.loadButtonPrimary : {}),
+            }}
+            disabled={loadDisabled}
+            title={
+              showRateLimit
+                ? 'Free-tier rate limit — wait for the countdown'
+                : agentCsd
+                ? `Adapt and play “${agentCsd.title}” from Agent (MIDI + knobs)`
+                : 'Generate a CSD on the Agent tab first'
+            }
+          >
+            Load current Dr.C CSD
+          </button>
+          <button
             onClick={onPickFile}
             style={styles.loadButton}
-            disabled={adaptStatus.kind === 'reading' || adaptStatus.kind === 'adapting' || adaptStatus.kind === 'compiling'}
+            disabled={loadDisabled}
+            title="Pick any .csd file — Dr.C adapts it for live play, chn_k knobs, and MIDI Learn"
           >
-            Load CSD
+            Load any CSD…
           </button>
+          {!agentCsd && (
+            <button
+              type="button"
+              onClick={() => navigate('/agent')}
+              style={styles.linkishBtn}
+              title="Open Agent to generate a CSD"
+            >
+              Agent →
+            </button>
+          )}
           <button
             onClick={() => setMidiEnabled(!midiEnabled)}
             title={
@@ -295,6 +431,14 @@ export default function PlayerPage() {
           </button>
         </div>
       </div>
+
+      {showRateLimit && (
+        <QuotaCooldown
+          until={rateLimitUntil!}
+          providerLabel={rateLimitProvider}
+          onExpired={clearRateLimit}
+        />
+      )}
 
       {/* Waveform */}
       <div style={styles.waveformArea}>
@@ -326,8 +470,12 @@ export default function PlayerPage() {
             }}>
               {adaptLabel}
             </span>
-          ) : !hasCsd ? (
-            <span style={styles.hint}>Drop a .csd here, or click Load CSD — the AI will adapt it</span>
+              ) : !hasCsd ? (
+            <span style={styles.hint}>
+              {agentCsd
+                ? `Ready: “${agentCsd.title}” from Agent — Load current Dr.C CSD adapts locally when possible (no API for typical FM bells)`
+                : 'Workshop demo needs no key. Web Apps tab also works offline. Drop any .csd or load from Agent.'}
+            </span>
           ) : null}
           <UsageBar area="player" variant="inline" sessionLabel="Adapts" />
         </div>
@@ -416,7 +564,23 @@ const styles: Record<string, CSSProperties> = {
     padding: '6px 14px', borderRadius: 8,
     border: 'var(--border-width) solid var(--border)', background: 'transparent',
     color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
-    letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'none' as const,
+    whiteSpace: 'nowrap' as const,
+  },
+  workshopBtn: {
+    padding: '6px 14px', borderRadius: 8,
+    border: '1.5px solid var(--accent)', background: 'var(--accent-muted)',
+    color: 'var(--accent)', fontSize: 11, fontWeight: 600,
+    cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  },
+  loadButtonPrimary: {
+    borderColor: 'var(--accent)',
+    color: 'var(--accent)',
+    background: 'var(--accent-muted)',
+  },
+  linkishBtn: {
+    padding: '6px 10px', borderRadius: 8, border: 'none', background: 'transparent',
+    color: 'var(--accent)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
   },
   midiActive: { borderColor: 'var(--accent)', color: 'var(--accent)' },
   header: {

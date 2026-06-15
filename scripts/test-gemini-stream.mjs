@@ -15,11 +15,11 @@ async function main() {
   const model = google('gemini-2.5-flash')
 
   try {
-    const stream = streamText({
-      model,
-      messages: [{ role: 'user', content: 'Reply OK' }],
-      maxTokens: 10,
-    })
+  const stream = streamText({
+    model,
+    messages: [{ role: 'user', content: 'Reply OK' }],
+    maxTokens: 32,
+  })
     let out = ''
     for await (const chunk of stream.textStream) out += chunk
     const finish = await stream.finishReason

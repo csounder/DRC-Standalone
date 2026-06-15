@@ -1,6 +1,10 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { Log } from '../util/log'
+import { isProPlus } from '../util/tier'
+import { searchPassages } from './passages'
+import { initKnowledgeSources, searchKnowledgeSources } from './knowledge-sources'
+import { initCsoundQtExamples, searchCsoundQtExamples } from './csoundqt-examples'
 
 export interface RetrievalChunk {
   id: string
@@ -34,6 +38,18 @@ function findResource(filename: string): string | null {
     join(__dirname, '../../resources/knowledge', filename),
     join(__dirname, '../../../resources/knowledge', filename),
     join(process.cwd(), 'resources/knowledge', filename),
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+  return null
+}
+
+function findGoldenStarter(filename: string): string | null {
+  const candidates = [
+    join(__dirname, '../../resources/workshop-starters', filename),
+    join(__dirname, '../../../resources/workshop-starters', filename),
+    join(process.cwd(), 'resources/workshop-starters', filename),
   ]
   for (const p of candidates) {
     if (existsSync(p)) return p
@@ -80,6 +96,13 @@ export namespace Retrieval {
       Log.info(`Book: ${bookLines.length} lines`)
     }
 
+    initKnowledgeSources(findResource)
+    try {
+      initCsoundQtExamples()
+    } catch (err: any) {
+      Log.warn(`CsoundQt init failed: ${err?.message ?? err}`)
+    }
+
     initialized = true
     Log.info('RAG engine ready')
   }
@@ -118,7 +141,11 @@ export namespace Retrieval {
         const count = (lower.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
         if (count > 0) score += Math.log2(1 + count)
       }
-      // Boost if the example ID matches
+      // Boost catalog examples from authoritative sources (Dr. B standing rule)
+      if (id.startsWith('flossmanual')) score *= 4
+      else if (id.startsWith('lazzarinispectral') || id.startsWith('lazzarinicsound')) score *= 3.5
+      else if (id.startsWith('lazzarini')) score *= 3
+      else if (id.startsWith('hornerbook')) score *= 2.5
       if (terms.some((t) => id.toLowerCase().includes(t))) score *= 2
       if (score > 0) scored.push({ id, content: content.slice(0, 2000), score })
     }
@@ -176,11 +203,52 @@ export namespace Retrieval {
   export function formatForPrompt(query: string): string {
     init()
     const parts: string[] = []
+    const q = query.toLowerCase()
+    const cap = isProPlus() ? 6000 : 3000
 
-    // Opcode lookups
+    // Book-verified golden patterns (Boulanger workshop starters)
+    if (/\b(fm|bell|chime|foscil)\b/.test(q)) {
+      const golden = findGoldenStarter('fm_bell_starter.csd')
+      if (golden) {
+        parts.push(
+          `<golden-pattern source="Dr.B FM bell starter (verified Csound 7)">\n` +
+          `${readFileSync(golden, 'utf-8').slice(0, 2200)}\n</golden-pattern>`,
+        )
+      }
+    }
+
+    // Curated knowledge docs (antipatterns, patterns, syntax rules)
+    const docHits = searchKnowledgeSources(query, isProPlus() ? 3 : 2)
+    for (const doc of docHits) {
+      parts.push(
+        `<knowledge-doc source="${doc.source}">\n${doc.content.slice(0, 900)}\n</knowledge-doc>`,
+      )
+    }
+
+    // Extracted book passages (The Csound Book) — richer than raw line windows
+    const bookHits = searchPassages(query, isProPlus() ? 4 : 2)
+    for (const p of bookHits) {
+      parts.push(
+        `<book-passage source="${p.source_book}" page="${p.source_page ?? ''}">\n${p.content.slice(0, 600)}\n</book-passage>`,
+      )
+    }
+
+    // Always pin foscili when FM is mentioned
+    if (/\b(fm|bell|chime|foscil|modulat)\b/.test(q)) {
+      const card = opcodeMap.get('foscili')
+      if (card) {
+        parts.push(
+          `<opcode name="foscili" critical="true">` +
+          `Syntax: ares foscili xamp, kcps, xcar, xmod, kndx, ifn — ONE FM opcode (Chowning). ` +
+          `NOT two separate foscili lines. ${card.description}</opcode>`,
+        )
+      }
+    }
+
+    // Opcode lookups from query tokens
     const opcodeRe = /\b([a-z][a-z0-9_]{2,})\b/gi
     const matches = query.match(opcodeRe) || []
-    const seen = new Set<string>()
+    const seen = new Set<string>(['foscili'])
     for (const m of matches) {
       const name = m.toLowerCase()
       if (seen.has(name)) continue
@@ -188,7 +256,6 @@ export namespace Retrieval {
       const card = opcodeMap.get(name)
       if (card) {
         parts.push(`<opcode name="${card.name}" category="${card.category}">${card.description}${card.seeAlso.length ? ` | See also: ${card.seeAlso.join(', ')}` : ''}</opcode>`)
-        // Include one example if available
         if (card.exampleIDs.length > 0) {
           const ex = csdExamples.get(card.exampleIDs[0])
           if (ex) {
@@ -198,18 +265,34 @@ export namespace Retrieval {
       }
     }
 
-    // Keyword search for relevant examples and book passages
-    const chunks = search(query, 4)
-    if (chunks.length > 0) {
-      for (const chunk of chunks) {
-        parts.push(`<reference source="${chunk.source}">\n${chunk.content.slice(0, 800)}\n</reference>`)
-      }
+    // CsoundQt local examples (McCurdy Collection, FLOSS Manual Examples)
+    const qtHits = searchCsoundQtExamples(query, isProPlus() ? 3 : 2)
+    for (const ex of qtHits) {
+      parts.push(
+        `<catalog-example id="${ex.id}" source="CsoundQt ${ex.collection}">\n${ex.content.slice(0, 1500)}\n</catalog-example>`,
+      )
     }
 
-    // Cap total context to ~3000 chars
+    // Catalog CSDs (FLOSS Manual, Lazzarini, Horner / Boulanger) — adapt before inventing
+    const catalogExamples = searchExamples(query, isProPlus() ? 4 : 2)
+    for (const ex of catalogExamples) {
+      const src = ex.id.startsWith('flossmanual') ? 'FLOSS Manual'
+        : ex.id.startsWith('lazzarini') ? 'Lazzarini'
+        : ex.id.startsWith('hornerbook') ? 'Csound Book (Horner)'
+        : 'Csound Catalog'
+      parts.push(
+        `<catalog-example id="${ex.id}" source="${src}">\n${ex.content.slice(0, 1500)}\n</catalog-example>`,
+      )
+    }
+
+    const chunks = search(query, isProPlus() ? 6 : 4)
+    for (const chunk of chunks) {
+      parts.push(`<reference source="${chunk.source}">\n${chunk.content.slice(0, isProPlus() ? 1000 : 800)}\n</reference>`)
+    }
+
     let total = ''
     for (const p of parts) {
-      if (total.length + p.length > 3000) break
+      if (total.length + p.length > cap) break
       total += p + '\n'
     }
 

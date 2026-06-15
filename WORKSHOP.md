@@ -10,15 +10,18 @@ This branch targets **Csound 7** for native CLI compile/render and **@csound/bro
 - **Runtime detection** injects detected Csound version into the agent environment
 - **Web app conversion** compile-checks orchestra before wrapping HTML
 - **Workshop starters** in `resources/workshop-starters/` (verified compile targets)
-- **Workshop-lite mode** (`DRC_WORKSHOP_LITE=1`, default in `scripts/launch-drc.sh`): skips narration so each turn uses **one** Gemini call instead of three — important on the free tier (20 requests/minute)
+- **Workshop-lite mode** (`DRC_WORKSHOP_LITE=1`): skips narration so each turn uses **one** cheap model call — useful for free-tier workshops only
+- **Pro+ mode** (default in `scripts/launch-drc.sh` via `DRC_PRO_PLUS=1`): Gemini Pro, narration, specialist consults, full book RAG
 
 ## Gemini free tier
 
 Each Agent turn uses one API call (workshop-lite mode). On the free tier you can hit Google's rate limit (~20 requests/minute); when that happens the API may return **empty output with no error**.
 
-- Wait for the **countdown** on the Agent screen, then try again
+- **Workshop launcher prefers Groq** when both Groq and Gemini keys are saved — Groq is faster and more reliable on free tier
+- If the primary provider fails, Dr.C **automatically tries the other** (Groq ↔ Gemini)
+- Wait for the **countdown** on the Agent screen, then use **Try again** on your prompt *(free tier only)*
 - Add a **Groq** key in Settings as a free backup (console.groq.com/keys)
-- Use `./scripts/launch-drc.sh` (workshop-lite is on by default)
+- Use `./scripts/launch-drc.sh` (Pro+ defaults for Dr. B; set `DRC_WORKSHOP_LITE=1` for attendee free-tier builds)
 - **Web Apps** need no API key
 
 ## Free provider options
@@ -71,15 +74,18 @@ Install Csound 7 from [csound.com/download](https://csound.com/download.html) an
 
 ```bash
 export PATH="$HOME/bin:$HOME/Applications/Csound:$PATH"
-csound -n -d -m0 -o /tmp/test.wav resources/workshop-starters/fm_starter.csd
-npm run typecheck
-node scripts/smoke-test.mjs
+cd ~/DRC-Standalone
+npm test
 ```
+
+Runs 45 smoke checks, memory module check, and production build. Quick smoke only: `npm run test:smoke`.
+
+See also: **`TESTING.md`** (manual checklist), **`VERSIONS.md`** (product matrix), **`RELEASE-CHECKLIST.md`** (GitHub publish steps).
 
 ## Suggested attendee prompt
 
 ```
-make a plain Csound CSD only — no Cabbage. Simple 2-operator FM synth with foscili, warm and resonant. Include score i 1 0 3 so it renders to WAV.
+make a plain Csound CSD only — no Cabbage. Simple 2-operator FM synth with foscili, warm and resonant. Score should demo the instrument: scale, arpeggios, ostinato, closing chord (~12 s).
 ```
 
 ## Web synths
@@ -89,3 +95,7 @@ Converted web apps use `@csound/browser@7.0.0-beta31` from CDN. Reference apps i
 ## Cabbage
 
 For live MIDI instruments, convert to Cabbage after the plain CSD works. Most Cabbage patches use `f0 z` and realtime MIDI, not offline `i 1 0 3` scores.
+
+## CsoundQt
+
+For deeper editing and manual lookup, use **Open in CsoundQt** on any plain CSD (artifact panel or Terminal CSD toolbar). Install **CsoundQt v7.x** after Csound 7 — see `INSTALL-STANDALONE.md` §2.5.
