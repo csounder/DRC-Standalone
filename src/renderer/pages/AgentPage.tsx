@@ -471,19 +471,9 @@ export default function AgentPage() {
               </div>
               <p style={styles.emptyTitle}>What do you want to hear?</p>
               <p style={styles.emptyDesc}>
-                Describe a sound. I'll generate a Csound instrument, play it, and open it as an artifact you can edit, export as a web app, or build into a Cabbage plugin.
+                Describe a sound in your own words. Curated web demos live under the Web Apps tab.
               </p>
               {inputBar(true)}
-              <div style={styles.pills}>
-                {[
-                  'FM bell with shimmering decay',
-                  'Thick analog bass with filter sweep',
-                  'Granular cloud texture',
-                  'Ambient generative pad',
-                ].map((s) => (
-                  <button key={s} onClick={() => handleSend(s)} style={styles.pill} disabled={isStreaming}>{s}</button>
-                ))}
-              </div>
             </div>
           </div>
         ) : (
@@ -677,12 +667,6 @@ const styles: Record<string, CSSProperties> = {
   logoC: { fontSize: 44, fontWeight: 300, color: 'var(--accent)' },
   emptyTitle: { fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' },
   emptyDesc: { fontSize: 14, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 460, lineHeight: 1.5 },
-  pills: { display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 4, maxWidth: 520 },
-  pill: {
-    padding: '8px 16px', borderRadius: 20, border: '1.5px solid var(--border)',
-    background: 'transparent', color: 'var(--text-secondary)', fontSize: 13,
-    cursor: 'pointer', fontFamily: 'var(--font-primary)', transition: 'all 150ms ease',
-  },
 
   inputArea: {
     padding: '10px 28px 18px', borderTop: '1px solid var(--border-subtle)',
