@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
+import { isQuotaError, parseQuotaRetryMs } from '../lib/providerGuide'
 
 export function useStream() {
   const storeRef = useRef(useSessionStore)
@@ -57,6 +58,9 @@ export function useStream() {
           }
         }
       } else if (chunk.type === 'error') {
+        if (isQuotaError(chunk.content)) {
+          store.setQuotaCooldown(Date.now() + parseQuotaRetryMs(chunk.content))
+        }
         store.addMessage({
           id: `msg_${Date.now()}_e`,
           role: 'assistant',

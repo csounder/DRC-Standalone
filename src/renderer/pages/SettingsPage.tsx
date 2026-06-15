@@ -1,9 +1,11 @@
 import { useState, useEffect, type CSSProperties } from 'react'
 import { useAppStore } from '../stores/appStore'
+import { isFreeTierOnly, isSoloFreeProvider, PROVIDER_OPTIONS } from '../lib/providerGuide'
 
 export default function SettingsPage() {
   const { theme, toggleTheme, audioFeedbackEnabled, setAudioFeedback } = useAppStore()
   const [googleKey, setGoogleKey] = useState('')
+  const [groqKey, setGroqKey] = useState('')
   const [anthropicKey, setAnthropicKey] = useState('')
   const [openaiKey, setOpenaiKey] = useState('')
   const [savedKeys, setSavedKeys] = useState<Record<string, string>>({})
@@ -102,6 +104,7 @@ export default function SettingsPage() {
         setSavedKeys(updated?.keys || {})
         // Clear the input
         if (provider === 'google') setGoogleKey('')
+        if (provider === 'groq') setGroqKey('')
         if (provider === 'anthropic') setAnthropicKey('')
         if (provider === 'openai') setOpenaiKey('')
       }
@@ -110,7 +113,11 @@ export default function SettingsPage() {
   }
 
   const handleRemoveKey = async (provider: string) => {
-    const label = provider === 'google' ? 'Google AI (Gemini)' : provider === 'anthropic' ? 'Anthropic' : 'OpenAI'
+    const label =
+      provider === 'google' ? 'Google AI (Gemini)'
+      : provider === 'groq' ? 'Groq'
+      : provider === 'anthropic' ? 'Anthropic'
+      : 'OpenAI'
     if (!window.confirm(`Remove the saved ${label} key? You can paste a new one any time.`)) return
     setRemoving(provider)
     try {
@@ -214,10 +221,31 @@ export default function SettingsPage() {
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>API Keys</h2>
 
+        {(isSoloFreeProvider(available) || isFreeTierOnly(available)) && (
+          <div style={styles.freeTierCallout}>
+            <span style={styles.freeTierCalloutTitle}>Using a free API tier</span>
+            <p style={styles.freeTierCalloutBody}>
+              Free Gemini and Groq keys work well for workshops, but both have rate limits
+              (roughly 20–30 requests per minute). If Dr.C pauses with no output, wait for the
+              countdown on the Agent screen and try again. Adding <strong>both</strong> keys gives
+              you a backup when one is throttled. The <strong>Web Apps</strong> tab needs no key.
+            </p>
+            <div style={styles.freeProviderLinks}>
+              {PROVIDER_OPTIONS.filter((p) => p.free).map((p) => (
+                <a key={p.id} href={p.signupUrl} target="_blank" rel="noopener noreferrer" style={styles.extLink}>
+                  Get {p.label} key →
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Google / Gemini */}
         <div style={styles.keyRow}>
           <div style={styles.keyInfo}>
-            <span style={styles.label}>Google AI (Gemini)</span>
+            <span style={styles.label}>
+              Google AI (Gemini) <span style={styles.freeBadge}>Free tier</span>
+            </span>
             <span style={styles.hint}>
               Default — Gemini 2.5 Flash is <strong>free</strong>. Use an AI Studio key (Gemini Developer API,
               not Vertex AI) from{' '}
@@ -273,6 +301,55 @@ export default function SettingsPage() {
               }}
             >
               {saving === 'google' ? '...' : 'Save'}
+            </button>
+          </div>
+        </div>
+
+        {/* Groq — second free option */}
+        <div style={styles.keyRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>
+              Groq <span style={styles.freeBadge}>Free tier</span>
+            </span>
+            <span style={styles.hint}>
+              Optional backup when Gemini is throttled. Free, no credit card. Key from{' '}
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={styles.extLink}>
+                console.groq.com/keys
+              </a>
+              . Dr.C uses Llama 3.3 70B on Groq.
+            </span>
+            {savedKeys.groq && (
+              <div style={styles.savedRow}>
+                <span style={styles.savedKey}>Saved: {savedKeys.groq}</span>
+                <button onClick={() => handleTestKey('groq')} disabled={testing === 'groq'} style={styles.testButton}>
+                  {testing === 'groq' ? 'Testing…' : 'Test'}
+                </button>
+                <button onClick={() => handleRemoveKey('groq')} disabled={removing === 'groq'} style={styles.removeButton}>
+                  {removing === 'groq' ? 'Removing…' : 'Remove'}
+                </button>
+                {testResults.groq && (
+                  <span style={testResults.groq.ok ? styles.testOk : styles.testErr}>
+                    {testResults.groq.ok ? '✓ ' : '✗ '}{testResults.groq.message}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={styles.keyInput}>
+            <input
+              type="password"
+              value={groqKey}
+              onChange={(e) => setGroqKey(e.target.value)}
+              placeholder="gsk_..."
+              style={styles.input}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveKey('groq', groqKey)}
+            />
+            <button
+              onClick={() => handleSaveKey('groq', groqKey)}
+              disabled={!groqKey.trim() || saving === 'groq'}
+              style={{ ...styles.saveButton, opacity: !groqKey.trim() ? 0.3 : 1 }}
+            >
+              {saving === 'groq' ? '...' : 'Save'}
             </button>
           </div>
         </div>
@@ -576,5 +653,40 @@ const styles: Record<string, CSSProperties> = {
     background: 'var(--accent)', color: 'var(--bg-primary)', fontSize: 13,
     fontWeight: 500, fontFamily: 'var(--font-primary)', cursor: 'pointer',
     flexShrink: 0,
+  },
+  freeTierCallout: {
+    padding: '14px 18px',
+    borderRadius: 12,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    marginBottom: 20,
+  },
+  freeTierCalloutTitle: {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--accent)',
+  },
+  freeTierCalloutBody: {
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: 'var(--text-secondary)',
+    margin: '8px 0 10px',
+  },
+  freeProviderLinks: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  freeBadge: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: 'var(--accent)',
+    background: 'var(--accent-muted)',
+    padding: '2px 7px',
+    borderRadius: 6,
+    marginLeft: 6,
+    verticalAlign: 'middle',
   },
 }

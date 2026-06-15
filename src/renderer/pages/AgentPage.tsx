@@ -17,6 +17,8 @@ import { wrapWithArtifactContext } from '../lib/artifactContext'
 import { parseChannels, extractOrchestra, usesKeyboard } from '../lib/parseChannels'
 import { buildWebApp } from '../lib/webHarness'
 import { compileCheckCsd } from '../lib/playback'
+import QuotaCooldown from '../components/QuotaCooldown'
+import { isSoloFreeProvider, providerOption } from '../lib/providerGuide'
 
 // Strip a stray leading web-app wrapper so a fresh turn's CSD can be recovered.
 const DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/gi
@@ -51,7 +53,7 @@ export default function AgentPage() {
   const [providersAvailable, setProvidersAvailable] = useState<string[] | null>(null)
   const playingArtifactId = usePlaybackStore((s) => s.artifactId)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID, startNewSession, clearMessages } = useSessionStore()
+  const { messages, agentMode, setAgentMode, isStreaming, addMessage, setStreaming, setSessionID, sessionID, startNewSession, clearMessages, quotaCooldownUntil, clearQuotaCooldown } = useSessionStore()
   const [historyOpen, setHistoryOpen] = useState(false)
   const { artifacts, panelOpen, addArtifact, updatePrimary, updateInPlace, setActive } = useArtifactStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
@@ -285,6 +287,7 @@ export default function AgentPage() {
   const handleSend = async (overrideText?: string) => {
     const text = (overrideText ?? input).trim()
     if (!text || isStreaming) return
+    if (quotaCooldownUntil && quotaCooldownUntil > Date.now()) return
     if (audioEnabled) audioFeedback.click()
 
     setLastUserPrompt(text)
@@ -374,11 +377,13 @@ export default function AgentPage() {
     }
 
     if (msg.type === 'error') {
+      const showTimer = quotaCooldownUntil && quotaCooldownUntil > Date.now()
       return (
         <div key={msg.id} style={styles.assistantRow}>
           <div style={styles.errorBubble}>
             <span style={styles.errorLabel}>Could not generate</span>
             <p style={styles.errorText}>{msg.content}</p>
+            {showTimer && <QuotaCooldown until={quotaCooldownUntil} onExpired={clearQuotaCooldown} />}
           </div>
         </div>
       )
@@ -443,6 +448,66 @@ export default function AgentPage() {
     )
   }
 
+  const quotaBlocked = Boolean(quotaCooldownUntil && quotaCooldownUntil > Date.now())
+  const soloFreeHint = isSoloFreeProvider(providersAvailable ?? []) && providersAvailable?.[0]
+    ? providerOption(providersAvailable[0])?.soloWarning
+    : null
+
+  function inputBar(centered: boolean) {
+    return (
+      <>
+        {quotaBlocked && quotaCooldownUntil && (
+          <div style={centered ? styles.quotaBannerCentered : styles.quotaBanner}>
+            <QuotaCooldown until={quotaCooldownUntil} onExpired={clearQuotaCooldown} compact={!centered} />
+            {!centered && (
+              <Link to="/settings" style={styles.quotaLink}>Add a backup free key →</Link>
+            )}
+          </div>
+        )}
+        <div style={centered ? styles.inputBlockCentered : styles.inputBlock}>
+          <div style={styles.inputInner}>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              placeholder={quotaBlocked ? 'Wait for the timer…' : 'Describe a sound...'}
+              style={styles.textarea}
+              rows={1}
+              disabled={quotaBlocked}
+            />
+            <button
+              onClick={() => handleSend()}
+              disabled={!input.trim() || isStreaming || quotaBlocked}
+              style={{
+                ...styles.sendBtn,
+                opacity: !input.trim() || isStreaming || quotaBlocked ? 0.3 : 1,
+              }}
+            >↑</button>
+          </div>
+          <div style={styles.inputFooter}>
+            <div style={styles.modeSwitch}>
+              {(Object.keys(MODE_INFO) as AgentMode[]).map((m) => (
+                <button key={m} onClick={() => setAgentMode(m)}
+                  style={{ ...styles.modeBtn, ...(agentMode === m ? { background: 'var(--bg-secondary)', color: MODE_INFO[m].color } : {}) }}>
+                  {MODE_INFO[m].label}
+                </button>
+              ))}
+            </div>
+            <div style={styles.footerRight}>
+              <ProfileBadge />
+              <span style={styles.hint}>CSD · Web App · Cabbage</span>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   return (
     <div style={styles.page}>
       <SessionHistory
@@ -473,7 +538,13 @@ export default function AgentPage() {
             {providersAvailable !== null && providersAvailable.length === 0 && (
               <div style={styles.noKeyBanner}>
                 <span>No API key configured. </span>
-                <Link to="/settings" style={styles.noKeyLink}>Add a free Gemini key →</Link>
+                <Link to="/settings" style={styles.noKeyLink}>Add a free Gemini or Groq key →</Link>
+              </div>
+            )}
+            {soloFreeHint && (
+              <div style={styles.freeTierBanner}>
+                <span style={styles.freeTierLabel}>Free API tier</span>
+                <p style={styles.freeTierText}>{soloFreeHint}</p>
               </div>
             )}
             <div style={styles.landingInner}>
@@ -525,42 +596,6 @@ export default function AgentPage() {
       {panelOpen && <ArtifactPanel onConvert={requestConversion} />}
     </div>
   )
-
-  function inputBar(centered: boolean) {
-    return (
-      <div style={centered ? styles.inputBlockCentered : styles.inputBlock}>
-        <div style={styles.inputInner}>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-            placeholder="Describe a sound..."
-            style={styles.textarea}
-            rows={1}
-          />
-          <button
-            onClick={() => handleSend()}
-            disabled={!input.trim() || isStreaming}
-            style={{ ...styles.sendBtn, opacity: !input.trim() || isStreaming ? 0.3 : 1 }}
-          >↑</button>
-        </div>
-        <div style={styles.inputFooter}>
-          <div style={styles.modeSwitch}>
-            {(Object.keys(MODE_INFO) as AgentMode[]).map((m) => (
-              <button key={m} onClick={() => setAgentMode(m)}
-                style={{ ...styles.modeBtn, ...(agentMode === m ? { background: 'var(--bg-secondary)', color: MODE_INFO[m].color } : {}) }}>
-                {MODE_INFO[m].label}
-              </button>
-            ))}
-          </div>
-          <div style={styles.footerRight}>
-            <ProfileBadge />
-            <span style={styles.hint}>CSD · Web App · Cabbage</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -743,5 +778,51 @@ const styles: Record<string, CSSProperties> = {
   },
   noKeyLink: {
     color: 'var(--accent)', textDecoration: 'none', fontWeight: 500,
+  },
+  freeTierBanner: {
+    width: '100%',
+    maxWidth: 520,
+    padding: '12px 16px',
+    borderRadius: 12,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    marginBottom: 4,
+  },
+  freeTierLabel: {
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--accent)',
+  },
+  freeTierText: {
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: 'var(--text-muted)',
+    margin: '6px 0 0',
+  },
+  quotaBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+    padding: '8px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)',
+  },
+  quotaBannerCentered: {
+    width: '100%',
+    marginBottom: 10,
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    textAlign: 'center',
+  },
+  quotaLink: {
+    fontSize: 12, color: 'var(--accent)', textDecoration: 'underline', flexShrink: 0,
   },
 }

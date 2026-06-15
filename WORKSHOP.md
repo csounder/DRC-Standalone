@@ -14,11 +14,21 @@ This branch targets **Csound 7** for native CLI compile/render and **@csound/bro
 
 ## Gemini free tier
 
-Each Agent turn normally calls Gemini up to three times (narration + suggestions + code). On the free tier you hit the rate limit quickly; when that happens the API can return **empty output with no error**, which looks like Dr.C is frozen.
+Each Agent turn uses one API call (workshop-lite mode). On the free tier you can hit Google's rate limit (~20 requests/minute); when that happens the API may return **empty output with no error**.
 
-- Wait 60 seconds and try again
+- Wait for the **countdown** on the Agent screen, then try again
+- Add a **Groq** key in Settings as a free backup (console.groq.com/keys)
 - Use `./scripts/launch-drc.sh` (workshop-lite is on by default)
-- Or add an Anthropic/OpenAI key in Settings as fallback
+- **Web Apps** need no API key
+
+## Free provider options
+
+| Provider | Cost | Get a key |
+|----------|------|-----------|
+| Gemini (default) | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| Groq (backup) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
+
+Dr.C prefers Gemini when both are saved. If Gemini is throttled, remove it temporarily or wait; Groq is used when Gemini is not configured.
 
 ## Quick start
 

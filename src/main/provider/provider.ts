@@ -8,6 +8,7 @@ interface ProviderConfig {
   anthropicKey?: string
   openaiKey?: string
   googleKey?: string
+  groqKey?: string
 }
 
 // Free AI Studio keys resolve against the Gemini Developer API. Pin it so an
@@ -51,6 +52,17 @@ export namespace Provider {
         model = openai(modelID) as unknown as LanguageModelV1
         break
       }
+      case 'groq': {
+        const apiKey = config.groqKey || process.env.GROQ_API_KEY
+        if (!apiKey) {
+          throw new Error(
+            'Groq API key not configured. Get a free key at https://console.groq.com/keys and set it in Settings.',
+          )
+        }
+        const groq = createOpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' })
+        model = groq(modelID) as unknown as LanguageModelV1
+        break
+      }
       default:
         throw new Error(`Unknown provider: ${providerID}. Supported: google, anthropic, openai`)
     }
@@ -65,6 +77,7 @@ export namespace Provider {
   export function availableProviders(): string[] {
     const available: string[] = []
     if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) available.push('google')
+    if (config.groqKey || process.env.GROQ_API_KEY) available.push('groq')
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) available.push('anthropic')
     if (config.openaiKey || process.env.OPENAI_API_KEY) available.push('openai')
     return available
@@ -74,12 +87,13 @@ export namespace Provider {
     return availableProviders().length > 0
   }
 
-  // Gemini 2.5 Flash is free — always prefer it as the default.
-  // Anthropic and OpenAI are available as fallbacks if no Google key is set,
-  // or when the user explicitly picks a different provider elsewhere.
+  // Prefer free-tier providers first: Gemini, then Groq. Paid fallbacks after.
   export function defaultProvider(): { providerID: string; modelID: string } {
     if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) {
       return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    }
+    if (config.groqKey || process.env.GROQ_API_KEY) {
+      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
       return { providerID: 'anthropic', modelID: 'claude-sonnet-4-5' }
@@ -94,6 +108,9 @@ export namespace Provider {
   export function smallModel(): { providerID: string; modelID: string } {
     if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) {
       return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    }
+    if (config.groqKey || process.env.GROQ_API_KEY) {
+      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
       return { providerID: 'anthropic', modelID: 'claude-haiku-4-5' }
@@ -124,8 +141,14 @@ export namespace Provider {
     if (providerID === 'google') {
       return (
         'Gemini returned no output. On the free tier this usually means the rate limit was hit ' +
-        '(each Dr.C turn can use several API calls). Wait 60 seconds and try again, or add an ' +
-        'Anthropic/OpenAI key in Settings as a fallback. Check usage at aistudio.google.com.'
+        '(about 20 requests per minute). Wait for the countdown and try again, or add a free Groq key ' +
+        'in Settings as a backup. Web Apps need no key. Check usage at aistudio.google.com.'
+      )
+    }
+    if (providerID === 'groq') {
+      return (
+        'Groq returned no output. The free tier has rate limits (~30 requests per minute). ' +
+        'Wait for the countdown and try again, or add a Gemini key in Settings as a backup.'
       )
     }
     return (
@@ -155,7 +178,16 @@ export namespace Provider {
         return 'Permission denied. The key may be a Vertex AI credential — the free tier needs a key from aistudio.google.com/apikey.'
       }
       if (lower.includes('resource_exhausted') || lower.includes('quota')) {
-        return 'Gemini quota exhausted. Wait a minute or check your limits at aistudio.google.com.'
+        return 'Gemini free-tier rate limit reached. Wait about 60 seconds, then try again. Add a Groq key in Settings for a backup.'
+      }
+    }
+
+    if (providerID === 'groq') {
+      if (lower.includes('invalid') && lower.includes('api')) {
+        return 'Invalid Groq API key. Get a free one at console.groq.com/keys.'
+      }
+      if (lower.includes('rate limit') || lower.includes('429') || lower.includes('quota')) {
+        return 'Groq free-tier rate limit reached. Wait about 60 seconds, then try again.'
       }
     }
 
@@ -196,6 +228,7 @@ export namespace Provider {
   function pickTestModel(providerID: string): { modelID: string } {
     switch (providerID) {
       case 'google': return { modelID: 'gemini-2.5-flash' }
+      case 'groq': return { modelID: 'llama-3.1-8b-instant' }
       case 'anthropic': return { modelID: 'claude-haiku-4-5' }
       case 'openai': return { modelID: 'gpt-4.1-mini' }
       default: throw new Error(`Unknown provider: ${providerID}`)

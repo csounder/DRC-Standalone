@@ -16,7 +16,7 @@ const AUDIO_KEYS = [AUDIO_OUTPUT_KEY, AUDIO_INPUT_KEY, MIDI_INPUT_KEY] as const
 // The only keys that hold provider API secrets — masked and surfaced by
 // config:getApiKeys. Everything else in config.json (e.g. cabbagePath) is a
 // plain setting and must NOT leak into the API-keys view.
-const PROVIDER_KEYS = ['google', 'anthropic', 'openai'] as const
+const PROVIDER_KEYS = ['google', 'groq', 'anthropic', 'openai'] as const
 
 export function handleConfigIPC(ipcMain: IpcMain): void {
   // Load saved keys on startup
@@ -25,6 +25,7 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     if (Object.keys(saved).length > 0) {
       Provider.configure({
         googleKey: saved.google,
+        groqKey: saved.groq,
         anthropicKey: saved.anthropic,
         openaiKey: saved.openai,
       })
@@ -37,6 +38,7 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     // Reconfigure provider
     Provider.configure({
       googleKey: config.google,
+      groqKey: config.groq,
       anthropicKey: config.anthropic,
       openaiKey: config.openai,
     })
@@ -44,7 +46,7 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     return { success: true, available: Provider.availableProviders() }
   })
 
-  // Remove a saved provider key entirely. Without this a user who pasted a bad
+  // Remove a saved provider key entirely.
   // key was stuck with it — the only recovery was hand-editing config.json. We
   // validate the provider name so a stray call can't wipe an unrelated setting
   // (e.g. cabbagePath), then reconfigure so the change takes effect immediately.
@@ -55,6 +57,7 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     const config = setConfigValue(provider, '')
     Provider.configure({
       googleKey: config.google,
+      groqKey: config.groq,
       anthropicKey: config.anthropic,
       openaiKey: config.openai,
     })

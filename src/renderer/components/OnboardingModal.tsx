@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TAB_META } from '../lib/tabMeta'
+import { PROVIDER_OPTIONS } from '../lib/providerGuide'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 
@@ -14,7 +15,9 @@ const ORDER: Step[] = ['welcome', 'tour', 'key', 'done']
 export default function OnboardingModal({ onClose }: Props) {
   const [step, setStep] = useState<Step>('welcome')
   const [googleKey, setGoogleKey] = useState('')
+  const [groqKey, setGroqKey] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingProvider, setSavingProvider] = useState<'google' | 'groq' | null>(null)
   const [available, setAvailable] = useState<string[]>([])
   const [keyError, setKeyError] = useState('')
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
@@ -40,34 +43,35 @@ export default function OnboardingModal({ onClose }: Props) {
     onClose()
   }
 
-  const handleSaveKey = async () => {
-    if (!googleKey.trim()) return
+  const handleSaveKey = async (provider: 'google' | 'groq', key: string) => {
+    if (!key.trim()) return
     setSaving(true)
+    setSavingProvider(provider)
     setKeyError('')
     try {
-      const result = await window.api?.config?.setApiKey('google', googleKey.trim())
+      const result = await window.api?.config?.setApiKey(provider, key.trim())
       if (!result?.success) {
         setKeyError('Could not save that key. Check the format and try again.')
         setSaving(false)
+        setSavingProvider(null)
         return
       }
       setAvailable(result.available || [])
-      // Verify the key actually works BEFORE telling the user they're set up.
-      // Catching a typo'd/Vertex/expired key here beats a cryptic failure on
-      // their first generation. The key is already saved either way, so on a
-      // failed test we surface the reason and let them re-paste or proceed.
-      const test = await window.api?.config?.testApiKey?.('google')
+      const test = await window.api?.config?.testApiKey?.(provider)
       if (test && !test.ok) {
         setKeyError(`Key saved, but it didn't work: ${test.message}`)
         setSaving(false)
+        setSavingProvider(null)
         return
       }
-      setGoogleKey('')
+      if (provider === 'google') setGoogleKey('')
+      if (provider === 'groq') setGroqKey('')
       setStep('done')
     } catch (e) {
       setKeyError(e instanceof Error ? e.message : 'Could not save that key.')
     }
     setSaving(false)
+    setSavingProvider(null)
   }
 
   return (
@@ -90,10 +94,13 @@ export default function OnboardingModal({ onClose }: Props) {
           {step === 'tour' && <Tour onJump={(path) => { navigate(path); }} />}
           {step === 'key' && (
             <KeyStep
-              value={googleKey}
-              setValue={setGoogleKey}
+              googleKey={googleKey}
+              groqKey={groqKey}
+              setGoogleKey={setGoogleKey}
+              setGroqKey={setGroqKey}
               onSave={handleSaveKey}
               saving={saving}
+              savingProvider={savingProvider}
               error={keyError}
               alreadyHas={available.length > 0}
             />
@@ -172,23 +179,29 @@ function Tour({ onJump }: { onJump: (path: string) => void }) {
 }
 
 function KeyStep({
-  value, setValue, onSave, saving, error, alreadyHas,
+  googleKey, groqKey, setGoogleKey, setGroqKey, onSave, saving, savingProvider, error, alreadyHas,
 }: {
-  value: string
-  setValue: (v: string) => void
-  onSave: () => void
+  googleKey: string
+  groqKey: string
+  setGoogleKey: (v: string) => void
+  setGroqKey: (v: string) => void
+  onSave: (provider: 'google' | 'groq', key: string) => void
   saving: boolean
+  savingProvider: 'google' | 'groq' | null
   error: string
   alreadyHas: boolean
 }) {
+  const gemini = PROVIDER_OPTIONS.find((p) => p.id === 'google')!
+  const groq = PROVIDER_OPTIONS.find((p) => p.id === 'groq')!
+
   return (
     <div style={styles.stepBody}>
       <div style={styles.eyebrow}>One thing to set up</div>
-      <h2 style={styles.h2}>Add a Google AI key.</h2>
+      <h2 style={styles.h2}>Add a free API key.</h2>
       <p style={styles.body}>
-        The agent uses <strong>Gemini 2.5 Flash</strong>, which is free. Grab a key at{' '}
-        <span style={styles.codeInline}>aistudio.google.com/apikey</span> and paste it below.
-        Anthropic and OpenAI keys are optional and can be added later in Settings.
+        The Agent needs an LLM key. Two free options work well: <strong>Gemini</strong> (default)
+        or <strong>Groq</strong> as a backup. Both have rate limits, so if Dr.C pauses, wait for
+        the countdown and try again. <strong>Web Apps</strong> need no key.
       </p>
 
       {alreadyHas ? (
@@ -197,28 +210,53 @@ function KeyStep({
         </div>
       ) : (
         <>
-          <div style={styles.keyRow}>
-            <input
-              type="password"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="AIza..."
-              style={styles.input}
-              onKeyDown={(e) => e.key === 'Enter' && onSave()}
-              autoFocus
-            />
-            <button
-              onClick={onSave}
-              disabled={!value.trim() || saving}
-              style={{ ...styles.primaryButton, opacity: !value.trim() ? 0.4 : 1 }}
-            >
-              {saving ? 'Checking…' : 'Save key'}
-            </button>
+          <div style={styles.providerBlock}>
+            <div style={styles.providerLabel}>{gemini.label} <span style={styles.freeTag}>Free</span></div>
+            <p style={styles.hintLine}>Key from {gemini.signupLabel}</p>
+            <div style={styles.keyRow}>
+              <input
+                type="password"
+                value={googleKey}
+                onChange={(e) => setGoogleKey(e.target.value)}
+                placeholder={gemini.keyPlaceholder}
+                style={styles.input}
+                onKeyDown={(e) => e.key === 'Enter' && onSave('google', googleKey)}
+                autoFocus
+              />
+              <button
+                onClick={() => onSave('google', googleKey)}
+                disabled={!googleKey.trim() || saving}
+                style={{ ...styles.primaryButton, opacity: !googleKey.trim() ? 0.4 : 1 }}
+              >
+                {savingProvider === 'google' ? 'Checking…' : 'Save'}
+              </button>
+            </div>
           </div>
+
+          <div style={styles.providerBlock}>
+            <div style={styles.providerLabel}>{groq.label} <span style={styles.freeTag}>Free backup</span></div>
+            <p style={styles.hintLine}>Optional. Key from {groq.signupLabel}</p>
+            <div style={styles.keyRow}>
+              <input
+                type="password"
+                value={groqKey}
+                onChange={(e) => setGroqKey(e.target.value)}
+                placeholder={groq.keyPlaceholder}
+                style={styles.input}
+                onKeyDown={(e) => e.key === 'Enter' && onSave('groq', groqKey)}
+              />
+              <button
+                onClick={() => onSave('groq', groqKey)}
+                disabled={!groqKey.trim() || saving}
+                style={{ ...styles.primaryButton, opacity: !groqKey.trim() ? 0.4 : 1 }}
+              >
+                {savingProvider === 'groq' ? 'Checking…' : 'Save'}
+              </button>
+            </div>
+          </div>
+
           {error && <div style={styles.errorLine}>{error}</div>}
-          <p style={styles.hintLine}>
-            Keys are stored locally on this machine only.
-          </p>
+          <p style={styles.hintLine}>Keys are stored locally on this machine only.</p>
         </>
       )}
     </div>
@@ -374,6 +412,29 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     gap: 8,
     marginTop: 4,
+  },
+  providerBlock: {
+    padding: '12px 14px',
+    borderRadius: 10,
+    border: '1px solid var(--border-subtle)',
+    background: 'var(--bg-secondary)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  providerLabel: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: 'var(--text-primary)',
+  },
+  freeTag: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: 'var(--accent)',
+    background: 'var(--accent-muted)',
+    padding: '2px 6px',
+    borderRadius: 5,
+    marginLeft: 6,
   },
   input: {
     flex: 1,

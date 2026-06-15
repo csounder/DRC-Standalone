@@ -26,6 +26,8 @@ interface SessionState {
   agentMode: AgentMode
   isStreaming: boolean
   lastFailure: LastFailure | null
+  /** When a free-tier rate limit fires, retry after this timestamp (ms). */
+  quotaCooldownUntil: number | null
   setSessionID: (id: string) => void
   addMessage: (msg: Message) => void
   appendToLast: (content: string) => void
@@ -36,6 +38,8 @@ interface SessionState {
   clearMessages: () => void
   startNewSession: () => void
   setLastFailure: (f: LastFailure | null) => void
+  setQuotaCooldown: (until: number | null) => void
+  clearQuotaCooldown: () => void
   sendFeedback: (kind: string, payload?: Record<string, unknown>) => void
 }
 
@@ -45,6 +49,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   agentMode: 'csound',
   isStreaming: false,
   lastFailure: null,
+  quotaCooldownUntil: null,
 
   setSessionID: (id) => set({ sessionID: id }),
 
@@ -89,6 +94,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   startNewSession: () => set({ sessionID: null, messages: [], lastFailure: null }),
 
   setLastFailure: (f) => set({ lastFailure: f }),
+
+  setQuotaCooldown: (until) => set({ quotaCooldownUntil: until }),
+  clearQuotaCooldown: () => set({ quotaCooldownUntil: null }),
 
   sendFeedback: (kind, payload) => {
     const sessionID = get().sessionID
