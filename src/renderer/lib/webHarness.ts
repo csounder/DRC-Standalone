@@ -32,7 +32,7 @@ export interface WebAppOptions {
 // Pinned to the Csound build the bundled reference apps are verified against
 // (src/renderer/assets/apps/fm-bell.html).
 const CSOUND_CDN =
-  'https://cdn.jsdelivr.net/npm/@csound/browser@7.0.0-beta28/dist/csound.js'
+  'https://cdn.jsdelivr.net/npm/@csound/browser@7.0.0-beta31/dist/csound.js'
 
 // Theme — hardcoded (the exported file is standalone, so it can't use the app's
 // CSS variables). Mirrors the app tokens: dark bg, sage accent.

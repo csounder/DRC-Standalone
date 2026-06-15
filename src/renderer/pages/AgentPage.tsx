@@ -16,6 +16,7 @@ import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
 import { parseChannels, extractOrchestra, usesKeyboard } from '../lib/parseChannels'
 import { buildWebApp } from '../lib/webHarness'
+import { compileCheckCsd } from '../lib/playback'
 
 // Strip a stray leading web-app wrapper so a fresh turn's CSD can be recovered.
 const DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/gi
@@ -107,24 +108,27 @@ export default function AgentPage() {
     const pendingConvert = pendingWebappConvertRef.current
     if (pendingConvert && detected.type === 'csd') {
       if (isStreaming) return            // wait for the full orchestra
-      pendingWebappConvertRef.current = null
       const csd = detected.code
-      const orc = extractOrchestra(csd)
       const title = pendingConvert.title || deriveTitle(csd, 'csd', lastUserPrompt)
-      const html = buildWebApp({
-        orc,
-        channels: parseChannels(csd),
-        title,
-        hasKeyboard: usesKeyboard(orc),
-        hasReverbBus: /\binstr\s+99\b/.test(orc),
-      })
-      // A follow-up edit rebuilds as a NEW VERSION of the existing web app; a
-      // first-time conversion creates a fresh artifact.
-      const artifact = pendingConvert.editBaseId
-        ? updatePrimary(pendingConvert.editBaseId, html, last.id)
-        : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last.id })
-      setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
-      setActive(artifact.id)
+      const editBaseId = pendingConvert.editBaseId
+      pendingWebappConvertRef.current = null
+      void (async () => {
+        const compileCheck = await compileCheckCsd(csd)
+        if (!compileCheck.ok) return
+        const orc = extractOrchestra(csd)
+        const html = buildWebApp({
+          orc,
+          channels: parseChannels(csd),
+          title,
+          hasKeyboard: usesKeyboard(orc),
+          hasReverbBus: /\binstr\s+99\b/.test(orc),
+        })
+        const artifact = editBaseId
+          ? updatePrimary(editBaseId, html, last!.id)
+          : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last!.id })
+        setMsgArtifactMap((prev) => new Map(prev).set(last!.id, artifact.id))
+        setActive(artifact.id)
+      })()
       return
     }
 

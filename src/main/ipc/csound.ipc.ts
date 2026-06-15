@@ -7,6 +7,7 @@ import { app } from 'electron'
 import { normalizeNamedInstruments } from '../csound/normalize'
 import { Log } from '../util/log'
 import { withCsoundPath } from '../util/csound-path'
+import { getCsoundEnvironment, refreshCsoundEnvironment } from '../util/csound-version'
 import { getConfigValue } from '../util/config'
 
 // Build the realtime I/O flags for playback from the user's Audio/MIDI setup.
@@ -111,6 +112,13 @@ function extractCsoundError(raw: string): string {
 }
 
 export function handleCsoundIPC(ipcMain: IpcMain): void {
+  void refreshCsoundEnvironment()
+
+  ipcMain.handle('csound:getEnvironment', async () => {
+    const env = await refreshCsoundEnvironment()
+    return env
+  })
+
   // Write CSD content to temp file, return the path.
   // Rewrites named instruments (instr Bell, i "Bell" ...) to numbered ones because
   // Csound 6.18 can't resolve named-instrument score events. Preserves source CSD

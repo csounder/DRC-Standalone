@@ -10,6 +10,7 @@ import { NarrationManager } from './narration'
 import { ascending } from '../util/id'
 import { Log } from '../util/log'
 import { Bus } from '../util/bus'
+import { getCsoundEnvironmentBlock } from '../util/csound-version'
 
 export interface SessionMessage {
   id: string
@@ -335,7 +336,7 @@ ${ragContext}
 
   parts.push(`<environment>
 - Platform: ${process.platform}
-- Csound: Available via CLI
+${getCsoundEnvironmentBlock()}
 - Session mode: ${agent.options?.sineMode ? 'Sine' : 'Complex'}
 </environment>
 

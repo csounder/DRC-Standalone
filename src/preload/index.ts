@@ -37,6 +37,7 @@ const api = {
   },
 
   csound: {
+    getEnvironment: () => ipcRenderer.invoke('csound:getEnvironment'),
     writeCsd: (content: string) =>
       ipcRenderer.invoke('csound:writeCsd', content),
     compile: (csdPath: string) =>
