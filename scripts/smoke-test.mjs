@@ -62,53 +62,118 @@ function section(label) {
 
 section('withCsoundPath')
 
-// We can't import the TS module directly; replicate the helper here so we
-// validate the exact behavior we expect at the spawn sites. If the helper
-// changes, this block is the canonical contract test.
-const EXPECTED_PATHS = [
-  '/opt/homebrew/bin',
-  '/usr/local/bin',
-  '/Applications/Csound/CsoundLib64.framework/Versions/Current/Resources/bin',
-  '/Library/Frameworks/CsoundLib64.framework/Versions/Current/Resources/bin',
-]
+const helperPath = join(REPO, 'src/main/util/csound-path.ts')
+const pathSrc = existsSync(helperPath) ? readFileSync(helperPath, 'utf-8') : ''
 
-function withCsoundPath(extra) {
+const PLATFORM_PATH_MARKERS = {
+  darwin: ['darwinPaths', '/opt/homebrew/bin', 'Applications/Csound'],
+  linux: ['linuxPaths', '/usr/local/bin', '.local/bin'],
+  win32: ['win32Paths', 'Program Files', 'Csound-x64'],
+}
+
+function pathDelimiter() {
+  return process.platform === 'win32' ? ';' : ':'
+}
+
+function replicateWithCsoundPath(extra) {
   const env = { ...process.env, ...(extra ?? {}) }
-  const current = env.PATH ?? ''
-  const parts = current.split(':').filter(Boolean)
-  for (const p of EXPECTED_PATHS) {
-    if (!parts.includes(p)) parts.unshift(p)
+  const delim = pathDelimiter()
+  const parts = (env.PATH ?? '').split(delim).filter(Boolean)
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? ''
+  let extras = []
+  if (process.platform === 'win32') {
+    const pf = process.env.ProgramFiles ?? 'C:\\Program Files'
+    const pfx86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+    const local = process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local')
+    extras = [
+      join(home, 'bin'),
+      join(local, 'Csound'),
+      join(pf, 'Csound'),
+      join(pfx86, 'Csound'),
+      join(pf, 'Csound-x64'),
+    ]
+  } else if (process.platform === 'linux') {
+    extras = [
+      join(home, 'bin'),
+      join(home, '.local/bin'),
+      join(home, 'Applications/Csound'),
+      '/usr/local/bin',
+      '/usr/bin',
+      '/opt/csound/bin',
+      '/snap/bin',
+    ]
+  } else {
+    extras = [
+      join(home, 'bin'),
+      join(home, 'Applications/Csound'),
+      join(home, '.local/bin'),
+      '/opt/homebrew/bin',
+      '/usr/local/bin',
+      '/Applications/Csound/CsoundLib64.framework/Versions/Current/Resources/bin',
+      '/Library/Frameworks/CsoundLib64.framework/Versions/Current/Resources/bin',
+    ]
   }
-  env.PATH = parts.join(':')
+  for (const p of extras) {
+    if (p && !parts.includes(p)) parts.unshift(p)
+  }
+  env.PATH = parts.join(delim)
   return env
 }
 
-// Verify the helper file actually exists and exports the expected name.
-const helperPath = join(REPO, 'src/main/util/csound-path.ts')
-if (existsSync(helperPath)) {
-  const src = readFileSync(helperPath, 'utf-8')
-  if (src.includes('export function withCsoundPath')) ok('helper file exists with named export')
-  else bad('helper file missing export', helperPath)
-  for (const p of EXPECTED_PATHS) {
-    if (!src.includes(p)) bad(`helper does not include path`, p)
-  }
-  if (src.match(/parts\.unshift\(p\)/)) ok('paths are prepended (unshift), not appended')
-  else bad('paths must be prepended so a stale csound shim cannot win')
-} else {
-  bad('helper file missing', helperPath)
+const withCsoundPath = replicateWithCsoundPath
+
+if (pathSrc.includes('export function withCsoundPath')) ok('helper file exists with named export')
+else bad('helper file missing export', helperPath)
+
+if (pathSrc.includes('pathDelimiter') && pathSrc.includes('win32Paths') && pathSrc.includes('linuxPaths')) {
+  ok('csound-path.ts is cross-platform (macOS + Linux + Windows)')
+} else bad('csound-path.ts missing cross-platform PATH branches')
+
+for (const [plat, markers] of Object.entries(PLATFORM_PATH_MARKERS)) {
+  if (markers.every((m) => pathSrc.includes(m))) ok(`csound-path includes ${plat} locations`)
+  else bad(`csound-path missing ${plat} path markers`)
 }
 
-// Simulate the Electron-on-macOS scenario: a stripped PATH. The augmented env
-// must still locate csound (assuming it's installed in one of EXPECTED_PATHS).
-const strippedEnv = withCsoundPath({ PATH: '/usr/bin:/bin' })
-const which = spawnSync('which', ['csound'], { env: strippedEnv })
-if (which.status === 0 && which.stdout.toString().trim()) {
-  ok('csound resolves under stripped+augmented PATH', which.stdout.toString().trim())
+if (pathSrc.match(/parts\.unshift\(p\)/)) ok('paths are prepended (unshift), not appended')
+else bad('paths must be prepended so a stale csound shim cannot win')
+
+const strippedEnv = replicateWithCsoundPath({ PATH: process.platform === 'win32' ? 'C:\\Windows\\System32' : '/usr/bin:/bin' })
+const whichCmd = process.platform === 'win32' ? 'where' : 'which'
+const which = spawnSync(whichCmd, ['csound'], { env: strippedEnv, shell: process.platform === 'win32' })
+if (which.status === 0 && (which.stdout?.toString() || '').trim()) {
+  ok('csound resolves under stripped+augmented PATH', (which.stdout.toString().trim().split('\n')[0]))
 } else {
-  // Not a hard fail — only fails when Csound isn't installed at any of the
-  // EXPECTED paths. We surface it but don't abort other tests.
-  lines.push(`  SKIP  csound not installed at any expected path — install via "brew install csound" to verify the spawn fix on this machine`)
+  lines.push(`  SKIP  csound not installed on this host — install Csound 7 to verify PATH fix`)
 }
+
+section('platform-launchers')
+
+const launcherFiles = [
+  'PARTICIPANTS.md',
+  'scripts/workshop-path.sh',
+  'scripts/workshop-path.ps1',
+  'scripts/launch-drc.sh',
+  'scripts/launch-drc.ps1',
+  'scripts/launch-drc.bat',
+  'scripts/launch-workshop-attendee.sh',
+  'scripts/launch-workshop-attendee.ps1',
+  'scripts/launch-workshop-attendee.bat',
+  'launchers/Dr.C-Standalone.command',
+  'launchers/Dr.C-Standalone.sh',
+  'launchers/Dr.C-Standalone.bat',
+  'launchers/Dr.C-Workshop-Attendee.command',
+  'launchers/Dr.C-Workshop-Attendee.sh',
+  'launchers/Dr.C-Workshop-Attendee.bat',
+]
+for (const rel of launcherFiles) {
+  if (existsSync(join(REPO, rel))) ok(`launcher/doc present: ${rel}`)
+  else bad(`launcher/doc missing: ${rel}`)
+}
+
+const part = readFileSync(join(REPO, 'PARTICIPANTS.md'), 'utf-8')
+if (part.includes('### macOS') && part.includes('### Linux') && part.includes('### Windows')) {
+  ok('PARTICIPANTS.md covers macOS, Linux, and Windows')
+} else bad('PARTICIPANTS.md missing OS install sections')
 
 // ───────────────────────────────────────────────────────────────────────
 // 2. cleanSource()

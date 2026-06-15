@@ -13,6 +13,7 @@
     "postinstall": "electron-builder install-app-deps",
     "check-memory": "node scripts/check-memory.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
+    "test:platform": "node scripts/test-platform-launchers.mjs",
     "test:parity": "node scripts/test-knowledge-parity.mjs",
     "sync:cli": "node scripts/sync-knowledge-to-cli.mjs",
     "test:workshop": "node scripts/workshop-test.mjs",

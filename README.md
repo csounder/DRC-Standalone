@@ -2,6 +2,8 @@
 
 AI-powered Csound creative tool. Electron app.
 
+**LAC 2026 workshop participants:** start with **[PARTICIPANTS.md](./PARTICIPANTS.md)** (macOS, Linux, Windows install, download, launchers).
+
 ## Install (no terminal needed)
 
 1. Grab the latest installer from the

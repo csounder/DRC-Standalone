@@ -16,9 +16,10 @@ npm test
 
 This runs:
 
-1. **`scripts/smoke-test.mjs`** — 45 checks (PATH, Player, Settings, knowledge bundle, workshop starters, TypeScript regression guard)
-2. **`scripts/check-memory.mjs`** — better-sqlite3 loads under Electron
-3. **`npm run build`** — production bundle compiles
+1. **`scripts/test-platform-launchers.mjs`** — launcher files + cross-platform PATH contract (run on **each OS** before LAC)
+2. **`scripts/smoke-test.mjs`** — 99 checks (PATH, platform launchers, Player, Settings, knowledge bundle, workshop starters, TypeScript regression guard)
+3. **`scripts/check-memory.mjs`** — better-sqlite3 loads under Electron
+4. **`npm run build`** — production bundle compiles
 
 Quick smoke only:
 
@@ -26,21 +27,46 @@ Quick smoke only:
 npm run test:smoke
 ```
 
-**Expected:** `45 passed, 0 failed` then `Workshop tests passed`.
+Platform launchers only:
+
+```bash
+npm run test:platform
+```
+
+**Expected:** `99 passed, 0 failed` (smoke) + platform launcher checks, then `Workshop tests passed`.
 
 ---
 
 ## Automated — Dr.C Terminal (CLI)
 
 ```bash
-export PATH="$HOME/bin:$HOME/Applications/Csound:$PATH"
+export PATH="$HOME/bin:$HOME/Applications/Csound:$HOME/.local/bin:$PATH"
 cd ~/Dr.C/opencode
+npm run test:platform    # launcher + GET-STARTED.md (run on each OS)
 npm run test:workshop
 ```
+
+Participant guide: **`Dr.C/opencode/GET-STARTED.md`**
 
 **Expected:** `12 passed, 0 failed` (Csound 7, CLI help, demo CSDs, shared starters, bash tool tests).
 
 > **Note:** Full `bun test` in `packages/opencode` runs 983 upstream tests; ~17 fail on network/skill-discovery fixtures. That is **not** a workshop blocker. Use `test:workshop` for LAC.
+
+---
+
+## Cross-platform gate (run on each OS)
+
+Before LAC, run the automated gate on **macOS**, **Linux**, and **Windows** (VM or physical machine):
+
+| OS | Dr.C Standalone | Dr.C Terminal |
+|----|-----------------|---------------|
+| **macOS** | `npm run test:platform && npm run test:smoke` | `npm run test:platform && npm run test:workshop` |
+| **Linux** | same | same |
+| **Windows** | `npm run test:platform` then `npm run test:smoke` in PowerShell | `npm run test:platform` then `npm run test:workshop` |
+
+**Verified on macOS (darwin arm64):** Standalone 28 platform + 99 smoke; Terminal 18 platform + 12 workshop — all passed.
+
+Linux/Windows: file/syntax checks always run; `csound`/`bun` runtime checks skip gracefully if not installed on the CI/VM host.
 
 ---
 

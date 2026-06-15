@@ -21,6 +21,7 @@ function run(label, cmd, args, opts = {}) {
   }
 }
 
+run('Platform launchers', 'node', ['scripts/test-platform-launchers.mjs'])
 run('Smoke test suite', 'node', ['scripts/smoke-test.mjs'])
 run('Memory module check', 'npm', ['run', 'check-memory', '--silent'])
 run('Production build', 'npm', ['run', 'build'], { timeout: 120_000 })

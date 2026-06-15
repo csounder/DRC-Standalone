@@ -16,7 +16,8 @@ git status                                  # review diff
 git log -5 --oneline                        # commit message style
 ```
 
-- [ ] `npm test` — 45 smoke + memory + build
+- [ ] `npm run test:platform` on **macOS, Linux, and Windows**
+- [ ] `npm test` — platform launchers + 99 smoke + memory + build
 - [ ] Manual checklist A1–B5 in `TESTING.md`
 - [ ] `WORKSHOP.md` and `VERSIONS.md` accurate
 - [ ] No secrets in diff (`.env`, API keys)

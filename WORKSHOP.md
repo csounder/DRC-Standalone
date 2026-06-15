@@ -35,12 +35,16 @@ Dr.C prefers Gemini when both are saved. If Gemini is throttled, remove it tempo
 
 ## Quick start
 
+**Participants:** see **[PARTICIPANTS.md](./PARTICIPANTS.md)** for per-OS download, install, and double-click launchers.
+
+**Developers:**
+
 ```bash
-git clone https://github.com/mateolarreaferro/DRC-Standalone.git
+git clone -b lac-2026-csound7 https://github.com/mateolarreaferro/DRC-Standalone.git
 cd DRC-Standalone
 npm install
 cp .env.example .env   # add GEMINI_API_KEY or other provider key
-chmod +x scripts/launch-drc.sh
+chmod +x scripts/launch-drc.sh launchers/*.command launchers/*.sh
 ./scripts/launch-drc.sh
 ```
 
@@ -72,15 +76,18 @@ Install Csound 7 from [csound.com/download](https://csound.com/download.html) an
 
 ## Workshop smoke test
 
+Run on **macOS, Linux, and Windows** before the session:
+
 ```bash
-export PATH="$HOME/bin:$HOME/Applications/Csound:$PATH"
+export PATH="$HOME/bin:$HOME/Applications/Csound:$HOME/.local/bin:$PATH"
 cd ~/DRC-Standalone
-npm test
+npm run test:platform   # launchers + PARTICIPANTS.md sections
+npm test                # platform + smoke + memory + build
 ```
 
-Runs 45 smoke checks, memory module check, and production build. Quick smoke only: `npm run test:smoke`.
+Quick smoke only: `npm run test:smoke` (99 checks).
 
-See also: **`TESTING.md`** (manual checklist), **`VERSIONS.md`** (product matrix), **`RELEASE-CHECKLIST.md`** (GitHub publish steps).
+See also: **`PARTICIPANTS.md`** (attendee handout), **`TESTING.md`** (manual checklist), **`VERSIONS.md`**, **`RELEASE-CHECKLIST.md`**.
 
 ## Suggested attendee prompt
 

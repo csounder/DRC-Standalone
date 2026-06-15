@@ -55,7 +55,7 @@ See `WORKSHOP.md` for detail. Summary:
 - **Provider fallback** Groq ↔ Gemini + rate-limit countdown UI
 - **Offline workshop path** — `player_fm_bell.csd`, mechanical Player adapt, no-key buttons
 - **Workshop starters** in `resources/workshop-starters/`
-- Automated tests: `npm test` (45 smoke checks + build)
+- Automated tests: `npm test` (platform launchers + 99 smoke checks + build)
 
 ---
 
@@ -77,7 +77,8 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 | `src/main/csound/compile-check.ts` | Short hold scores before dry-run compile |
 | `src/renderer/lib/mechanicalPlayerAdapt.ts` | Offline Player wrap (no LLM) |
 | `src/main/ipc/workshop.ipc.ts` | Load starters from renderer |
-| `scripts/smoke-test.mjs` | 45 automated checks |
+| `scripts/smoke-test.mjs` | 99 automated checks |
+| `scripts/test-platform-launchers.mjs` | cross-platform launcher contract |
 | `scripts/workshop-test.mjs` | smoke + memory + production build |
 | `scripts/launch-workshop-attendee.sh` | Attendee env vars |
 
