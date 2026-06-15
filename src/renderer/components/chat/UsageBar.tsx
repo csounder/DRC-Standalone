@@ -1,18 +1,29 @@
 import type { CSSProperties } from 'react'
-import { useSessionStore } from '../../stores/sessionStore'
+import { useUsageStore, type UsageArea } from '../../stores/usageStore'
 import { formatCostUSD, formatTokenCount, shortModelName } from '../../lib/usageFormat'
 
-/** Footer strip: last turn + session totals (matches Dr.C Terminal session footer). */
-export default function UsageBar() {
-  const lastTurn = useSessionStore((s) => s.lastTurnUsage)
-  const sessionTotal = useSessionStore((s) => s.sessionUsage)
+interface Props {
+  area: UsageArea
+  /** footer = Agent input strip; inline = Player transport row */
+  variant?: 'footer' | 'inline'
+  sessionLabel?: string
+}
+
+/** Token/cost strip — matches Dr.C Terminal session footer. */
+export default function UsageBar({ area, variant = 'footer', sessionLabel }: Props) {
+  const lastTurn = useUsageStore((s) => s[area].last)
+  const sessionTotal = useUsageStore((s) => s[area].totals)
 
   if (!lastTurn && sessionTotal.turnCount === 0) return null
 
-  const sessionLabel = formatCostUSD(sessionTotal.totalCostUSD, sessionTotal.totalCostUSD === 0)
+  const costLabel = formatCostUSD(sessionTotal.totalCostUSD, sessionTotal.totalCostUSD === 0)
+  const label = sessionLabel ?? (area === 'player' ? 'Player adapts' : 'Session')
 
   return (
-    <div style={styles.bar} title="Estimated API usage for this chat session">
+    <div
+      style={variant === 'inline' ? styles.inline : styles.bar}
+      title={`Estimated API usage — ${area}`}
+    >
       {lastTurn && (
         <span style={styles.last}>
           {shortModelName(lastTurn.modelID)}
@@ -27,7 +38,7 @@ export default function UsageBar() {
       )}
       {sessionTotal.turnCount > 0 && (
         <span style={styles.session}>
-          Session: {formatTokenCount(sessionTotal.totalTokens)} tok · {sessionLabel}
+          {label}: {formatTokenCount(sessionTotal.totalTokens)} tok · {costLabel}
         </span>
       )}
     </div>
@@ -46,6 +57,18 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--text-muted)',
     fontFamily: 'var(--font-mono)',
     borderTop: '1px solid var(--border-subtle)',
+  },
+  inline: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    fontSize: 10,
+    color: 'var(--text-muted)',
+    fontFamily: 'var(--font-mono)',
+    marginLeft: 'auto',
+    maxWidth: 420,
+    textAlign: 'right',
   },
   last: { flex: '1 1 auto', minWidth: 0 },
   session: { flexShrink: 0, opacity: 0.85 },

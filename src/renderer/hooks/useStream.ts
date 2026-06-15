@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
+import { useUsageStore } from '../stores/usageStore'
 import { isQuotaError, parseQuotaRetryMs } from '../lib/providerGuide'
 import type { UsageRecord } from '../lib/usageFormat'
 
@@ -61,7 +62,7 @@ export function useStream() {
       } else if (chunk.type === 'usage') {
         try {
           const usage = JSON.parse(chunk.content) as UsageRecord
-          store.recordUsage(usage)
+          useUsageStore.getState().record('agent', usage)
           const targetId = mainIdRef.current ?? narrationIdRef.current
           if (targetId) store.attachUsageToMessage(targetId, usage)
         } catch {

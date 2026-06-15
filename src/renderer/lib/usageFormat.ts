@@ -8,7 +8,7 @@ export interface UsageRecord {
   totalTokens: number
   costUSD: number
   freeTier: boolean
-  phase: 'main' | 'narration' | 'suggestions' | 'other'
+  phase: 'main' | 'narration' | 'suggestions' | 'player' | 'other'
 }
 
 export interface SessionUsageTotals {

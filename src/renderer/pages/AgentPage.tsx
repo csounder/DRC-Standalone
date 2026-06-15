@@ -19,6 +19,7 @@ import { buildWebApp } from '../lib/webHarness'
 import { compileCheckCsd } from '../lib/playback'
 import QuotaCooldown from '../components/QuotaCooldown'
 import UsageBar from '../components/chat/UsageBar'
+import { useUsageStore } from '../stores/usageStore'
 import { isSoloFreeProvider, providerOption } from '../lib/providerGuide'
 import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
 
@@ -263,7 +264,7 @@ export default function AgentPage() {
     // leak across sessions. The artifact-detection effect rebuilds this session's
     // final artifact from its loaded messages.
     useArtifactStore.getState().reset()
-    useSessionStore.getState().resetUsage()
+    useUsageStore.getState().resetArea('agent')
     editBaseRef.current = null
     setMsgArtifactMap(new Map())
     pendingWebappConvertRef.current = null
@@ -596,7 +597,7 @@ export default function AgentPage() {
               <div ref={messagesEndRef} />
             </div>
             <div style={styles.inputArea}>
-              <UsageBar />
+              <UsageBar area="agent" />
               {inputBar(false)}
             </div>
           </>

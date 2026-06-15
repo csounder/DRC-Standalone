@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { UsageRecord } from '../lib/usageFormat'
+import { useUsageStore } from './usageStore'
 
 export type AgentMode = 'csound' | 'csound-sine'
 
@@ -22,12 +23,6 @@ export interface LastFailure {
   kind: 'compile' | 'runtime'
 }
 
-interface SessionUsageTotals {
-  totalTokens: number
-  totalCostUSD: number
-  turnCount: number
-}
-
 interface SessionState {
   sessionID: string | null
   messages: Message[]
@@ -35,8 +30,6 @@ interface SessionState {
   isStreaming: boolean
   lastFailure: LastFailure | null
   quotaCooldownUntil: number | null
-  lastTurnUsage: UsageRecord | null
-  sessionUsage: SessionUsageTotals
   setSessionID: (id: string) => void
   addMessage: (msg: Message) => void
   appendToLast: (content: string) => void
@@ -49,9 +42,7 @@ interface SessionState {
   setLastFailure: (f: LastFailure | null) => void
   setQuotaCooldown: (until: number | null) => void
   clearQuotaCooldown: () => void
-  recordUsage: (usage: UsageRecord) => void
   attachUsageToMessage: (messageId: string, usage: UsageRecord) => void
-  resetUsage: () => void
   sendFeedback: (kind: string, payload?: Record<string, unknown>) => void
 }
 
@@ -62,8 +53,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   isStreaming: false,
   lastFailure: null,
   quotaCooldownUntil: null,
-  lastTurnUsage: null,
-  sessionUsage: { totalTokens: 0, totalCostUSD: 0, turnCount: 0 },
 
   setSessionID: (id) => set({ sessionID: id }),
 
@@ -105,30 +94,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   clearMessages: () => set({ messages: [] }),
 
   // Drop back to a clean slate; the next send() mints a fresh persisted session.
-  startNewSession: () =>
+  startNewSession: () => {
+    useUsageStore.getState().resetArea('agent')
     set({
       sessionID: null,
       messages: [],
       lastFailure: null,
       quotaCooldownUntil: null,
-      lastTurnUsage: null,
-      sessionUsage: { totalTokens: 0, totalCostUSD: 0, turnCount: 0 },
-    }),
+    })
+  },
 
   setLastFailure: (f) => set({ lastFailure: f }),
 
   setQuotaCooldown: (until) => set({ quotaCooldownUntil: until }),
   clearQuotaCooldown: () => set({ quotaCooldownUntil: null }),
-
-  recordUsage: (usage) =>
-    set((s) => ({
-      lastTurnUsage: usage,
-      sessionUsage: {
-        totalTokens: s.sessionUsage.totalTokens + usage.totalTokens,
-        totalCostUSD: s.sessionUsage.totalCostUSD + usage.costUSD,
-        turnCount: s.sessionUsage.turnCount + 1,
-      },
-    })),
 
   attachUsageToMessage: (messageId, usage) =>
     set((s) => {
@@ -138,9 +117,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       msgs[idx] = { ...msgs[idx], usage }
       return { messages: msgs }
     }),
-
-  resetUsage: () =>
-    set({ lastTurnUsage: null, sessionUsage: { totalTokens: 0, totalCostUSD: 0, turnCount: 0 } }),
 
   sendFeedback: (kind, payload) => {
     const sessionID = get().sessionID

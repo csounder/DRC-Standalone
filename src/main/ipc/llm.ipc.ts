@@ -2,6 +2,7 @@ import { IpcMain } from 'electron'
 import { generateText } from 'ai'
 import { Provider } from '../provider/provider'
 import { Log } from '../util/log'
+import { usageFromSdk } from '../util/usage-cost'
 
 // Extract the <CsoundSynthesizer>...</CsoundSynthesizer> block from a model
 // response. Models occasionally leak code fences or a trailing sentence despite
@@ -27,25 +28,22 @@ export function handleLlmIPC(ipcMain: IpcMain): void {
     Log.info(`llm:adaptCsd → ${providerID}/${modelID} (${trimmed.length} chars)`)
 
     try {
-      const { text } = await generateText({
+      const result = await generateText({
         model: model as any,
         messages: [{ role: 'user', content: trimmed }],
         temperature: 0.2,
-        // 8192: an adapted CSD with chn_k bank, instr 100 helper, reverb bus,
-        // and a rewritten voice routinely lands in the 5–7K-token range. 4000
-        // truncated outputs mid-orchestra so the </CsoundSynthesizer> tag never
-        // arrived and extractCsd returned null.
         maxTokens: 8192,
       })
-      const csd = extractCsd(text)
+      const csd = extractCsd(result.text)
       if (!csd) {
         Log.warn('llm:adaptCsd → response did not contain a CsoundSynthesizer block')
-        return { ok: false, error: 'Model response missing <CsoundSynthesizer> block', raw: text.slice(0, 400) }
+        return { ok: false, error: 'Model response missing <CsoundSynthesizer> block', raw: result.text.slice(0, 400) }
       }
-      return { ok: true, csd }
+      const usage = usageFromSdk(providerID, modelID, result.usage, 'player')
+      return { ok: true, csd, usage: usage ?? undefined }
     } catch (err: any) {
       Log.error('llm:adaptCsd error:', err.message)
-      return { ok: false, error: err.message }
+      return { ok: false, error: Provider.humanizeError(providerID, err) }
     }
   })
 }

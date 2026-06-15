@@ -1,12 +1,18 @@
 import { useState, useEffect, type CSSProperties } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { useSessionStore } from '../stores/sessionStore'
+import { useUsageStore } from '../stores/usageStore'
 import { isFreeTierOnly, isSoloFreeProvider, PROVIDER_OPTIONS } from '../lib/providerGuide'
 import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
 
 export default function SettingsPage() {
   const { theme, toggleTheme, audioFeedbackEnabled, setAudioFeedback } = useAppStore()
-  const sessionUsage = useSessionStore((s) => s.sessionUsage)
+  const agentUsage = useUsageStore((s) => s.agent.totals)
+  const playerUsage = useUsageStore((s) => s.player.totals)
+  const combinedUsage = {
+    totalTokens: agentUsage.totalTokens + playerUsage.totalTokens,
+    totalCostUSD: agentUsage.totalCostUSD + playerUsage.totalCostUSD,
+    turnCount: agentUsage.turnCount + playerUsage.turnCount,
+  }
   const [googleKey, setGoogleKey] = useState('')
   const [groqKey, setGroqKey] = useState('')
   const [anthropicKey, setAnthropicKey] = useState('')
@@ -243,17 +249,27 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {sessionUsage.turnCount > 0 && (
+        {combinedUsage.turnCount > 0 && (
           <div style={styles.usageCallout}>
-            <span style={styles.freeTierCalloutTitle}>Current Agent session</span>
+            <span style={styles.freeTierCalloutTitle}>API usage this app session</span>
             <p style={styles.freeTierCalloutBody}>
-              {formatTokenCount(sessionUsage.totalTokens)} tokens across {sessionUsage.turnCount}{' '}
-              API call{sessionUsage.turnCount === 1 ? '' : 's'} · estimated{' '}
-              {formatCostUSD(sessionUsage.totalCostUSD, sessionUsage.totalCostUSD === 0)}
+              {formatTokenCount(combinedUsage.totalTokens)} tokens across {combinedUsage.turnCount}{' '}
+              API call{combinedUsage.turnCount === 1 ? '' : 's'} · estimated{' '}
+              {formatCostUSD(combinedUsage.totalCostUSD, combinedUsage.totalCostUSD === 0)}
             </p>
-            <p style={{ ...styles.hint, margin: 0 }}>
-              Totals reset when you start a new chat. Paid providers (Anthropic, OpenAI) show real
-              estimated cost; free-tier keys show $0.00 but still count tokens.
+            {(agentUsage.turnCount > 0 || playerUsage.turnCount > 0) && (
+              <p style={{ ...styles.hint, margin: '6px 0 0' }}>
+                {agentUsage.turnCount > 0 && (
+                  <>Agent: {formatTokenCount(agentUsage.totalTokens)} tok · {formatCostUSD(agentUsage.totalCostUSD, agentUsage.totalCostUSD === 0)}</>
+                )}
+                {agentUsage.turnCount > 0 && playerUsage.turnCount > 0 && ' · '}
+                {playerUsage.turnCount > 0 && (
+                  <>Player adapts: {formatTokenCount(playerUsage.totalTokens)} tok · {formatCostUSD(playerUsage.totalCostUSD, playerUsage.totalCostUSD === 0)}</>
+                )}
+              </p>
+            )}
+            <p style={{ ...styles.hint, margin: '8px 0 0' }}>
+              Agent totals reset on New chat. Paid providers show estimated cost; free-tier keys show $0.00.
             </p>
           </div>
         )}

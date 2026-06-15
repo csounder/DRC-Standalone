@@ -10,6 +10,10 @@ import { buildConvertPrompt, needsPlayerAdapt } from '../prompts/convert'
 import { parseChannels, LEGACY_CHANNELS, type ChannelSpec } from '../lib/parseChannels'
 import { useMidi } from '../lib/useMidi'
 import { useMidiStore } from '../stores/midiStore'
+import { useUsageStore } from '../stores/usageStore'
+import UsageBar from '../components/chat/UsageBar'
+import { isQuotaError } from '../lib/providerGuide'
+import type { UsageRecord } from '../lib/usageFormat'
 
 type AdaptStatus =
   | { kind: 'idle' }
@@ -162,11 +166,23 @@ export default function PlayerPage() {
     if (needsPlayerAdapt(csd)) {
       setAdaptStatus({ kind: 'adapting' })
       const prompt = buildConvertPrompt('player', csd)
-      const resp = await window.api.llm.adaptCsd(prompt).catch((err: any) => ({ ok: false, error: err?.message ?? 'adapt failed' }))
+      const resp = await window.api.llm.adaptCsd(prompt).catch((err: any) => ({ ok: false, error: err?.message ?? 'adapt failed' })) as {
+        ok: boolean
+        csd?: string
+        usage?: UsageRecord
+        error?: string
+      }
       if (!resp?.ok || !resp.csd) {
-        setAdaptStatus({ kind: 'error', message: `Adapt failed: ${resp?.error ?? 'unknown'}` })
+        const msg = resp?.error ?? 'unknown'
+        setAdaptStatus({
+          kind: 'error',
+          message: isQuotaError(msg)
+            ? `${msg} Wait about 60 seconds, or add a Groq backup key in Settings.`
+            : `Adapt failed: ${msg}`,
+        })
         return
       }
+      if (resp.usage) useUsageStore.getState().record('player', resp.usage)
       csd = resp.csd
     }
 
@@ -302,16 +318,19 @@ export default function PlayerPage() {
         <span style={styles.time}>
           {formatTime(currentTime)} / {formatTime(duration || 0)}
         </span>
-        {adaptLabel ? (
-          <span style={{
-            ...styles.hint,
-            ...(adaptStatus.kind === 'error' ? { color: '#e28a8a', fontStyle: 'normal' } : {}),
-          }}>
-            {adaptLabel}
-          </span>
-        ) : !hasCsd ? (
-          <span style={styles.hint}>Drop a .csd here, or click Load CSD — the AI will adapt it</span>
-        ) : null}
+        <div style={styles.transportMeta}>
+          {adaptLabel ? (
+            <span style={{
+              ...styles.hint,
+              ...(adaptStatus.kind === 'error' ? { color: '#e28a8a', fontStyle: 'normal' } : {}),
+            }}>
+              {adaptLabel}
+            </span>
+          ) : !hasCsd ? (
+            <span style={styles.hint}>Drop a .csd here, or click Load CSD — the AI will adapt it</span>
+          ) : null}
+          <UsageBar area="player" variant="inline" sessionLabel="Adapts" />
+        </div>
       </div>
 
       {/* Parameters — built from chn_k declarations in the CSD */}
@@ -410,7 +429,15 @@ const styles: Record<string, CSSProperties> = {
     border: 'var(--border-width) solid var(--border)', background: 'var(--bg-secondary)',
   },
   transport: {
-    display: 'flex', alignItems: 'center', gap: 16,
+    display: 'flex', alignItems: 'center', gap: 16, width: '100%',
+  },
+  transportMeta: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+    minWidth: 0,
   },
   playButton: {
     width: 52, height: 52, borderRadius: 16,

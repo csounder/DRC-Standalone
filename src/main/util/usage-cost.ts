@@ -9,7 +9,7 @@ export interface UsageRecord {
   costUSD: number
   /** True when the model is on a known free tier (Gemini/Groq workshop keys). */
   freeTier: boolean
-  phase: 'main' | 'narration' | 'suggestions' | 'other'
+  phase: 'main' | 'narration' | 'suggestions' | 'player' | 'other'
 }
 
 // USD per 1M tokens (input / output). Matches models.dev-style pricing.
