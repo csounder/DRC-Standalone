@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { isQuotaError, parseQuotaRetryMs } from '../lib/providerGuide'
+import type { UsageRecord } from '../lib/usageFormat'
 
 export function useStream() {
   const storeRef = useRef(useSessionStore)
@@ -56,6 +57,15 @@ export function useStream() {
           } catch {
             /* ignore malformed suggestions */
           }
+        }
+      } else if (chunk.type === 'usage') {
+        try {
+          const usage = JSON.parse(chunk.content) as UsageRecord
+          store.recordUsage(usage)
+          const targetId = mainIdRef.current ?? narrationIdRef.current
+          if (targetId) store.attachUsageToMessage(targetId, usage)
+        } catch {
+          /* ignore malformed usage */
         }
       } else if (chunk.type === 'error') {
         if (isQuotaError(chunk.content)) {

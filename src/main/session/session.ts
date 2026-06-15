@@ -11,6 +11,7 @@ import { ascending } from '../util/id'
 import { Log } from '../util/log'
 import { Bus } from '../util/bus'
 import { getCsoundEnvironmentBlock } from '../util/csound-version'
+import { usageFromSdk } from '../util/usage-cost'
 
 export interface SessionMessage {
   id: string
@@ -246,6 +247,23 @@ export namespace SessionManager {
         for await (const chunk of stream.textStream) {
           fullContent += chunk
           push({ type: 'text', content: chunk })
+        }
+        if (fullContent.trim()) {
+          try {
+            const rawUsage = await Promise.race([
+              stream.usage,
+              new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 8000)),
+            ])
+            const record = usageFromSdk(
+              resolvedModel.providerID,
+              resolvedModel.modelID,
+              rawUsage,
+              'main',
+            )
+            if (record) push({ type: 'usage', content: JSON.stringify(record) })
+          } catch (err: any) {
+            Log.warn(`Usage unavailable: ${err.message}`)
+          }
         }
         // Gemini + AI SDK can finish with zero text and no throw on quota/auth errors.
         // Without this the UI shows an empty turn and the user thinks Dr.C is broken.

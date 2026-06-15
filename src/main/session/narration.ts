@@ -4,6 +4,7 @@ import { Provider } from '../provider/provider'
 import { Retrieval } from '../retrieval/engine'
 import { searchPassages } from '../retrieval/passages'
 import { Log } from '../util/log'
+import { usageFromSdk } from '../util/usage-cost'
 
 // Clean a user query before feeding it to the narrator: strip anything that
 // looks like code, CSD tags, compiler errors, or boilerplate so the model
@@ -84,6 +85,7 @@ export namespace NarrationManager {
   export type NarrationEvent =
     | { type: 'narration'; content: string }
     | { type: 'suggestions'; content: string } // content = JSON string[]
+    | { type: 'usage'; content: string }
 
   export async function* streamNarration(
     userQuery: string,
@@ -241,6 +243,17 @@ export namespace NarrationManager {
           emittedNarration = true
           yield { type: 'narration', content: out }
         }
+      }
+
+      try {
+        const rawUsage = await Promise.race([
+          stream.usage,
+          new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 5000)),
+        ])
+        const record = usageFromSdk(providerID, modelID, rawUsage, 'narration')
+        if (record) yield { type: 'usage', content: JSON.stringify(record) }
+      } catch {
+        /* usage optional */
       }
 
       // Skip suggestion generation when narration produced nothing (quota/key issue)

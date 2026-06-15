@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 export interface StreamChunk {
   sessionID: string
-  type: 'text' | 'tool_call' | 'tool_result' | 'narration' | 'suggestions' | 'error'
+  type: 'text' | 'tool_call' | 'tool_result' | 'narration' | 'suggestions' | 'error' | 'usage'
   content: string
   toolName?: string
   toolArgs?: Record<string, unknown>

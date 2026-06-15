@@ -18,7 +18,9 @@ import { parseChannels, extractOrchestra, usesKeyboard } from '../lib/parseChann
 import { buildWebApp } from '../lib/webHarness'
 import { compileCheckCsd } from '../lib/playback'
 import QuotaCooldown from '../components/QuotaCooldown'
+import UsageBar from '../components/chat/UsageBar'
 import { isSoloFreeProvider, providerOption } from '../lib/providerGuide'
+import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
 
 // Strip a stray leading web-app wrapper so a fresh turn's CSD can be recovered.
 const DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/gi
@@ -261,6 +263,7 @@ export default function AgentPage() {
     // leak across sessions. The artifact-detection effect rebuilds this session's
     // final artifact from its loaded messages.
     useArtifactStore.getState().reset()
+    useSessionStore.getState().resetUsage()
     editBaseRef.current = null
     setMsgArtifactMap(new Map())
     pendingWebappConvertRef.current = null
@@ -443,6 +446,13 @@ export default function AgentPage() {
             />
           )}
           {showFeedback && <MessageFeedback messageId={msg.id} content={msg.content} />}
+          {msg.usage && (
+            <span style={styles.msgUsage} title="Estimated tokens and cost for this response">
+              {formatTokenCount(msg.usage.totalTokens)} tok ·{' '}
+              {formatCostUSD(msg.usage.costUSD, msg.usage.freeTier)}
+              {msg.usage.freeTier ? ' · free tier' : ''}
+            </span>
+          )}
         </div>
       </div>
     )
@@ -586,6 +596,7 @@ export default function AgentPage() {
               <div ref={messagesEndRef} />
             </div>
             <div style={styles.inputArea}>
+              <UsageBar />
               {inputBar(false)}
             </div>
           </>
@@ -704,6 +715,13 @@ const styles: Record<string, CSSProperties> = {
   },
 
   msgText: { fontSize: 14, lineHeight: 1.65, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 },
+  msgUsage: {
+    display: 'block',
+    marginTop: 8,
+    fontSize: 10,
+    fontFamily: 'var(--font-mono)',
+    color: 'var(--text-muted)',
+  },
 
   streamingBubble: { padding: '8px 0' },
   thinkingWrap: {

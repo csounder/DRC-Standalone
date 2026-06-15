@@ -1,9 +1,12 @@
 import { useState, useEffect, type CSSProperties } from 'react'
 import { useAppStore } from '../stores/appStore'
+import { useSessionStore } from '../stores/sessionStore'
 import { isFreeTierOnly, isSoloFreeProvider, PROVIDER_OPTIONS } from '../lib/providerGuide'
+import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
 
 export default function SettingsPage() {
   const { theme, toggleTheme, audioFeedbackEnabled, setAudioFeedback } = useAppStore()
+  const sessionUsage = useSessionStore((s) => s.sessionUsage)
   const [googleKey, setGoogleKey] = useState('')
   const [groqKey, setGroqKey] = useState('')
   const [anthropicKey, setAnthropicKey] = useState('')
@@ -237,6 +240,21 @@ export default function SettingsPage() {
                 </a>
               ))}
             </div>
+          </div>
+        )}
+
+        {sessionUsage.turnCount > 0 && (
+          <div style={styles.usageCallout}>
+            <span style={styles.freeTierCalloutTitle}>Current Agent session</span>
+            <p style={styles.freeTierCalloutBody}>
+              {formatTokenCount(sessionUsage.totalTokens)} tokens across {sessionUsage.turnCount}{' '}
+              API call{sessionUsage.turnCount === 1 ? '' : 's'} · estimated{' '}
+              {formatCostUSD(sessionUsage.totalCostUSD, sessionUsage.totalCostUSD === 0)}
+            </p>
+            <p style={{ ...styles.hint, margin: 0 }}>
+              Totals reset when you start a new chat. Paid providers (Anthropic, OpenAI) show real
+              estimated cost; free-tier keys show $0.00 but still count tokens.
+            </p>
           </div>
         )}
 
@@ -688,5 +706,12 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 6,
     marginLeft: 6,
     verticalAlign: 'middle',
+  },
+  usageCallout: {
+    padding: '14px 18px',
+    borderRadius: 12,
+    border: '1px solid var(--border-subtle)',
+    background: 'var(--bg-tertiary)',
+    marginBottom: 16,
   },
 }
