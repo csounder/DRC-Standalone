@@ -17,8 +17,9 @@ export interface SessionUsageTotals {
   turnCount: number
 }
 
-export function formatTokenCount(n: number): string {
-  return n.toLocaleString('en-US')
+export function formatTokenCount(n: number | null | undefined): string {
+  const v = Number(n)
+  return (Number.isFinite(v) ? v : 0).toLocaleString('en-US')
 }
 
 /** Short model label for the footer, e.g. gemini-2.5-flash */
@@ -27,24 +28,27 @@ export function shortModelName(modelID: string): string {
   return slash >= 0 ? modelID.slice(slash + 1) : modelID
 }
 
-export function formatCostUSD(usd: number, freeTier?: boolean): string {
-  if (usd === 0 && freeTier) return '$0.00'
-  if (usd > 0 && usd < 0.0001) return '<$0.0001'
-  if (usd < 0.01) return `$${usd.toFixed(4)}`
+export function formatCostUSD(usd: number | null | undefined, freeTier?: boolean): string {
+  const v = Number(usd)
+  if (!Number.isFinite(v) || (v === 0 && freeTier)) return '$0.00'
+  if (v > 0 && v < 0.0001) return '<$0.0001'
+  if (v < 0.01) return `$${v.toFixed(4)}`
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
-  }).format(usd)
+  }).format(v)
 }
 
 export function sumUsage(records: UsageRecord[]): SessionUsageTotals {
   let totalTokens = 0
   let totalCostUSD = 0
   for (const r of records) {
-    totalTokens += r.totalTokens
-    totalCostUSD += r.costUSD
+    const tok = Number(r.totalTokens)
+    const cost = Number(r.costUSD)
+    totalTokens += Number.isFinite(tok) ? tok : 0
+    totalCostUSD += Number.isFinite(cost) ? cost : 0
   }
   return { totalTokens, totalCostUSD, turnCount: records.length }
 }

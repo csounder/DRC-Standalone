@@ -57,6 +57,11 @@ export function computeCost(
   return { costUSD, freeTier: p.free === true || providerID === 'ollama' || (p.input === 0 && p.output === 0 && providerID === 'google') }
 }
 
+function asTokenCount(v: unknown): number {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+}
+
 /** Normalize AI SDK v4 usage objects (field names vary by provider). */
 export function usageFromSdk(
   providerID: string,
@@ -65,10 +70,10 @@ export function usageFromSdk(
   phase: UsageRecord['phase'] = 'main',
 ): UsageRecord | null {
   if (!raw || typeof raw !== 'object') return null
-  const u = raw as Record<string, number | undefined>
-  const inputTokens = u.promptTokens ?? u.inputTokens ?? 0
-  const outputTokens = u.completionTokens ?? u.outputTokens ?? 0
-  const totalTokens = u.totalTokens ?? inputTokens + outputTokens
+  const u = raw as Record<string, unknown>
+  const inputTokens = asTokenCount(u.promptTokens ?? u.inputTokens)
+  const outputTokens = asTokenCount(u.completionTokens ?? u.outputTokens)
+  const totalTokens = asTokenCount(u.totalTokens) || inputTokens + outputTokens
   if (totalTokens <= 0 && inputTokens <= 0 && outputTokens <= 0) return null
 
   const { costUSD, freeTier } = computeCost(providerID, modelID, inputTokens, outputTokens)

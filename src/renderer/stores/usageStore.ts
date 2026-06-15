@@ -29,12 +29,16 @@ export const useUsageStore = create<UsageState>((set, get) => ({
   record: (area, usage) =>
     set((s) => {
       const cur = s[area]
+      const tok = Number(usage.totalTokens)
+      const cost = Number(usage.costUSD)
+      const totalTokens = Number.isFinite(tok) ? tok : 0
+      const costUSD = Number.isFinite(cost) ? cost : 0
       return {
         [area]: {
-          last: usage,
+          last: { ...usage, totalTokens, costUSD },
           totals: {
-            totalTokens: cur.totals.totalTokens + usage.totalTokens,
-            totalCostUSD: cur.totals.totalCostUSD + usage.costUSD,
+            totalTokens: cur.totals.totalTokens + totalTokens,
+            totalCostUSD: cur.totals.totalCostUSD + costUSD,
             turnCount: cur.totals.turnCount + 1,
           },
         },

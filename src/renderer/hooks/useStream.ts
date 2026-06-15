@@ -75,9 +75,16 @@ export function useStream() {
       } else if (chunk.type === 'usage') {
         try {
           const usage = JSON.parse(chunk.content) as UsageRecord
-          useUsageStore.getState().record('agent', usage)
+          const tok = Number(usage.totalTokens)
+          const cost = Number(usage.costUSD)
+          const normalized: UsageRecord = {
+            ...usage,
+            totalTokens: Number.isFinite(tok) ? tok : 0,
+            costUSD: Number.isFinite(cost) ? cost : 0,
+          }
+          useUsageStore.getState().record('agent', normalized)
           const targetId = mainIdRef.current ?? narrationIdRef.current
-          if (targetId) store.attachUsageToMessage(targetId, usage)
+          if (targetId) store.attachUsageToMessage(targetId, normalized)
         } catch {
           /* ignore malformed usage */
         }
