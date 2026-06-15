@@ -61,6 +61,7 @@ export function useStream() {
           id: `msg_${Date.now()}_e`,
           role: 'assistant',
           content: chunk.content,
+          type: 'error',
           timestamp: Date.now(),
         })
         store.setStreaming(false)

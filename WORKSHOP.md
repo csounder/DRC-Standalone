@@ -10,6 +10,15 @@ This branch targets **Csound 7** for native CLI compile/render and **@csound/bro
 - **Runtime detection** injects detected Csound version into the agent environment
 - **Web app conversion** compile-checks orchestra before wrapping HTML
 - **Workshop starters** in `resources/workshop-starters/` (verified compile targets)
+- **Workshop-lite mode** (`DRC_WORKSHOP_LITE=1`, default in `scripts/launch-drc.sh`): skips narration so each turn uses **one** Gemini call instead of three — important on the free tier (20 requests/minute)
+
+## Gemini free tier
+
+Each Agent turn normally calls Gemini up to three times (narration + suggestions + code). On the free tier you hit the rate limit quickly; when that happens the API can return **empty output with no error**, which looks like Dr.C is frozen.
+
+- Wait 60 seconds and try again
+- Use `./scripts/launch-drc.sh` (workshop-lite is on by default)
+- Or add an Anthropic/OpenAI key in Settings as fallback
 
 ## Quick start
 

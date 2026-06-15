@@ -4,6 +4,10 @@ set -euo pipefail
 
 export PATH="${HOME}/bin:${HOME}/Applications/Csound:${HOME}/.local/bin:/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-}"
 
+# One Gemini call per user turn (not three). Set DRC_WORKSHOP_LITE=0 to re-enable
+# educational narration between turns.
+export DRC_WORKSHOP_LITE="${DRC_WORKSHOP_LITE:-1}"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 

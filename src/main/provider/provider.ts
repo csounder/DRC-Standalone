@@ -119,6 +119,20 @@ export namespace Provider {
     }
   }
 
+  // streamText can complete with zero chunks (no throw) when Gemini quota is hit.
+  export function emptyStreamMessage(providerID: string): string {
+    if (providerID === 'google') {
+      return (
+        'Gemini returned no output. On the free tier this usually means the rate limit was hit ' +
+        '(each Dr.C turn can use several API calls). Wait 60 seconds and try again, or add an ' +
+        'Anthropic/OpenAI key in Settings as a fallback. Check usage at aistudio.google.com.'
+      )
+    }
+    return (
+      'The model returned no output. Check your API key in Settings, wait a moment, and try again.'
+    )
+  }
+
   export function humanizeError(providerID: string, err: unknown): string {
     const raw = err instanceof Error ? err.message : String(err)
     const lower = raw.toLowerCase()

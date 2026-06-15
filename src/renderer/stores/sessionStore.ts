@@ -6,7 +6,7 @@ export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  type?: 'text' | 'tool_call' | 'tool_result' | 'narration'
+  type?: 'text' | 'tool_call' | 'tool_result' | 'narration' | 'error'
   toolName?: string
   timestamp: number
   suggestions?: string[] // one-click follow-up prompts (on narration messages)

@@ -169,6 +169,7 @@ export namespace NarrationManager {
       let emittedChars = 0
       let sentencesOut = 0
       let stopped = false
+      let emittedNarration = false
 
       const flushCompleteSentences = function* (force: boolean): Generator<string> {
         // Find the rightmost sentence terminator in buf that's followed by
@@ -210,7 +211,10 @@ export namespace NarrationManager {
         const kwIdx = buf.search(/\n?Keywords:/i)
         if (kwIdx >= 0) buf = buf.slice(0, kwIdx)
 
-        for (const out of flushCompleteSentences(false)) yield { type: 'narration', content: out }
+        for (const out of flushCompleteSentences(false)) {
+          emittedNarration = true
+          yield { type: 'narration', content: out }
+        }
         if (stopped) break
 
         // Safety valve: if the model's been going without any terminator and
@@ -220,7 +224,10 @@ export namespace NarrationManager {
           const lastSpace = slice.lastIndexOf(' ')
           const cut = lastSpace > 40 ? lastSpace : slice.length
           const tail = buf.slice(0, cut).trim()
-          if (tail) yield { type: 'narration', content: (emittedChars === 0 ? tail : ' ' + tail) + '…' }
+          if (tail) {
+            emittedNarration = true
+            yield { type: 'narration', content: (emittedChars === 0 ? tail : ' ' + tail) + '…' }
+          }
           stopped = true
           break
         }
@@ -230,15 +237,21 @@ export namespace NarrationManager {
       // sentences are still in the buffer, and if what's left looks like a
       // near-complete sentence, emit it too.
       if (!stopped) {
-        for (const out of flushCompleteSentences(true)) yield { type: 'narration', content: out }
+        for (const out of flushCompleteSentences(true)) {
+          emittedNarration = true
+          yield { type: 'narration', content: out }
+        }
       }
 
-      // Follow-up: turn the names/works the narrator surfaced into 2-3 one-click
-      // prompts ("Generate a classic Risset bell"). Best-effort and grounded in
-      // the same passages, so suggestions point at things the agent can build.
-      const suggestions = await generateSuggestions(model, topic, grounding)
-      if (suggestions.length > 0) {
-        yield { type: 'suggestions', content: JSON.stringify(suggestions) }
+      // Skip suggestion generation when narration produced nothing (quota/key issue)
+      // or in workshop-lite mode — it is an extra API call and can block 20s on 429.
+      const allowSuggestions =
+        emittedNarration && process.env.DRC_WORKSHOP_LITE === '0' && process.env.DRC_NARRATION_SUGGESTIONS === '1'
+      if (allowSuggestions) {
+        const suggestions = await generateSuggestions(model, topic, grounding)
+        if (suggestions.length > 0) {
+          yield { type: 'suggestions', content: JSON.stringify(suggestions) }
+        }
       }
     } catch (err: any) {
       Log.warn(`Narration stream failed: ${err.message}`)

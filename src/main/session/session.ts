@@ -88,7 +88,7 @@ export namespace SessionManager {
     sessionID: string,
     content: string
   ): AsyncGenerator<{ type: string; content: string; toolName?: string }> {
-    const session = sessions.get(sessionID)
+    const session = get(sessionID)
     if (!session) {
       yield { type: 'error', content: `Session not found: ${sessionID}` }
       return
@@ -209,7 +209,10 @@ export namespace SessionManager {
     // isAutofix is computed earlier (drives both memory retrieval and narration).
     const isConversion = isConversionTurn(content)
     const lastCsd = lastAssistantCsd(session)
-    if (!isAutofix && !isConversion && NarrationManager.canFire(sessionID)) {
+    // Workshop / free-tier mode: skip narration (2 extra Gemini calls per turn). Each
+    // Agent message otherwise burns 3 API requests and hits the 20 RPM free cap fast.
+    const workshopLite = process.env.DRC_WORKSHOP_LITE !== '0'
+    if (!workshopLite && !isAutofix && !isConversion && NarrationManager.canFire(sessionID)) {
       NarrationManager.markFired(sessionID)
       ;(async () => {
         try {
@@ -243,6 +246,15 @@ export namespace SessionManager {
         for await (const chunk of stream.textStream) {
           fullContent += chunk
           push({ type: 'text', content: chunk })
+        }
+        // Gemini + AI SDK can finish with zero text and no throw on quota/auth errors.
+        // Without this the UI shows an empty turn and the user thinks Dr.C is broken.
+        if (!fullContent.trim()) {
+          Log.warn('Main stream returned empty text (often quota or key issue)')
+          push({
+            type: 'error',
+            content: Provider.emptyStreamMessage(resolvedModel.providerID),
+          })
         }
       } catch (err: any) {
         Log.error('Stream error:', err.message)

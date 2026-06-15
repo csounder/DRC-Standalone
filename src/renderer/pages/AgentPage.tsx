@@ -373,6 +373,17 @@ export default function AgentPage() {
       )
     }
 
+    if (msg.type === 'error') {
+      return (
+        <div key={msg.id} style={styles.assistantRow}>
+          <div style={styles.errorBubble}>
+            <span style={styles.errorLabel}>Could not generate</span>
+            <p style={styles.errorText}>{msg.content}</p>
+          </div>
+        </div>
+      )
+    }
+
     if (msg.type === 'narration') {
       // Strip the narrator's trailing "Keywords: ..." line so it reads as prose,
       // and convert any em/en dashes to commas (backstop for the no-dash rule).
@@ -607,6 +618,28 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.55,
     color: 'var(--text-secondary)',
     fontStyle: 'italic',
+    margin: 0,
+  },
+  errorBubble: {
+    maxWidth: 520,
+    padding: '14px 18px',
+    borderRadius: 12,
+    border: '1.5px solid #c45c5c',
+    background: 'rgba(196, 92, 92, 0.08)',
+  },
+  errorLabel: {
+    display: 'block',
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#c45c5c',
+    marginBottom: 6,
+  },
+  errorText: {
+    fontSize: 13.5,
+    lineHeight: 1.55,
+    color: 'var(--text-primary)',
     margin: 0,
   },
   suggestionRow: {
