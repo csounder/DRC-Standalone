@@ -117,6 +117,41 @@ instr 1
   outs aSig, aSig
 endin`
 
+const SIMPLE_FM_VOICE = `
+instr 1
+  iAtt  chnget "attack"
+  iRel  chnget "release"
+  kAmp  chnget "amplitude"
+  kFm   chnget "fmIndex"
+  kAmp  port kAmp, 0.02
+  kFm   port kFm, 0.02
+  kEnv  linsegr 0, iAtt, 1, iAtt + 0.05, 0.7, iRel, 0
+  iVel  = p5
+  kModIndex = kEnv * kFm
+  aSig  foscili kEnv * kAmp * iVel, p4, 1, 2.4, kModIndex, giSine
+  chnmix aSig, "revL"
+  chnmix aSig, "revR"
+  outs aSig, aSig
+endin`
+
+function stripAmpPrefix(args: string): string {
+  let a = args.trim()
+  const patterns = [
+    /^kEnv\s*\*\s*iAmp\s*,?\s*/i,
+    /^kCarEnv\s*\*\s*iAmp\s*,?\s*/i,
+    /^kEnv\s*\*?\s*/i,
+    /^kCarEnv\s*\*?\s*/i,
+    /^kAmp\s*\*?\s*/i,
+    /^iAmp\s*,?\s*/i,
+    /^iVel\s*,?\s*/i,
+    /^p5\s*,?\s*/i,
+  ]
+  for (const re of patterns) {
+    a = a.replace(re, '')
+  }
+  return a
+}
+
 const PLUCK_VOICE = `
 instr 1
   iAtt  chnget "attack"
@@ -161,6 +196,15 @@ function isShimmerBellVoice(body: string): boolean {
 
 function isPluckPingPongBass(body: string, instrBlock: string): boolean {
   return /\bgaEcho\b/.test(body) && /\bfoscili\b/i.test(body) && /\bvdelay3\b/i.test(instrBlock)
+}
+
+function isSimpleFosciliFm(body: string): boolean {
+  return (
+    /\bfoscili\b/i.test(body) &&
+    /\bkIdx\b/.test(body) &&
+    !/\bkMod1Idx\b/.test(body) &&
+    !/\bgaEcho\b/.test(body)
+  )
 }
 
 function buildPlayerCsd(
@@ -235,6 +279,10 @@ export function mechanicalPlayerAdapt(source: string): string | null {
     )
   }
 
+  if (isSimpleFosciliFm(voiceBody)) {
+    return buildPlayerCsd(cleanGlobals(globals), PLAYER_CHN_FM, SIMPLE_FM_VOICE, PLAYER_INSTR_99, PLAYER_SCORE)
+  }
+
   const oscLine =
     voiceBody.match(/^\s*(a\w+)\s*=\s*(foscili|oscili|poscil|vco2|pluck)\s*\((.+)\)\s*$/im) ??
     voiceBody.match(/^\s*(aSig|aOut|a1)\s+(foscili|oscili|poscil|vco2|pluck)\s+(.+)$/im) ??
@@ -242,21 +290,14 @@ export function mechanicalPlayerAdapt(source: string): string | null {
   if (!oscLine) return null
 
   const opcode = oscLine[2]
-  let ampArgs = (oscLine[3] ?? '').trim()
-  ampArgs = ampArgs.replace(/^kEnv\s*,?\s*/i, '')
-  ampArgs = ampArgs.replace(/^kCarEnv\s*\*?\s*/i, '')
-  ampArgs = ampArgs.replace(/^kAmp\s*,?\s*/i, '')
-  ampArgs = ampArgs.replace(/^iAmp\s*,?\s*/i, '')
-  ampArgs = ampArgs.replace(/^iVel\s*,?\s*/i, '')
-  ampArgs = ampArgs.replace(/^p5\s*,?\s*/i, '')
-
+  let ampArgs = stripAmpPrefix(oscLine[3] ?? '')
   ampArgs = ampArgs
     .replace(/\bcpsmidinn\s*\(\s*p4\s*\)/gi, 'p4')
     .replace(/\bcpsmidinn\s*\(\s*p5\s*\)/gi, 'p5')
     .replace(/\biFreq\b/g, 'p4')
 
   const usesFmIndex = /\bkIdx\b/i.test(voiceBody) || /\bkModIndex\b/i.test(voiceBody) || /fmIndex|foscili/i.test(voiceBody)
-  const indexArg = usesFmIndex ? 'kIdx' : ampArgs.split(',')[3]?.trim() ?? '1'
+  const indexArg = usesFmIndex ? 'kModIndex' : ampArgs.split(',')[3]?.trim() ?? '1'
 
   const voice = `
 instr 1
@@ -268,7 +309,7 @@ instr 1
   kIdx  port kIdx, 0.02
   kEnv  linsegr 0, iAtt, 1, iAtt + 0.05, 0.7, iRel, 0
   iVel  = p5
-  aSig  ${opcode} kEnv * kAmp * iVel, ${ampArgs.replace(/,\s*kIdx\b/i, `, ${indexArg}`).replace(/,\s*kModIndex\b/i, ', kIdx')}
+  ${usesFmIndex ? 'kModIndex = kEnv * kIdx\n  ' : ''}aSig  ${opcode} kEnv * kAmp * iVel, ${ampArgs.replace(/,\s*kIdx\b/i, `, ${indexArg}`).replace(/,\s*kModIndex\b/i, ', kModIndex')}
   chnmix aSig, "revL"
   chnmix aSig, "revR"
   outs aSig, aSig

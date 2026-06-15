@@ -1,21 +1,26 @@
 # LAC 2026 Workshop — Session Handoff
 
-**Date:** 2026-06-14 (overnight pause)  
+**Date:** 2026-06-15 (airport pause)  
 **For:** Richard Boulanger  
 **Goal:** Dr.C Standalone + Terminal ready for a Csound 7 workshop at LAC (Maynooth, June 18–20, 2026)
 
+> **START HERE:** [`AIRPORT-PICKUP.md`](AIRPORT-PICKUP.md) — no-sound status, uncommitted fixes, 5-minute diagnostics.
+
 ---
 
-## Where we are leaving off
+## Where we are leaving off (2026-06-15)
 
-**Root cause found (2026-06-15):** Gemini free tier often returns **empty streams** (quota/rate limit) with no error. **Groq works reliably** on your machine (`llama-3.3-70b-versatile` generated a valid CSD in &lt;1s).
+**BLOCKER: No sound in Dr.C** (Player demos + Agent FM bass). Workshop CSD files **do** produce audio via `csound`/`afplay` in Terminal — problem is in the app playback path.
 
-**Fixes just applied:**
-- Workshop launcher **prefers Groq** when both keys are saved
-- **Automatic provider fallback** (Groq ↔ Gemini) when primary returns empty
-- API key test now verifies actual text output (not `maxTokens: 1` which fooled Gemini)
+**Root causes identified (fixes local, not pushed):**
 
-**Next:** Restart Dr.C, run sine-tone test — should work on Groq immediately.
+1. **Player (realtime):** Csound 7 on macOS uses **`auhal`**; Settings enumerated **`portaudio`** devices — wrong `-odacN` → silent output.
+2. **Agent (generate FM bass):** Compile check passes on shortened score, but **afplay** renders Player hold scores (`f 0 36000`, no notes) → **silent WAV**.
+3. **Workshop UX:** Agent buttons loaded offline starters needing adapt; now load **player-ready** CSDs + auto-play (local).
+
+**Pushed to `lac-2026-csound7`:** `66a123f` — usage display crash (`toLocaleString` on null) only.
+
+**Next at airport:** `npm run build` → relaunch from **Dr.C-Standalone.command** → Settings → Audio → System default → Player **Simple FM demo** with Csound console open. See `AIRPORT-PICKUP.md`.
 
 ---
 
@@ -23,6 +28,7 @@
 
 | Doc | Purpose |
 |-----|---------|
+| **`AIRPORT-PICKUP.md`** | **No sound — read first at airport** |
 | **`VERSIONS.md`** | All products, version numbers, launch modes |
 | **`TESTING.md`** | Automated + manual checklist before release |
 | **`RELEASE-CHECKLIST.md`** | Commit, build, GitHub release, USB |

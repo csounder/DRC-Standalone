@@ -68,8 +68,11 @@ export function prepareCsdForRealtimePlay(csd: string): string {
 /** Lines in csound stderr/stdout that mean realtime dac is open (not end-of-score). */
 export function csoundOutputIndicatesRealtimeReady(text: string): boolean {
   return (
-    /End of score|SECTION 1:|scoreless operation|writing \d+ sample blks/i.test(text) ||
+    /scoreless operation/i.test(text) ||
+    /End of score|SECTION 1:/i.test(text) ||
+    /writing \d+ sample blks of .+ to dac/i.test(text) ||
     /using callback interface|audio buffered in|rtaudio.*enabled|real ?time audio/i.test(text) ||
+    /auhal:/i.test(text) ||
     /\d+:\s*dac\d+/i.test(text)
   )
 }

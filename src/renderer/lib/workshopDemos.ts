@@ -29,6 +29,14 @@ export async function readWorkshopStarter(id: string): Promise<{ meta: WorkshopS
 /** Default one-tap demos for Player — fully player-ready, no LLM. */
 export const WORKSHOP_PLAYER_DEMO_ID = 'player_fm_bell'
 export const WORKSHOP_PLAYER_PLUCK_ID = 'player_pluck_bass'
+export const WORKSHOP_PLAYER_FM_ID = 'player_fm_starter'
+
+/** Agent landing buttons → pre-built Player CSDs (skip offline adapt). */
+export const WORKSHOP_PLAYER_BY_AGENT: Record<string, string> = {
+  fm_bell: WORKSHOP_PLAYER_DEMO_ID,
+  pluck_bass: WORKSHOP_PLAYER_PLUCK_ID,
+  fm_simple: WORKSHOP_PLAYER_FM_ID,
+}
 
 export async function loadWorkshopPlayerDemo(id = WORKSHOP_PLAYER_DEMO_ID): Promise<string | null> {
   const r = await readWorkshopStarter(id)

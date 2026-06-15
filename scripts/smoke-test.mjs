@@ -801,6 +801,22 @@ if (compileCheckSrc.includes('shortenHoldScoreForCompile') && compileCheckSrc.in
   bad('compile-check.ts missing hold-score shortening')
 }
 
+const offlinePrepareSrc = existsSync(join(REPO, 'src/shared/csd-offline-prepare.ts'))
+  ? readFileSync(join(REPO, 'src/shared/csd-offline-prepare.ts'), 'utf-8')
+  : ''
+if (offlinePrepareSrc.includes('prepareCsdForOfflineRender') && offlinePrepareSrc.includes('BASS_OFFLINE_DEMO_SCORE')) {
+  ok('offline prepare module injects demo score for silent Player hold CSDs')
+} else {
+  bad('src/shared/csd-offline-prepare.ts missing')
+}
+
+const csoundIpcSrc = readFileSync(join(REPO, 'src/main/ipc/csound.ipc.ts'), 'utf-8')
+if (csoundIpcSrc.includes('prepareCsdForOfflineRender') && csoundIpcSrc.includes('renderOutputWasSilent')) {
+  ok('Agent afplay path uses offline demo score + silent render detection')
+} else {
+  bad('csound.ipc.ts missing offline preview prepare')
+}
+
 const playbackSrc = readFileSync(join(REPO, 'src/main/csound/csd-playback.ts'), 'utf-8')
 if (playbackSrc.includes('prepareCsdForRealtimePlay') && playbackSrc.includes('csoundOutputIndicatesRealtimeReady')) {
   ok('csd-playback strips offline -o and demo scores for Player realtime')
@@ -858,8 +874,8 @@ if (mechSrc.includes('export function mechanicalPlayerAdapt')) {
 }
 
 const agentSrc = readFileSync(join(REPO, 'src/renderer/pages/AgentPage.tsx'), 'utf-8')
-if (agentSrc.includes('Load shimmer FM bell') && agentSrc.includes('pluck_bass') && agentSrc.includes('readWorkshopStarter')) {
-  ok('Agent offers no-key workshop starters (bell + bass)')
+if (agentSrc.includes('Simple FM demo') && agentSrc.includes('pluck_bass') && agentSrc.includes('WORKSHOP_PLAYER_BY_AGENT')) {
+  ok('Agent offers no-key workshop starters (simple FM + bell + bass)')
 } else {
   bad('Agent missing workshop starter paths')
 }
@@ -883,6 +899,7 @@ for (const [file, opts] of [
   ['pad_starter.csd', {}],
   ['player_fm_bell.csd', { shortenScore: true }],
   ['player_pluck_bass.csd', { shortenScore: true }],
+  ['player_fm_starter.csd', { shortenScore: true }],
   ['midi_synth_starter.csd', { shortenScore: true, renderScore: '<CsScore>\ni 1 0 0.2 440 100\n</CsScore>' }],
 ]) {
   const r = compileStarter(file, opts)
@@ -912,8 +929,8 @@ if (existsSync(bassPath) && mechSrc) {
   if (hasPluck) ok('pluck_bass_starter is ping-pong bass (gaEcho + foscili + vdelay3)')
   else bad('pluck_bass_starter missing ping-pong voice for Player adapt')
 }
-if (mechSrc.includes('isPluckPingPongBass') && mechSrc.includes('isShimmerBellVoice')) {
-  ok('mechanicalPlayerAdapt: shimmer bell + ping-pong bass paths')
+if (mechSrc.includes('isPluckPingPongBass') && mechSrc.includes('isShimmerBellVoice') && mechSrc.includes('isSimpleFosciliFm')) {
+  ok('mechanicalPlayerAdapt: shimmer bell + ping-pong bass + simple FM paths')
 } else {
   bad('mechanicalPlayerAdapt missing specialized voice paths')
 }

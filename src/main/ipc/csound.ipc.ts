@@ -9,6 +9,9 @@ import { Log } from '../util/log'
 import { withCsoundPath } from '../util/csound-path'
 import { getCsoundEnvironment, refreshCsoundEnvironment } from '../util/csound-version'
 import { buildRealtimeIoFlags, describeAudioRouting } from '../csound/audio-flags'
+import { getConfigValue, setConfigValue } from '../util/config'
+import { AUDIO_OUTPUT_KEY, AUDIO_INPUT_KEY, MIDI_INPUT_KEY } from './config-keys'
+import { listAudioDevices } from '../util/audio-devices'
 import {
   compileCheckPath,
   needsHoldScoreShortening,
@@ -18,6 +21,10 @@ import {
   csoundOutputIndicatesRealtimeReady,
   prepareCsdForRealtimePlay,
 } from '../csound/csd-playback'
+import {
+  prepareCsdForOfflineRender,
+  renderOutputWasSilent,
+} from '../../shared/csd-offline-prepare'
 
 const execFileAsync = promisify(execFile)
 
@@ -25,6 +32,24 @@ let playProcess: ChildProcess | null = null
 let playKilledBySignal = false
 /** True once realtime csound has finished its initial score and accepts stdin events. */
 let playReady = false
+
+/** Drop saved dac/adc indices that no longer match csound --devices (wrong backend = silent output). */
+async function ensureAudioDevicesValid(): Promise<void> {
+  const devs = await listAudioDevices().catch(() => ({ outputs: [], inputs: [], midiInputs: [] }))
+  const out = getConfigValue(AUDIO_OUTPUT_KEY) ?? ''
+  const inp = getConfigValue(AUDIO_INPUT_KEY) ?? ''
+  const midi = getConfigValue(MIDI_INPUT_KEY) ?? ''
+  if (/^\d+$/.test(out) && !devs.outputs.some((d) => String(d.index) === out)) {
+    setConfigValue(AUDIO_OUTPUT_KEY, '')
+    Log.warn(`Cleared stale audio output index ${out} — device not in csound list`)
+  }
+  if (/^\d+$/.test(inp) && !devs.inputs.some((d) => String(d.index) === inp)) {
+    setConfigValue(AUDIO_INPUT_KEY, '')
+  }
+  if (/^\d+$/.test(midi) && !devs.midiInputs.some((d) => String(d.index) === midi)) {
+    setConfigValue(MIDI_INPUT_KEY, '')
+  }
+}
 
 function stripAnsi(s: string): string {
   // eslint-disable-next-line no-control-regex
@@ -60,16 +85,47 @@ function playWavViaAfplay(
   csdPath: string,
 ): Promise<{ success: boolean; output?: string; error?: string }> {
   const wavPath = getPreviewWavPath()
-  const renderArgs = ['-o', wavPath, '-W', '-d', '-m0', csdPath]
+  let renderPath = csdPath
+  let cleanupRender = false
+  try {
+    const raw = readFileSync(csdPath, 'utf-8')
+    const prepared = prepareCsdForOfflineRender(raw)
+    if (prepared !== raw) {
+      renderPath = join(getTempDir(), 'offline-render.csd')
+      writeFileSync(renderPath, prepared, 'utf-8')
+      cleanupRender = true
+      emitCsoundOutput(sender, 'info', 'Preview: injected demo score for offline render (Player hold scores are silent)')
+    }
+  } catch {
+    /* use original path */
+  }
+
+  const renderArgs = ['-o', wavPath, '-W', '-d', '-m0', renderPath]
   emitCsoundOutput(sender, 'info', 'Playback: render to WAV, then afplay (macOS system audio)')
   emitCsoundOutput(sender, 'info', `▶ csound ${renderArgs.join(' ')}`)
+
+  const cleanup = () => {
+    if (!cleanupRender) return
+    try {
+      unlinkSync(renderPath)
+    } catch {
+      /* ignore */
+    }
+  }
 
   return execFileAsync('csound', renderArgs, { timeout: 120000, env: withCsoundPath() })
     .then(({ stdout, stderr }) => {
       const combined = `${stdout}\n${stderr}`.trim()
       if (combined) emitCsoundOutput(sender, 'stderr', combined)
+      cleanup()
       if (!existsSync(wavPath)) {
         const msg = extractCsoundError(combined) || 'Csound did not produce a WAV file'
+        emitCsoundOutput(sender, 'stderr', msg)
+        return { success: false, error: msg }
+      }
+      if (renderOutputWasSilent(combined)) {
+        const msg =
+          'Silent render — no notes fired. The CSD may be Player-shaped (f 0 hold) without a demo score. Try Play on the artifact again or open Player.'
         emitCsoundOutput(sender, 'stderr', msg)
         return { success: false, error: msg }
       }
@@ -101,6 +157,7 @@ function playWavViaAfplay(
       })
     })
     .catch((err: any) => {
+      cleanup()
       if (err.code === 'ENOENT') {
         const msg = 'Csound not found. Install Csound and make sure it\'s on your PATH.'
         emitCsoundOutput(sender, 'stderr', msg)
@@ -208,10 +265,23 @@ function playRealtimeCsound(
       Log.warn(`csound stdin error: ${err.message}`)
     })
 
-    // Fallback: dac open banner may arrive slightly after spawn.
+    // Only mark ready once csound reports dac/scoreless — never blindly at 2.5s.
     const readyTimer = setTimeout(() => {
-      if (!settled && playProcess && !playProcess.killed) finishStart(true)
-    }, 2500)
+      if (!settled && playProcess && !playProcess.killed && csoundOutputIndicatesRealtimeReady(stderr)) {
+        finishStart(true)
+      }
+    }, 1500)
+
+    const readyPoll = setInterval(() => {
+      if (settled || !playProcess || playProcess.killed) {
+        clearInterval(readyPoll)
+        return
+      }
+      if (csoundOutputIndicatesRealtimeReady(stderr)) {
+        clearInterval(readyPoll)
+        finishStart(true)
+      }
+    }, 250)
 
     const failTimer = setTimeout(() => {
       if (!settled) {
@@ -226,6 +296,7 @@ function playRealtimeCsound(
 
     playProcess.on('close', (code, signal) => {
       clearTimeout(readyTimer)
+      clearInterval(readyPoll)
       clearTimeout(failTimer)
       playProcess = null
       playReady = false
@@ -247,6 +318,7 @@ function playRealtimeCsound(
 
     playProcess.on('error', (err) => {
       clearTimeout(readyTimer)
+      clearInterval(readyPoll)
       clearTimeout(failTimer)
       playProcess = null
       playReady = false
@@ -270,6 +342,7 @@ function extractCsoundError(raw: string): string {
 
   const isBanner = (l: string) =>
     /^rtaudio[:\s]/i.test(l) ||
+    /^auhal[:\s]/i.test(l) ||
     /^rtmidi[:\s]/i.test(l) ||
     /^--Csound version/i.test(l) ||
     /^\[commit:/i.test(l) ||
@@ -456,6 +529,7 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
     // Player page: realtime csound with live MIDI/knobs.
     const useRealtime = opts?.realtime === true || process.platform !== 'darwin'
     if (useRealtime) {
+      await ensureAudioDevicesValid()
       return playRealtimeCsound(event.sender, csdPath)
     }
     return playWavViaAfplay(event.sender, csdPath)

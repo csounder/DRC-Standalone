@@ -2,44 +2,20 @@ import { primaryContent, type Artifact } from '../stores/artifactStore'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
-import { DEMO_SCORE_FALLBACK } from './demoScore'
-
-// One auto-fix attempt per artifact — prevents compile→fix→play→fail→fix loops.
-const autofixAttempts = new Map<string, number>()
-const AUTOFIX_LIMIT = 1
+import { prepareCsdForOfflineRender } from '../../shared/csd-offline-prepare'
 
 export interface PlayArtifactOptions {
   /** False when replaying after an auto-fix (no second auto-fix). */
   allowAutofix?: boolean
 }
 
-/** Prepare CSD for offline WAV render (strips realtime-only flags). */
-export function prepareCsdForWavRender(csd: string): string {
-  let out = csd
-  if (!/<CsOptions>/i.test(out)) return ensureScore(out)
-  out = out.replace(/<CsOptions>([\s\S]*?)<\/CsOptions>/i, (_, body: string) => {
-    const lines = body
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .filter((l) => !/^-n\b/.test(l))
-      .filter((l) => !/^-o\s+\S+/.test(l))
-      .filter((l) => !/^-odac/.test(l))
-      .filter((l) => !/^-iadc/.test(l))
-      .filter((l) => !/^-\+\s*rtmidi/.test(l))
-    if (lines.length === 0) return ''
-    return `<CsOptions>\n${lines.join('\n')}\n</CsOptions>`
-  })
-  out = out.replace(/<CsOptions>\s*<\/CsOptions>\s*/i, '')
-  return ensureScore(out)
-}
+// One auto-fix attempt per artifact — prevents compile→fix→play→fail→fix loops.
+const autofixAttempts = new Map<string, number>()
+const AUTOFIX_LIMIT = 1
 
-function ensureScore(csd: string): string {
-  if (/<CsScore>[\s\S]*\bi\s+\d+/i.test(csd)) return csd
-  return csd.replace(
-    /<\/CsoundSynthesizer>/i,
-    `${DEMO_SCORE_FALLBACK}\n</CsoundSynthesizer>`,
-  )
+/** Prepare CSD for offline WAV render (strips realtime flags, injects demo score if needed). */
+export function prepareCsdForWavRender(csd: string): string {
+  return prepareCsdForOfflineRender(csd)
 }
 
 export function resetAutofix(sessionID: string | null): void {

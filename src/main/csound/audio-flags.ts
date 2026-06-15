@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { getConfigValue } from '../util/config'
 import { AUDIO_INPUT_OFF } from '../ipc/config-keys'
 import { csdHasRealtimeOutputOptions } from './csd-playback'
+import { realtimeAudioFlag } from '../util/audio-devices'
 
 export interface AudioIoConfig {
   output: string
@@ -24,7 +25,7 @@ export function buildRealtimeIoFlags(csdPath: string, cfg = readAudioIoConfig())
     csdHasOdac = csdHasRealtimeOutputOptions(readFileSync(csdPath, 'utf-8'))
   } catch { /* no CSD yet */ }
 
-  const flags: string[] = []
+  const flags: string[] = [realtimeAudioFlag()]
 
   // Output: explicit device → -odacN; system default → -odac unless CSD already has -odac.
   if (/^\d+$/.test(cfg.output)) {

@@ -26,6 +26,13 @@ export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
     description: 'FM pluck bass with ping-pong delay — keyboard + knobs, no API key',
   },
   {
+    id: 'player_fm_starter',
+    title: 'Simple FM (Player)',
+    filename: 'player_fm_starter.csd',
+    playerReady: true,
+    description: 'Workshop B2 golden model — 2-operator foscili FM, keyboard + knobs, no API key',
+  },
+  {
     id: 'fm_bell',
     title: 'FM Bell (Agent score)',
     filename: 'fm_bell_starter.csd',

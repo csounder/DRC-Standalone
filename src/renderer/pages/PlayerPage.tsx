@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect, type CSSProperties, type DragEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { usePlayerStore } from '../stores/playerStore'
 import { useEditorStore } from '../stores/editorStore'
 import { useArtifactStore } from '../stores/artifactStore'
@@ -19,7 +19,7 @@ import QuotaCooldown from '../components/QuotaCooldown'
 import { isQuotaError } from '../lib/providerGuide'
 import { applyQuotaCooldownFromMessage, isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
 import { mechanicalPlayerAdapt } from '../lib/mechanicalPlayerAdapt'
-import { loadWorkshopPlayerDemo, WORKSHOP_PLAYER_PLUCK_ID } from '../lib/workshopDemos'
+import { loadWorkshopPlayerDemo, WORKSHOP_PLAYER_PLUCK_ID, WORKSHOP_PLAYER_FM_ID } from '../lib/workshopDemos'
 import type { UsageRecord } from '../lib/usageFormat'
 
 type AdaptStatus =
@@ -36,13 +36,31 @@ function sleep(ms: number): Promise<void> {
 }
 
 /** Short audible check so load is not silent — Player has no scheduled score. */
+async function waitForCsoundEvents(maxMs = 10000): Promise<boolean> {
+  const api = window.api?.csound
+  if (!api?.event) return false
+  const start = Date.now()
+  while (Date.now() - start < maxMs) {
+    const r = await api.event('i 100 0 0 "amplitude" 0.5')
+    if (r?.success) return true
+    await sleep(120)
+  }
+  return false
+}
+
 async function playDemoArpeggio(): Promise<void> {
   if (!window.api?.csound?.event) return
   const notes = [60, 64, 67, 72]
   for (const midi of notes) {
     const hz = 440 * 2 ** ((midi - 69) / 12)
     const tag = `1.${midi.toString().padStart(3, '0')}`
-    await window.api.csound.event(`i ${tag} 0 -1 ${hz.toFixed(3)} 0.75`)
+    let ok = false
+    for (let attempt = 0; attempt < 8 && !ok; attempt++) {
+      const r = await window.api.csound.event(`i ${tag} 0 -1 ${hz.toFixed(3)} 0.75`)
+      ok = Boolean(r?.success)
+      if (!ok) await sleep(100)
+    }
+    if (!ok) break
     await sleep(320)
     await window.api.csound.event(`i -${tag} 0 0`)
     await sleep(60)
@@ -51,6 +69,7 @@ async function playDemoArpeggio(): Promise<void> {
 
 export default function PlayerPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isPlaying, currentTime, duration, setPlaying, channels, setChannel } = usePlayerStore()
   const { csdContent, setCsdContent } = useEditorStore()
   const artifacts = useArtifactStore((s) => s.artifacts)
@@ -64,6 +83,7 @@ export default function PlayerPage() {
   // Source-of-truth set used by note handlers — synchronous dedupe avoids
   // double-trigger on browser keydown autorepeat or simultaneous touch+mouse.
   const activeNotesRef = useRef<Set<number>>(new Set())
+  const workshopAutoLoadRef = useRef(false)
   // The CSD declares its own knobs via `chn_k`; we re-parse on every CSD change
   // and merge with prior values so live tweaks survive an identical reload.
   const channelSpecs = useMemo<ChannelSpec[]>(() => {
@@ -262,6 +282,15 @@ export default function PlayerPage() {
         setPlaying(false)
         return
       }
+      const eventsLive = await waitForCsoundEvents()
+      if (!eventsLive) {
+        setAdaptStatus({
+          kind: 'error',
+          message: 'Audio engine started but keyboard events did not connect. Settings → Audio → reset to System default, then retry.',
+        })
+        setPlaying(false)
+        return
+      }
       setAdaptStatus({ kind: 'ready', hint: 'Playing demo…' })
       setPlaying(true)
       await playDemoArpeggio()
@@ -316,6 +345,15 @@ export default function PlayerPage() {
     await loadAndPlayCsd(resolved.csd)
   }, [loadAndPlayCsd])
 
+  // Workshop buttons on Agent land here with a player-ready CSD — auto-load once.
+  useEffect(() => {
+    const state = location.state as { autoLoadWorkshop?: boolean } | null
+    if (!state?.autoLoadWorkshop || !agentCsd || workshopAutoLoadRef.current) return
+    workshopAutoLoadRef.current = true
+    navigate(location.pathname, { replace: true, state: {} })
+    void handleLoadAgentCsd()
+  }, [location.state, location.pathname, agentCsd, handleLoadAgentCsd, navigate])
+
   const hasCsd = csdContent.trim().length > 0
   const hasP4 = csdContent.includes('p4')
 
@@ -367,6 +405,15 @@ export default function PlayerPage() {
       <div style={styles.header}>
         <h1 style={styles.title}>Player</h1>
         <div style={styles.headerActions}>
+          <button
+            type="button"
+            onClick={() => void handleWorkshopDemo(WORKSHOP_PLAYER_FM_ID)}
+            style={styles.workshopBtn}
+            disabled={loadDisabled}
+            title="Simple 2-op FM — no API key"
+          >
+            Simple FM demo
+          </button>
           <button
             type="button"
             onClick={() => void handleWorkshopDemo()}

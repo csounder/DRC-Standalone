@@ -1,5 +1,17 @@
 import { execFile } from 'child_process'
 import { withCsoundPath } from './csound-path'
+import { getCsoundEnvironment } from './csound-version'
+
+// Csound 7 on macOS defaults to auhal; device indices from portaudio --devices
+// do NOT match -odacN under auhal (silent/wrong output). Use one module everywhere.
+export function realtimeAudioModule(): string {
+  if (process.platform === 'darwin' && getCsoundEnvironment().major === 7) return 'auhal'
+  return 'portaudio'
+}
+
+export function realtimeAudioFlag(): string {
+  return `-+rtaudio=${realtimeAudioModule()}`
+}
 
 // Enumerate the audio + MIDI devices csound can see, by parsing `csound --devices`.
 // The indices csound prints here are exactly what the `-odacN` / `-iadcN` / `-MN`
@@ -19,11 +31,17 @@ export interface DeviceList {
   midiInputs: AudioDevice[]
 }
 
-function run(args: string[]): Promise<string> {
+function runAudio(args: string[]): Promise<string> {
+  return new Promise((resolve) => {
+    execFile('csound', [realtimeAudioFlag(), ...args], { timeout: 8000, env: withCsoundPath() }, (_err, stdout, stderr) => {
+      resolve(`${stdout}\n${stderr}`)
+    })
+  })
+}
+
+function runRaw(args: string[]): Promise<string> {
   return new Promise((resolve) => {
     execFile('csound', args, { timeout: 8000, env: withCsoundPath() }, (_err, stdout, stderr) => {
-      // csound prints the device list to stderr and exits non-zero on the bare
-      // --devices probe; that's expected, so we ignore the error and read stderr.
       resolve(`${stdout}\n${stderr}`)
     })
   })
@@ -49,8 +67,8 @@ function parseDeviceLine(line: string): AudioDevice | null {
 }
 
 export async function listAudioDevices(): Promise<DeviceList> {
-  const audioRaw = stripAnsi(await run(['-+rtaudio=portaudio', '--devices']))
-  const midiRaw = stripAnsi(await run(['-+rtmidi=portmidi', '--midi-devices']))
+  const audioRaw = stripAnsi(await runAudio(['--devices']))
+  const midiRaw = stripAnsi(await runRaw(['-+rtmidi=portmidi', '--midi-devices']))
 
   const outputs: AudioDevice[] = []
   const inputs: AudioDevice[] = []

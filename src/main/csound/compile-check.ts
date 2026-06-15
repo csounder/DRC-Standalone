@@ -2,21 +2,12 @@ import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { spawn } from 'child_process'
 import { withCsoundPath } from '../util/csound-path'
+import {
+  needsHoldScoreShortening,
+  shortenHoldScoreForCompile,
+} from '../../shared/csd-offline-prepare'
 
-/** Player CSDs use `f 0 36000` to keep realtime MIDI alive — never dry-run that in compile. */
-export function shortenHoldScoreForCompile(csd: string): string {
-  return csd.replace(/<CsScore>([\s\S]*?)<\/CsScore>/i, (_, score: string) => {
-    let s = score
-    // Realtime hold score from PLAYER_TEMPLATE
-    s = s.replace(/\bf\s+0\s+(\d{3,})\b/gi, 'f 0 1')
-    s = s.replace(/\bi\s+(\d+)\s+0\s+(\d{3,})\b/gi, 'i $1 0 1')
-    return `<CsScore>${s}</CsScore>`
-  })
-}
-
-export function needsHoldScoreShortening(csd: string): boolean {
-  return /\bf\s+0\s+\d{3,}\b/i.test(csd) || /\bi\s+\d+\s+0\s+\d{3,}\b/i.test(csd)
-}
+export { needsHoldScoreShortening, shortenHoldScoreForCompile } from '../../shared/csd-offline-prepare'
 
 export function compileCheckPath(csdPath: string, tempDir: string): string {
   const raw = readFileSync(csdPath, 'utf-8')
