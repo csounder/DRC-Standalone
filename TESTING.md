@@ -68,6 +68,8 @@ Before LAC, run the automated gate on **macOS**, **Linux**, and **Windows** (VM 
 
 Linux/Windows: file/syntax checks always run; `csound`/`bun` runtime checks skip gracefully if not installed on the CI/VM host.
 
+**Linux caveat (verified on Ubuntu 22.04 VM):** `apt install csound` ships **6.17** — `test:platform` reports a **SKIP** for Csound 7; `test:smoke` may still pass (98/98). Full workshop gate needs Csound 7 built from source. See `PARTICIPANTS.md` Linux section.
+
 ---
 
 ## Automated — CsoundLive Web

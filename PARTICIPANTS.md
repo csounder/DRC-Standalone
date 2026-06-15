@@ -42,23 +42,30 @@ You should see **version 7.x**.
 
 ### Linux (Ubuntu / Debian)
 
+> **Important:** On **Ubuntu 22.04 (Jammy)**, `sudo apt install csound` installs **Csound 6.17**, not 7.  
+> `npm run test:platform` and `npm run test:workshop` require **7.x**. Use **Option B** (build from source) or install Csound 7 binaries from [GitHub releases](https://github.com/csound/csound/releases).  
+> `npm run test:smoke` may still pass on 6.x for many compile checks — do not treat that as a full workshop gate.
+
 ```bash
 # Build tools if compiling from source
 sudo apt update
 sudo apt install -y build-essential cmake git libjack-jackd2-dev
 
-# Option A — distro package when available (check version is 7.x)
+# Option A — distro package ONLY if csound --version shows 7.x (not on 22.04 Jammy)
 sudo apt install -y csound
+csound --version   # must show version 7.x for workshop gate
 
-# Option B — build Csound 7 from source
+# Option B — build Csound 7 from source (recommended on 22.04)
 # https://github.com/csound/csound/blob/develop/BUILD.md
 
-# Node.js 22
+# Node.js 22 (Node 20 may work for smoke tests; 22 recommended)
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
 ```
 
 User-local install path (optional): `~/Applications/Csound/csound` on `PATH` via `~/bin`.
+
+**Headless Linux (SSH, no desktop):** GUI launchers need a display (`DISPLAY` or Wayland). Use `npm run test:platform` and `npm run test:smoke` in the repo; run the Electron app on a machine with a desktop session.
 
 ### Windows
 
@@ -254,5 +261,7 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 | macOS "damaged" app | Right-click → Open, or `xattr -cr DrC.app` |
 | Windows script blocked | Use `.bat` launchers in `launchers/` |
 | Linux `npm install` fails | Use Node 22; `npx electron-builder install-app-deps` |
+| Linux apt `csound` is 6.x | Ubuntu 22.04 ships 6.17 — build Csound 7 from source (see Linux section above) |
+| `test:platform` fails Csound 7 | Same — workshop gate needs 7.x even if `test:smoke` passes on 6.x |
 
 Instructor docs: `WORKSHOP.md`, `TESTING.md`, `VERSIONS.md`

@@ -39,4 +39,9 @@ if ! npm run check-memory --silent 2>/dev/null; then
   npx electron-builder install-app-deps
 fi
 
+if [[ "${DRC_DRY_RUN:-}" == "1" ]]; then
+  echo "DRC_DRY_RUN=1 — preflight OK (skipping npm run dev)"
+  exit 0
+fi
+
 exec npm run dev
