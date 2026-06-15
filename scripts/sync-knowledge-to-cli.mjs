@@ -39,3 +39,4 @@ if (existsSync(authSrc)) {
 }
 
 console.log(`\nSynced ${bundles.length} bundles + catalogs → ${CLI}`)
+console.log('Workshop bundles are tracked in git — participants get knowledge on clone.')
