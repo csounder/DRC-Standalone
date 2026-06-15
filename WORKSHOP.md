@@ -84,8 +84,22 @@ See also: **`TESTING.md`** (manual checklist), **`VERSIONS.md`** (product matrix
 
 ## Suggested attendee prompt
 
+**Golden model:** `resources/workshop-starters/fm_bell_starter.csd` — shimmering dual-modulator FM bell (Dr. B).
+
+```
+make a plain Csound CSD only — no Cabbage. Shimmering FM bell like the workshop golden model: two inharmonic oscili modulators into a carrier, expsegr decay, global reverb bus (instr 99). Score: descending bell melody, harmonic cluster, final low bell (~15 s).
+```
+
+Simple FM (beginners):
+
 ```
 make a plain Csound CSD only — no Cabbage. Simple 2-operator FM synth with foscili, warm and resonant. Score should demo the instrument: scale, arpeggios, ostinato, closing chord (~12 s).
+```
+
+**Ping-pong bass model:** `resources/workshop-starters/pluck_bass_starter.csd` — FM pluck + cross-fed `vdelay3` echo.
+
+```
+make a plain Csound CSD only — no Cabbage. Ping-pong pluck bass: foscili FM voice, butterlp lowpass, gaEcho global bus, instr 99 with vdelay3 cross-feedback (280 ms / 420 ms). Score: four-note bass riff (~8 s).
 ```
 
 ## Web synths

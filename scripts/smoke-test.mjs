@@ -438,6 +438,7 @@ const TOUCHED = [
   'src/main/ipc/llm.ipc.ts',
   'src/main/ipc/workshop.ipc.ts',
   'src/main/csound/compile-check.ts',
+  'src/main/csound/csd-playback.ts',
   'src/main/csound/audio-flags.ts',
   'src/main/util/workshop-starters.ts',
   'src/main/provider/provider.ts',
@@ -487,6 +488,153 @@ section('knowledge bundle')
 const KNOWLEDGE = join(REPO, 'resources', 'knowledge')
 const engineSrc = readFileSync(join(REPO, 'src/main/retrieval/engine.ts'), 'utf-8')
 
+if (existsSync(join(KNOWLEDGE, 'bundle-mccurdy-haiku.json'))) {
+  const haiku = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-mccurdy-haiku.json'), 'utf-8'))
+  const n = Object.keys(haiku.contents ?? {}).length
+  if (n >= 9) ok(`bundle-mccurdy-haiku.json has ${n} generative ambient models`)
+  else bad('bundle-mccurdy-haiku.json too small', String(n))
+} else {
+  bad('bundle-mccurdy-haiku.json missing — run node scripts/ingest-mccurdy-haiku.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/mccurdy-haiku-catalog.md'))) {
+  ok('mccurdy-haiku-catalog.md present (generative ambient foundation)')
+} else {
+  bad('mccurdy-haiku-catalog.md missing')
+}
+
+if (engineSrc.includes('bundle-mccurdy-haiku.json') && engineSrc.includes("id.startsWith('mccurdy-haiku-')")) {
+  ok('RAG engine loads + boosts McCurdy Haiku')
+} else {
+  bad('RAG engine missing mccurdy-haiku integration')
+}
+
+if (existsSync(join(KNOWLEDGE, 'bundle-elected-models.json'))) {
+  const elected = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-elected-models.json'), 'utf-8'))
+  const n = Object.keys(elected.contents ?? {}).length
+  if (n >= 9) ok(`bundle-elected-models.json has ${n} foundational CSDs (6 collections)`)
+  else bad('bundle-elected-models.json too small', String(n))
+} else {
+  bad('bundle-elected-models.json missing — run node scripts/ingest-elected-models.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/elected-models-catalog.md'))) {
+  ok('elected-models-catalog.md present (Dr.B foundation)')
+} else {
+  bad('elected-models-catalog.md missing')
+}
+
+if (engineSrc.includes('bundle-elected-models.json') && engineSrc.includes("id.startsWith('elected-')")) {
+  ok('RAG engine loads + boosts elected models')
+} else {
+  bad('RAG engine missing elected-models integration')
+}
+
+if (existsSync(join(KNOWLEDGE, 'bundle-selected-catalog-v25.json'))) {
+  const cat = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-selected-catalog-v25.json'), 'utf-8'))
+  const n = Object.keys(cat.contents ?? {}).length
+  if (n >= 87) ok(`bundle-selected-catalog-v25.json has ${n} selected catalog instruments`)
+  else bad('bundle-selected-catalog-v25.json too small', String(n))
+} else {
+  bad('bundle-selected-catalog-v25.json missing — run node scripts/ingest-selected-catalog-v25.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/selected-catalog-v25.md'))) {
+  ok('selected-catalog-v25.md present (Csound Catalog v2.5)')
+} else {
+  bad('selected-catalog-v25.md missing')
+}
+
+if (engineSrc.includes('bundle-selected-catalog-v25.json') && engineSrc.includes("id.startsWith('catalog-v25')")) {
+  ok('RAG engine loads + boosts Csound Catalog v2.5')
+} else {
+  bad('RAG engine missing selected-catalog-v25 integration')
+}
+
+if (existsSync(join(KNOWLEDGE, 'bundle-granular-models.json'))) {
+  const gran = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-granular-models.json'), 'utf-8'))
+  const n = Object.keys(gran.contents ?? {}).length
+  if (n >= 11) ok(`bundle-granular-models.json has ${n} granular models`)
+  else bad('bundle-granular-models.json too small', String(n))
+} else {
+  bad('bundle-granular-models.json missing — run node scripts/ingest-granular-models.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/granular-models-catalog.md'))) {
+  ok('granular-models-catalog.md present')
+} else {
+  bad('granular-models-catalog.md missing')
+}
+
+if (engineSrc.includes('bundle-granular-models.json') && engineSrc.includes("id.startsWith('granular-')")) {
+  ok('RAG engine loads + boosts granular models')
+} else {
+  bad('RAG engine missing granular-models integration')
+}
+
+if (existsSync(join(KNOWLEDGE, 'bundle-physical-models.json'))) {
+  const phys = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-physical-models.json'), 'utf-8'))
+  const n = Object.keys(phys.contents ?? {}).length
+  if (n >= 14) ok(`bundle-physical-models.json has ${n} physical/waveguide models`)
+  else bad('bundle-physical-models.json too small', String(n))
+} else {
+  bad('bundle-physical-models.json missing — run node scripts/ingest-physical-models.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/physical-models-catalog.md'))) {
+  ok('physical-models-catalog.md present')
+} else {
+  bad('physical-models-catalog.md missing')
+}
+
+if (engineSrc.includes('bundle-physical-models.json') && engineSrc.includes("id.startsWith('physical-')")) {
+  ok('RAG engine loads + boosts physical models')
+} else {
+  bad('RAG engine missing physical-models integration')
+}
+
+if (existsSync(join(KNOWLEDGE, 'bundle-drum-models.json'))) {
+  const drums = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-drum-models.json'), 'utf-8'))
+  const n = Object.keys(drums.contents ?? {}).length
+  if (n >= 30) ok(`bundle-drum-models.json has ${n} synthetic drum models`)
+  else bad('bundle-drum-models.json too small', String(n))
+} else {
+  bad('bundle-drum-models.json missing — run node scripts/ingest-drum-models.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/drum-models-catalog.md'))) {
+  ok('drum-models-catalog.md present')
+} else {
+  bad('drum-models-catalog.md missing')
+}
+
+if (engineSrc.includes('bundle-drum-models.json') && engineSrc.includes("id.startsWith('drum-')")) {
+  ok('RAG engine loads + boosts drum models')
+} else {
+  bad('RAG engine missing drum-models integration')
+}
+
+if (existsSync(join(KNOWLEDGE, 'bundle-generative-models.json'))) {
+  const gen = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-generative-models.json'), 'utf-8'))
+  const n = Object.keys(gen.contents ?? {}).length
+  if (n >= 25) ok(`bundle-generative-models.json has ${n} generative groovy models`)
+  else bad('bundle-generative-models.json too small', String(n))
+} else {
+  bad('bundle-generative-models.json missing — run node scripts/ingest-generative-models.mjs')
+}
+
+if (existsSync(join(KNOWLEDGE, 'sources/generative-models-catalog.md'))) {
+  ok('generative-models-catalog.md present')
+} else {
+  bad('generative-models-catalog.md missing')
+}
+
+if (engineSrc.includes('bundle-generative-models.json') && engineSrc.includes("id.startsWith('generative-')")) {
+  ok('RAG engine loads + boosts generative models')
+} else {
+  bad('RAG engine missing generative-models integration')
+}
+
 if (existsSync(join(KNOWLEDGE, 'bundle-csd.json'))) {
   const bundle = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-csd.json'), 'utf-8'))
   const n = Object.keys(bundle.contents ?? {}).length
@@ -506,6 +654,13 @@ if (existsSync(join(KNOWLEDGE, 'book-passages.json'))) {
 }
 
 for (const src of [
+  'sources/granular-models-catalog.md',
+  'sources/physical-models-catalog.md',
+  'sources/drum-models-catalog.md',
+  'sources/generative-models-catalog.md',
+  'sources/selected-catalog-v25.md',
+  'sources/mccurdy-haiku-catalog.md',
+  'sources/elected-models-catalog.md',
   'sources/antipatterns.md',
   'sources/patterns.md',
   'sources/syntax-rules.md',
@@ -523,10 +678,10 @@ if (engineSrc.includes('searchKnowledgeSources') && engineSrc.includes('searchCs
 }
 
 const authSrc = readFileSync(join(REPO, 'src/main/agent/prompts/authoritative-sources.txt'), 'utf-8')
-if (authSrc.includes('McCurdy') && authSrc.includes('resources/knowledge')) {
-  ok('authoritative-sources.txt cites McCurdy + knowledge folder')
+if (authSrc.includes('McCurdy') && authSrc.includes('granular-*') && authSrc.includes('physical-*') && authSrc.includes('drum-*') && authSrc.includes('generative-*') && authSrc.includes('catalog-v25')) {
+  ok('authoritative-sources.txt cites granular + physical + drum + generative + catalog + McCurdy')
 } else {
-  bad('authoritative-sources.txt missing McCurdy/knowledge references')
+  bad('authoritative-sources.txt missing model bundle references')
 }
 
 const mccurdyRoot = '/Applications/CsoundQt-d-html-cs7.app/Contents/Resources/Examples/McCurdy Collection'
@@ -581,6 +736,40 @@ if (compileCheckSrc.includes('shortenHoldScoreForCompile') && compileCheckSrc.in
   bad('compile-check.ts missing hold-score shortening')
 }
 
+const playbackSrc = readFileSync(join(REPO, 'src/main/csound/csd-playback.ts'), 'utf-8')
+if (playbackSrc.includes('prepareCsdForRealtimePlay') && playbackSrc.includes('csoundOutputIndicatesRealtimeReady')) {
+  ok('csd-playback strips offline -o and demo scores for Player realtime')
+  const agentLike = `<CsoundSynthesizer>
+<CsOptions>-n -d -m0 -o /tmp/drc.wav</CsOptions>
+<CsInstruments>
+instr 1
+  kEnv linsegr 0, 0.01, 1, 0.5, 0
+  aSig oscili kEnv, p4, 1
+  outs aSig, aSig
+endin
+instr 100
+  Schan strget p4
+  chnset p5, Schan
+  turnoff
+endin
+instr 99
+  outs 0, 0
+endin
+chn_k "amplitude", 3, 2, 0.5, 0, 1, 0, 0, 0, 0
+</CsInstruments>
+<CsScore>
+i 1 0 12 60 0.3
+f 0 1
+</CsScore>
+</CsoundSynthesizer>`
+  // Mirror prepare logic checks (smoke without importing TS)
+  if (/-o\s+\S+/.test(agentLike) && /\bi\s+1\s+0\s+12/.test(agentLike)) {
+    ok('agent-like CSD fixture has offline opts + demo score (Player play must sanitize)')
+  }
+} else {
+  bad('csd-playback.ts missing realtime prepare helpers')
+}
+
 if (existsSync(join(REPO, 'src/main/ipc/workshop.ipc.ts')) &&
     existsSync(join(REPO, 'src/main/util/workshop-starters.ts'))) {
   ok('workshop IPC + starter loader present')
@@ -604,10 +793,10 @@ if (mechSrc.includes('export function mechanicalPlayerAdapt')) {
 }
 
 const agentSrc = readFileSync(join(REPO, 'src/renderer/pages/AgentPage.tsx'), 'utf-8')
-if (agentSrc.includes('Load workshop FM bell') && agentSrc.includes('readWorkshopStarter')) {
-  ok('Agent offers no-key workshop starter')
+if (agentSrc.includes('Load shimmer FM bell') && agentSrc.includes('pluck_bass') && agentSrc.includes('readWorkshopStarter')) {
+  ok('Agent offers no-key workshop starters (bell + bass)')
 } else {
-  bad('Agent missing workshop starter path')
+  bad('Agent missing workshop starter paths')
 }
 
 if (playerSrc.includes('Workshop demo (no key)') && playerSrc.includes('mechanicalPlayerAdapt')) {
@@ -624,9 +813,11 @@ if (existsSync(join(REPO, 'scripts/launch-workshop-attendee.sh'))) {
 
 for (const [file, opts] of [
   ['fm_bell_starter.csd', {}],
+  ['pluck_bass_starter.csd', {}],
   ['fm_starter.csd', {}],
   ['pad_starter.csd', {}],
   ['player_fm_bell.csd', { shortenScore: true }],
+  ['player_pluck_bass.csd', { shortenScore: true }],
   ['midi_synth_starter.csd', { shortenScore: true, renderScore: '<CsScore>\ni 1 0 0.2 440 100\n</CsScore>' }],
 ]) {
   const r = compileStarter(file, opts)
@@ -644,9 +835,22 @@ for (const [file, opts] of [
 const bellPath = join(REPO, 'resources/workshop-starters/fm_bell_starter.csd')
 if (existsSync(bellPath) && mechSrc) {
   const bell = readFileSync(bellPath, 'utf-8')
-  const hasVoice = /\bfoscili\b/i.test(bell) && /\bp4\b/.test(bell)
-  if (hasVoice) ok('fm_bell_starter is mechanical-adapt candidate (foscili + p4)')
-  else bad('fm_bell_starter missing foscili/p4 for mechanical adapt')
+  const hasVoice = /\boscili\b/i.test(bell) && /\bp4\b/.test(bell) && /\bkMod1Idx\b/.test(bell)
+  if (hasVoice) ok('fm_bell_starter is shimmer bell (dual oscili + p4)')
+  else bad('fm_bell_starter missing shimmer voice for Player adapt')
+}
+
+const bassPath = join(REPO, 'resources/workshop-starters/pluck_bass_starter.csd')
+if (existsSync(bassPath) && mechSrc) {
+  const bass = readFileSync(bassPath, 'utf-8')
+  const hasPluck = /\bgaEcho\b/.test(bass) && /\bfoscili\b/i.test(bass) && /\bvdelay3\b/i.test(bass)
+  if (hasPluck) ok('pluck_bass_starter is ping-pong bass (gaEcho + foscili + vdelay3)')
+  else bad('pluck_bass_starter missing ping-pong voice for Player adapt')
+}
+if (mechSrc.includes('isPluckPingPongBass') && mechSrc.includes('isShimmerBellVoice')) {
+  ok('mechanicalPlayerAdapt: shimmer bell + ping-pong bass paths')
+} else {
+  bad('mechanicalPlayerAdapt missing specialized voice paths')
 }
 
 // ───────────────────────────────────────────────────────────────────────

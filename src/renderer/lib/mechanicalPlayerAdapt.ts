@@ -5,6 +5,12 @@ i 99 0 36000
 f 0 36000
 </CsScore>`
 
+const PLAYER_SCORE_WITH_FT = `<CsScore>
+f 1 0 16384 10 1
+i 99 0 36000
+f 0 36000
+</CsScore>`
+
 const PLAYER_INSTR_100 = `
 instr 100
   Schan strget p4
@@ -19,13 +25,25 @@ instr 99
   kSize chnget "reverbSize"
   aInL  chnget "revL"
   aInR  chnget "revR"
-  aL, aR reverbsc aInL, aInR, kSize, 12000
+  aL, aR reverbsc aInL, aInR, kSize, 9000
   outs  aL * kMix, aR * kMix
   chnclear "revL"
   chnclear "revR"
 endin`
 
-const PLAYER_CHN = `
+const PINGPONG_INSTR_99 = `
+instr 99
+aDelL = vdelay3(gaEcho, 280, 1000)
+aDelR = vdelay3(gaEcho, 420, 1000)
+aFbL = vdelay3(aDelR*0.38, 280, 1000)
+aFbR = vdelay3(aDelL*0.4, 420, 1000)
+aEchoL = gaEcho*0.6 + (aDelL + aFbL)*0.6
+aEchoR = gaEcho*0.6 + (aDelR + aFbR)*0.6
+outs aEchoL, aEchoR
+clear gaEcho
+endin`
+
+const PLAYER_CHN_FM = `
 chn_k "amplitude", 3, 2, 0.5, 0, 1, 0, 0, 0, 0, "unit= label=Amplitude"
 chn_k "attack", 3, 3, 0.01, 0.001, 2, 0, 0, 0, 0, "unit=s label=Attack"
 chn_k "release", 3, 3, 0.5, 0.01, 6, 0, 0, 0, 0, "unit=s label=Release"
@@ -41,9 +59,143 @@ chnset 0.3, "reverbMix"
 chnset 0.8, "reverbSize"
 `
 
-/** Deterministic Player wrap — no LLM. Covers typical Agent FM / oscillator voices. */
+const PLAYER_CHN_SHIMMER = `
+chn_k "amplitude", 3, 2, 0.5, 0, 1, 0, 0, 0, 0, "unit= label=Amplitude"
+chn_k "attack", 3, 3, 0.005, 0.001, 0.05, 0, 0, 0, 0, "unit=s label=Attack"
+chn_k "release", 3, 3, 2.5, 0.2, 8, 0, 0, 0, 0, "unit=s label=Release"
+chn_k "mod1Depth", 3, 2, 1, 0, 2, 0, 0, 0, 0, "unit= label=Shimmer_1"
+chn_k "mod2Depth", 3, 2, 1, 0, 2, 0, 0, 0, 0, "unit= label=Shimmer_2"
+chn_k "reverbMix", 3, 2, 0.4, 0, 1, 0, 0, 0, 0, "unit= label=Reverb_Mix"
+chn_k "reverbSize", 3, 2, 0.92, 0.5, 1, 0, 0, 0, 0, "unit= label=Reverb_Size"
+
+chnset 0.5, "amplitude"
+chnset 0.005, "attack"
+chnset 2.5, "release"
+chnset 1, "mod1Depth"
+chnset 1, "mod2Depth"
+chnset 0.4, "reverbMix"
+chnset 0.92, "reverbSize"
+`
+
+const PLAYER_CHN_PLUCK = `
+chn_k "amplitude", 3, 2, 0.6, 0, 1, 0, 0, 0, 0, "unit= label=Amplitude"
+chn_k "attack", 3, 3, 0.001, 0.0005, 0.05, 0, 0, 0, 0, "unit=s label=Attack"
+chn_k "release", 3, 3, 0.3, 0.05, 2, 0, 0, 0, 0, "unit=s label=Release"
+chn_k "fmIndex", 3, 2, 8, 0, 20, 0, 0, 0, 0, "unit= label=FM_Index"
+chn_k "echoSend", 3, 2, 0.4, 0, 1, 0, 0, 0, 0, "unit= label=Echo_Send"
+
+chnset 0.6, "amplitude"
+chnset 0.001, "attack"
+chnset 0.3, "release"
+chnset 8, "fmIndex"
+chnset 0.4, "echoSend"
+`
+
+const SHIMMER_VOICE = `
+instr 1
+  iAtt  chnget "attack"
+  iRel  chnget "release"
+  kAmp  chnget "amplitude"
+  kM1   chnget "mod1Depth"
+  kM2   chnget "mod2Depth"
+  kAmp  port kAmp, 0.02
+  kM1   port kM1, 0.02
+  kM2   port kM2, 0.02
+  kEnv  linsegr 0, iAtt, 1, iAtt + 0.05, 0.7, iRel, 0
+  iVel  = p5
+
+  kMod1Idx = 3.5 * kEnv * kM1
+  aMod1 oscili kMod1Idx * p4, p4 * 3.5, giSine
+
+  kMod2Idx = 2.1 * kEnv * kM2
+  aMod2 oscili kMod2Idx * p4, p4 * 5.2, giSine
+
+  aSig oscili kEnv * kAmp * iVel * 0.6, p4 + aMod1 + aMod2, giSine
+
+  chnmix aSig, "revL"
+  chnmix aSig, "revR"
+  outs aSig, aSig
+endin`
+
+const PLUCK_VOICE = `
+instr 1
+  iAtt  chnget "attack"
+  iRel  chnget "release"
+  kAmp  chnget "amplitude"
+  kFm   chnget "fmIndex"
+  kEcho chnget "echoSend"
+  kAmp  port kAmp, 0.02
+  kFm   port kFm, 0.02
+  kEcho port kEcho, 0.02
+  kEnv  linsegr 0, iAtt, 1, iAtt + 0.02, 0.6, iRel, 0
+  iVel  = p5
+  kModIndex = kEnv * kFm
+  aFM  foscili kEnv * kAmp * iVel, p4, 1, 2.01, kModIndex, 1
+  aFat butterlp aFM, p4 * 6
+  gaEcho += aFat * kEcho
+  outs aFat, aFat
+endin`
+
+function stripCabbageJunk(source: string): string {
+  return source.replace(/<bsbPanel>[\s\S]*/i, '').trim()
+}
+
+function cleanGlobals(globals: string): string {
+  return globals
+    .split('\n')
+    .filter((line) => !/^\s*(sr|ksmps|nchnls|0dbfs)\s*=/i.test(line))
+    .filter((line) => !/^\s*gaRvb[LR]\s+init/i.test(line))
+    .filter((line) => !/^\s*gaEcho\s+init/i.test(line))
+    .filter((line) => !/^\s*chnset\s+/i.test(line))
+    .join('\n')
+    .trim()
+}
+
+function isShimmerBellVoice(body: string): boolean {
+  return (
+    /\bkMod1Idx\b/.test(body) &&
+    /\bkMod2Idx\b/.test(body) &&
+    /\baSig\s+oscili\b/i.test(body)
+  )
+}
+
+function isPluckPingPongBass(body: string, instrBlock: string): boolean {
+  return /\bgaEcho\b/.test(body) && /\bfoscili\b/i.test(body) && /\bvdelay3\b/i.test(instrBlock)
+}
+
+function buildPlayerCsd(
+  globals: string,
+  chn: string,
+  voice: string,
+  fx99: string,
+  score: string,
+  extraGlobals = 'gaEcho init 0\n',
+): string {
+  const globalBlock = extraGlobals ? `${extraGlobals}\n${globals}`.trim() : globals
+  return `<CsoundSynthesizer>
+<CsOptions>
+-odac -d
+</CsOptions>
+<CsInstruments>
+sr = 44100
+ksmps = 64
+nchnls = 2
+0dbfs = 1
+
+${globalBlock}
+
+${chn}
+${voice}
+${PLAYER_INSTR_100}
+${fx99}
+</CsInstruments>
+${score}
+</CsoundSynthesizer>`
+}
+
+/** Deterministic Player wrap — no LLM. Covers FM, shimmer bell, ping-pong bass, and simple oscillators. */
 export function mechanicalPlayerAdapt(source: string): string | null {
-  const raw = source.trim()
+  const raw = stripCabbageJunk(source.trim())
   if (!raw || !needsPlayerAdapt(raw)) return raw
 
   const synth = raw.match(/<CsoundSynthesizer[\s\S]*?<\/CsoundSynthesizer>/i)?.[0]
@@ -68,26 +220,42 @@ export function mechanicalPlayerAdapt(source: string): string | null {
   }
   if (!voiceBody.trim()) return null
 
-  const oscLine = voiceBody.match(/^\s*(a\w+)\s+(foscili|oscili|poscil|vco2|pluck)\s+(.+)$/im)
+  if (isShimmerBellVoice(voiceBody)) {
+    return buildPlayerCsd(cleanGlobals(globals), PLAYER_CHN_SHIMMER, SHIMMER_VOICE, PLAYER_INSTR_99, PLAYER_SCORE)
+  }
+
+  if (isPluckPingPongBass(voiceBody, instrBlock)) {
+    return buildPlayerCsd(
+      cleanGlobals(globals),
+      PLAYER_CHN_PLUCK,
+      PLUCK_VOICE,
+      PINGPONG_INSTR_99,
+      PLAYER_SCORE_WITH_FT,
+      'gaEcho init 0',
+    )
+  }
+
+  const oscLine =
+    voiceBody.match(/^\s*(a\w+)\s*=\s*(foscili|oscili|poscil|vco2|pluck)\s*\((.+)\)\s*$/im) ??
+    voiceBody.match(/^\s*(aSig|aOut|a1)\s+(foscili|oscili|poscil|vco2|pluck)\s+(.+)$/im) ??
+    voiceBody.match(/^\s*(a\w+)\s+(foscili|oscili|poscil|vco2|pluck)\s+(.+)$/im)
   if (!oscLine) return null
 
-  const [, , opcode, args] = oscLine
-  let ampArgs = args.trim()
-  // Drop score-timed envelope factors; player supplies kEnv * kAmp * iVel
+  const opcode = oscLine[2]
+  let ampArgs = (oscLine[3] ?? '').trim()
   ampArgs = ampArgs.replace(/^kEnv\s*,?\s*/i, '')
+  ampArgs = ampArgs.replace(/^kCarEnv\s*\*?\s*/i, '')
   ampArgs = ampArgs.replace(/^kAmp\s*,?\s*/i, '')
   ampArgs = ampArgs.replace(/^iAmp\s*,?\s*/i, '')
   ampArgs = ampArgs.replace(/^iVel\s*,?\s*/i, '')
   ampArgs = ampArgs.replace(/^p5\s*,?\s*/i, '')
 
-  // Pitch: keyboard sends Hz in p4
   ampArgs = ampArgs
     .replace(/\bcpsmidinn\s*\(\s*p4\s*\)/gi, 'p4')
     .replace(/\bcpsmidinn\s*\(\s*p5\s*\)/gi, 'p5')
     .replace(/\biFreq\b/g, 'p4')
 
-  // FM index from knob when source used kIdx envelope
-  const usesFmIndex = /\bkIdx\b/i.test(voiceBody) || /fmIndex|foscili/i.test(voiceBody)
+  const usesFmIndex = /\bkIdx\b/i.test(voiceBody) || /\bkModIndex\b/i.test(voiceBody) || /fmIndex|foscili/i.test(voiceBody)
   const indexArg = usesFmIndex ? 'kIdx' : ampArgs.split(',')[3]?.trim() ?? '1'
 
   const voice = `
@@ -100,38 +268,13 @@ instr 1
   kIdx  port kIdx, 0.02
   kEnv  linsegr 0, iAtt, 1, iAtt + 0.05, 0.7, iRel, 0
   iVel  = p5
-  aSig  ${opcode} kEnv * kAmp * iVel, ${ampArgs.replace(/,\s*kIdx\b/i, `, ${indexArg}`)}
+  aSig  ${opcode} kEnv * kAmp * iVel, ${ampArgs.replace(/,\s*kIdx\b/i, `, ${indexArg}`).replace(/,\s*kModIndex\b/i, ', kIdx')}
   chnmix aSig, "revL"
   chnmix aSig, "revR"
   outs aSig, aSig
 endin`
 
-  // Clean globals: drop sr/ksmps if we redeclare, keep ftgen
-  const globalLines = globals
-    .split('\n')
-    .filter((line) => !/^\s*(sr|ksmps|nchnls|0dbfs)\s*=/i.test(line))
-    .join('\n')
-    .trim()
-
-  return `<CsoundSynthesizer>
-<CsOptions>
--odac -d
-</CsOptions>
-<CsInstruments>
-sr = 44100
-ksmps = 64
-nchnls = 2
-0dbfs = 1
-
-${globalLines}
-
-${PLAYER_CHN}
-${voice}
-${PLAYER_INSTR_100}
-${PLAYER_INSTR_99}
-</CsInstruments>
-${PLAYER_SCORE}
-</CsoundSynthesizer>`
+  return buildPlayerCsd(cleanGlobals(globals), PLAYER_CHN_FM, voice, PLAYER_INSTR_99, PLAYER_SCORE)
 }
 
 export function canMechanicalPlayerAdapt(source: string): boolean {

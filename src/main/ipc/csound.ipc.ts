@@ -14,6 +14,10 @@ import {
   needsHoldScoreShortening,
   runCsoundCompileCheck,
 } from '../csound/compile-check'
+import {
+  csoundOutputIndicatesRealtimeReady,
+  prepareCsdForRealtimePlay,
+} from '../csound/csd-playback'
 
 const execFileAsync = promisify(execFile)
 
@@ -113,9 +117,24 @@ function playRealtimeCsound(
   sender: WebContents,
   csdPath: string,
 ): Promise<{ success: boolean; output?: string; error?: string }> {
-  const ioFlags = buildRealtimeIoFlags(csdPath)
-  const playArgs = [...ioFlags, '-d', '-m0', '-Lstdin', csdPath]
-  emitCsoundOutput(sender, 'info', describeAudioRouting(csdPath))
+  let playPath = csdPath
+  let cleanupPlay = false
+  try {
+    const raw = readFileSync(csdPath, 'utf-8')
+    const prepared = prepareCsdForRealtimePlay(raw)
+    if (prepared !== raw) {
+      playPath = join(getTempDir(), 'realtime-play.csd')
+      writeFileSync(playPath, prepared, 'utf-8')
+      cleanupPlay = true
+      emitCsoundOutput(sender, 'info', 'Play: using realtime hold score + -odac (keyboard-driven)')
+    }
+  } catch {
+    /* use original path */
+  }
+
+  const ioFlags = buildRealtimeIoFlags(playPath)
+  const playArgs = [...ioFlags, '-d', '-m0', '-Lstdin', playPath]
+  emitCsoundOutput(sender, 'info', describeAudioRouting(playPath))
   emitCsoundOutput(sender, 'info', `▶ csound ${playArgs.join(' ')}`)
 
   return new Promise((resolve) => {
@@ -123,6 +142,16 @@ function playRealtimeCsound(
     playReady = false
     let settled = false
     let stderr = ''
+
+    const cleanupTemp = () => {
+      if (!cleanupPlay) return
+      try {
+        unlinkSync(playPath)
+      } catch {
+        /* ignore */
+      }
+      cleanupPlay = false
+    }
 
     const finishStart = (ok: boolean, err?: string) => {
       if (settled) return
@@ -133,6 +162,7 @@ function playRealtimeCsound(
         resolve({ success: true, output: 'Realtime engine running.' })
       } else {
         playReady = false
+        cleanupTemp()
         resolve({ success: false, error: err ?? 'Failed to start realtime audio' })
       }
     }
@@ -145,7 +175,7 @@ function playRealtimeCsound(
 
     const maybeReady = () => {
       if (settled || !playProcess) return
-      if (/End of score|SECTION 1:|scoreless operation|writing \d+ sample blks/i.test(stderr)) {
+      if (csoundOutputIndicatesRealtimeReady(stderr)) {
         finishStart(true)
       }
     }
@@ -178,24 +208,28 @@ function playRealtimeCsound(
       Log.warn(`csound stdin error: ${err.message}`)
     })
 
-    // Fallback: assume ready if process is still alive after initial score pass.
+    // Fallback: dac open banner may arrive slightly after spawn.
     const readyTimer = setTimeout(() => {
       if (!settled && playProcess && !playProcess.killed) finishStart(true)
-    }, 1500)
+    }, 2500)
 
     const failTimer = setTimeout(() => {
       if (!settled) {
         playKilledBySignal = true
         playProcess?.kill('SIGKILL')
-        finishStart(false, 'Csound did not start realtime audio in time')
+        finishStart(
+          false,
+          'Csound did not start realtime audio in time — check Settings → Audio or open Csound console for device errors.',
+        )
       }
-    }, 12_000)
+    }, 30_000)
 
     playProcess.on('close', (code, signal) => {
       clearTimeout(readyTimer)
       clearTimeout(failTimer)
       playProcess = null
       playReady = false
+      cleanupTemp()
       if (!settled) {
         const msg = extractCsoundError(stderr) || (signal ? 'Csound stopped' : `Csound exited (${code})`)
         finishStart(false, msg)

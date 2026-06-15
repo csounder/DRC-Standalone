@@ -89,6 +89,69 @@ export namespace Retrieval {
       Log.info(`CSD examples: ${csdExamples.size} files`)
     }
 
+    // Elected Csound Models — Dr. B workshop foundation (6 collections)
+    const elected = loadJSON<{ contents: Record<string, string> }>('bundle-elected-models.json')
+    if (elected?.contents) {
+      for (const [id, content] of Object.entries(elected.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`Elected models: ${Object.keys(elected.contents).length} foundational CSDs`)
+    }
+
+    // McCurdy Haiku — generative ambient foundation (9 pieces, always bundled)
+    const haiku = loadJSON<{ contents: Record<string, string> }>('bundle-mccurdy-haiku.json')
+    if (haiku?.contents) {
+      for (const [id, content] of Object.entries(haiku.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`McCurdy Haiku: ${Object.keys(haiku.contents).length} generative ambient models`)
+    }
+
+    // Selected Instruments — The Csound Catalog v2.5 (Dr. B curated)
+    const catalog = loadJSON<{ contents: Record<string, string> }>('bundle-selected-catalog-v25.json')
+    if (catalog?.contents) {
+      for (const [id, content] of Object.entries(catalog.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`Csound Catalog v2.5: ${Object.keys(catalog.contents).length} selected instruments`)
+    }
+
+    // Granular synthesis models (grain, partikkel, sndwarp, Brandtsegg, Boulanger)
+    const granular = loadJSON<{ contents: Record<string, string> }>('bundle-granular-models.json')
+    if (granular?.contents) {
+      for (const [id, content] of Object.entries(granular.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`Granular models: ${Object.keys(granular.contents).length} foundational CSDs`)
+    }
+
+    // Physical / waveguide models (wg*, pluck, Karplus, handpan, pipa)
+    const physical = loadJSON<{ contents: Record<string, string> }>('bundle-physical-models.json')
+    if (physical?.contents) {
+      for (const [id, content] of Object.entries(physical.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`Physical models: ${Object.keys(physical.contents).length} waveguide CSDs`)
+    }
+
+    // Synthetic drum models (kits, generative, glitch, MS-20)
+    const drums = loadJSON<{ contents: Record<string, string> }>('bundle-drum-models.json')
+    if (drums?.contents) {
+      for (const [id, content] of Object.entries(drums.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`Drum models: ${Object.keys(drums.contents).length} synthetic drum CSDs`)
+    }
+
+    // Generative Groovy models (Jagwani + Marston)
+    const generative = loadJSON<{ contents: Record<string, string> }>('bundle-generative-models.json')
+    if (generative?.contents) {
+      for (const [id, content] of Object.entries(generative.contents)) {
+        csdExamples.set(id, content)
+      }
+      Log.info(`Generative models: ${Object.keys(generative.contents).length} groovy CSDs`)
+    }
+
     // Load csound_book.txt for full-text search
     const bookPath = findResource('csound_book.txt')
     if (bookPath) {
@@ -142,7 +205,20 @@ export namespace Retrieval {
         if (count > 0) score += Math.log2(1 + count)
       }
       // Boost catalog examples from authoritative sources (Dr. B standing rule)
-      if (id.startsWith('flossmanual')) score *= 4
+      if (id.startsWith('granular-brandtsegg-partikkel')) score *= 6.5
+      else if (id.startsWith('granular-')) score *= 6
+      else if (id.startsWith('physical-ningxin-')) score *= 6.5
+      else if (id.startsWith('physical-')) score *= 6
+      else if (id.startsWith('drum-mccurdy-')) score *= 6.5
+      else if (id.startsWith('drum-')) score *= 6
+      else if (id.startsWith('generative-jagwani-')) score *= 6.5
+      else if (id.startsWith('generative-marston-')) score *= 6.2
+      else if (id.startsWith('generative-')) score *= 6
+      else if (id.startsWith('catalog-v25-drb')) score *= 6
+      else if (id.startsWith('catalog-v25')) score *= 5
+      else if (id.startsWith('mccurdy-haiku-')) score *= 5.5
+      else if (id.startsWith('elected-')) score *= 5
+      else if (id.startsWith('flossmanual')) score *= 4
       else if (id.startsWith('lazzarinispectral') || id.startsWith('lazzarinicsound')) score *= 3.5
       else if (id.startsWith('lazzarini')) score *= 3
       else if (id.startsWith('hornerbook')) score *= 2.5
@@ -205,6 +281,171 @@ export namespace Retrieval {
     const parts: string[] = []
     const q = query.toLowerCase()
     const cap = isProPlus() ? 6000 : 3000
+
+    // Elected Csound Models — foundational workshop authorities
+    const electedGolden: [RegExp, string, string][] = [
+      [/\b(wobble|gbuzz|jspline|distort)\b.*\b(bass|sub)\b|\b(bass|sub)\b.*\b(wobble|gbuzz)\b/, 'elected-bass-wobble-wobble', 'Thorin Kerr Bass Wobble'],
+      [/\b(gendyc|stochastic|ffitch)\b/, 'elected-gendyc-gendycpiece', 'Richard Boulanger GendyC (2021)'],
+      [/\b(sterrain|superwave|terrain)\b/, 'elected-sterrain-sterrain2', 'SuperWaveTerrain (DocB)'],
+      [/\b(deep\s*note|thx|andy\s*moorer)\b/, 'elected-deepnote-deepnote', 'Steven Yi Deep Note'],
+      [/\b(groovish|schedkwhen|microtonal)\b/, 'elected-groovish-groovish', 'Jim Aikin Groovish'],
+      [/\b(dizi|sheng|hulusi|chinese\s*instrument|horner)\b/i, 'elected-chinese-dizi', 'Andrew Horner Chinese Instruments'],
+    ]
+    for (const [re, exId, label] of electedGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="Elected Model: ${label}">\n${ex.slice(0, 2400)}\n</golden-pattern>`,
+          )
+        }
+      }
+    }
+
+    // McCurdy Haiku — generative ambient foundation (nine realtime pieces)
+    const haikuGolden: [RegExp, string, string][] = [
+      [/\b(haiku\s*(ii|2)|polyrhythm|inharmonic\s*bell)\b/i, 'mccurdy-haiku-ii', 'Haiku II — polyrhythmic bells'],
+      [/\b(haiku\s*(iii|3)|wguid2)\b/i, 'mccurdy-haiku-iii', 'Haiku III — wguide2 resonances'],
+      [/\b(haiku\s*(iv|4)|hsboscil)\b/i, 'mccurdy-haiku-iv', 'Haiku IV — hsboscil clusters'],
+      [/\b(haiku\s*(v|5)|phaser2)\b/i, 'mccurdy-haiku-v', 'Haiku V — phaser2 resonances'],
+      [/\b(haiku\s*(vi|6)|strum|wguid1)\b/i, 'mccurdy-haiku-vi', 'Haiku VI — strummed waveguides'],
+      [/\b(haiku\s*(vii|7)|long\s*bell|bell\s*garden)\b/i, 'mccurdy-haiku-vii', 'Haiku VII — bell garden'],
+      [/\b(haiku\s*(viii|8)|hilbert|stochastic\s*layer)\b/i, 'mccurdy-haiku-viii', 'Haiku VIII — stochastic layers'],
+      [/\b(haiku\s*(ix|9)|arpeggio\s*cloud)\b/i, 'mccurdy-haiku-ix', 'Haiku IX — arpeggio clouds'],
+      [/\b(haiku|mccurdy)\b.*\b(i|1|trombone|drone)\b|\b(haiku\s*i)\b/i, 'mccurdy-haiku-i', 'Haiku I — gbuzz drones'],
+      [/\b(ambient|generative|soundscape|evolving|installation|alwayson|schedkwhennamed|no\s*score)\b/i, 'mccurdy-haiku-i', 'McCurdy Haiku — generative ambient'],
+    ]
+    for (const [re, exId, label] of haikuGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="McCurdy Haiku: ${label}">\n${ex.slice(0, 2600)}\n</golden-pattern>`,
+          )
+        }
+        break
+      }
+    }
+
+    // Granular synthesis — foundational models (high user interest)
+    const granularGolden: [RegExp, string, string][] = [
+      [/\b(truax|giordani|timout.*grain|reinit.*grain)\b/i, 'granular-giordani-truax', 'Giordani Truax granular'],
+      [/\b(partikkel|brandtsegg|hadron|live\s*input\s*granular)\b/i, 'granular-brandtsegg-partikkel-starter-kit', 'Partikkel starter kit (live FX)'],
+      [/\b(sndwarp|time\s*stretch|sound\s*warp)\b/i, 'granular-boulanger-sndwarpmidi', 'SndWarpMIDI'],
+      [/\b(grainmidi|grain\s+density|classic\s*grain)\b/i, 'granular-boulanger-grainmidi', 'GrainMIDI (Dr.B)'],
+      [/\b(fm.*grain|grain.*fm|grain\s+rate\s+fm)\b/i, 'granular-fm-rate-and-pitch', 'FM Grain rate+pitch'],
+      [/\b(oversampl|anti.?alias).*\bgranular\b|\bgranular\b.*\boversampl\b/i, 'granular-brandtsegg-oversampling', 'Granular oversampling'],
+      [/\b(granular|granule|grain\s+cloud|texture\s+granular)\b/i, 'granular-brandtsegg-partikkel-starter-kit', 'Granular synthesis'],
+      [/\b(mikelson|ezine)\b.*\bgrain\b/i, 'granular-ezine-granula', 'Granula Ezine tutorial'],
+    ]
+    for (const [re, exId, label] of granularGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="Granular Model: ${label}">\n${ex.slice(0, 2800)}\n</golden-pattern>`,
+          )
+        }
+        break
+      }
+    }
+
+    // Physical / waveguide models — wg*, pluck, Karplus, handpan, pipa
+    const physicalGolden: [RegExp, string, string][] = [
+      [/\b(pipa|chinese\s*lute|ningxin|waveguide\s*pipa)\b/i, 'physical-ningxin-waveguide-pipa', 'Ningxin Waveguide Pipa'],
+      [/\b(handpan|hang\s*drum|modal\s*percussion)\b/i, 'physical-handpan-v1', 'HandPan modal'],
+      [/\b(bamboo\s*flute|gutwein|slide\s*flute)\b/i, 'physical-gutwein-bambooflute1', 'Gutwein bamboo flute'],
+      [/\b(karplus|karplus.?strong|delayr.*delayw)\b/i, 'physical-karplusmath', 'KarplusMATH'],
+      [/\b(wgflute|waveguide\s*flute|perry\s*cook\s*flute)\b/i, 'physical-wgflute', 'wgflute'],
+      [/\b(wgpluck|wgpluck2|waveguide\s*pluck)\b/i, 'physical-wgpluck2', 'wgpluck2'],
+      [/\b(wgbow|bowed\s*string|bowed\s*bar)\b/i, 'physical-wgbow', 'wgbow'],
+      [/\b(wgclar|waveguide\s*clarinet)\b/i, 'physical-wgclar', 'wgclar'],
+      [/\b(physical\s*model|waveguide|wguid)\b/i, 'physical-wgflute', 'Physical waveguide models'],
+    ]
+    for (const [re, exId, label] of physicalGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="Physical Model: ${label}">\n${ex.slice(0, 2800)}\n</golden-pattern>`,
+          )
+        }
+        break
+      }
+    }
+
+    // Generative Groovy — Jagwani + Marston workshop starters
+    const generativeGolden: [RegExp, string, string][] = [
+      [/\b(jagwani|aman\s*jagwani|subtractive\s*drum)\b/i, 'generative-jagwani-subtractive', 'Jagwani generative subtractive'],
+      [/\b(jagwani.*fm|fm\s*generative|chowning)\b/i, 'generative-jagwani-fm', 'Jagwani FM generative'],
+      [/\b(mumbai|samplebank)\b/i, 'generative-jagwani-mumbai', 'Jagwani Mumbai project'],
+      [/\b(marston|genjam|in\s*the\s*park)\b/i, 'generative-marston-best-in-the-park-randomized-start', 'Marston In the Park'],
+      [/\b(groovy|generative\s*groovy|metro.*schedkwhen.*generative)\b/i, 'generative-jagwani-subtractive', 'Generative Groovy'],
+      [/\b(regular\s*beat|metered\s*beat|triads.*drum)\b/i, 'generative-marston-beat-metered4', 'Marston regular beat'],
+    ]
+    for (const [re, exId, label] of generativeGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="Generative Model: ${label}">\n${ex.slice(0, 2800)}\n</golden-pattern>`,
+          )
+        }
+        break
+      }
+    }
+
+    // Synthetic drum models — kits, generative, glitch, MS-20
+    const drumGolden: [RegExp, string, string][] = [
+      [/\b(dseq|joaquin.*drum|drum\s*machine\s*language)\b/i, 'drum-joaquin-dseq-quickstart', 'Joaquin dseq drum machine'],
+      [/\b(loop\s*sequencer|16\s*step|step\s*sequencer).*\b(drum|beat)\b/i, 'drum-mccurdy-simple-loop-sequencer', 'McCurdy loop sequencer'],
+      [/\b(generative\s*drum|random\s*drum|schedkwhen.*drum|metro.*drum)\b/i, 'drum-mccurdy-generative-05e04', 'McCurdy generative drums'],
+      [/\b(amen\s*break|beat\s*mangl)\b/i, 'drum-amen-beat-mangler', 'Amen beat mangler'],
+      [/\b(recursive\s*drum|event_i.*drum)\b/i, 'drum-lazzarini-recursive', 'Lazzarini recursive drum'],
+      [/\b(drum\s*replacement|live\s*drum\s*replac)\b/i, 'drum-replacement-05l04', 'Drum replacement'],
+      [/\b(guiro|tambourine|cabasa|percussion\s*opcode)\b/i, 'drum-percussion-opcodes', 'Percussion model opcodes'],
+      [/\b(ms-?20|k35|yi.*drum|steven\s*yi)\b/i, 'drum-yi-k35-ms20', 'Yi K35 MS-20 drums'],
+      [/\b(tonematrix|tone\s*matrix)\b/i, 'drum-kholomiov-tonematrix', 'Kholomiov tone matrix'],
+      [/\b(glitch\s*drum|glitch\s*perc|kholomiov)\b/i, 'drum-kholomiov-dely-glitch', 'Kholomiov glitch drums'],
+      [/\b(electric\s*drum\s*kit|synthesis.*drum\s*kit)\b/i, 'drum-electric-kit-1', 'Electric drum kit'],
+      [/\b(full\s*kit|complete\s*drum\s*kit)\b/i, 'drum-fullkit', 'FullKit'],
+      [/\b(kick\s*drum|synth\s*kick|808\s*kick)\b/i, 'drum-element-kick1', 'Synthesized kick'],
+      [/\b(drum\s*machine|808|909|synthetic\s*drum|electronic\s*drum|kick|snare|hi-?hat|percussion\s*synth)\b/i, 'drum-drummachine', 'Synthetic drums'],
+    ]
+    for (const [re, exId, label] of drumGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="Drum Model: ${label}">\n${ex.slice(0, 2800)}\n</golden-pattern>`,
+          )
+        }
+        break
+      }
+    }
+
+    // Csound Catalog v2.5 — Dr. B selected instruments
+    const catalogGolden: [RegExp, string, string][] = [
+      [/\b(risset|endless|mutation|bell\s*function)\b/i, 'catalog-v25-risset-endless', 'Risset endless glissando'],
+      [/\b(fof|choir|chant|perry\s*cook)\b/i, 'catalog-v25-drb-cook-fofchoir', 'Cook fof choir (Dr.B pick)'],
+      [/\b(tb-?303|303\s*emu|analog\s*pad)\b/i, 'catalog-v25-drb-comajuncosas-tb303', 'Dr.B TB-303'],
+      [/\b(karplus|pluck\s*bass|waveguide\s*pluck)\b/i, 'catalog-v25-drb-comajuncosas-karplusmath', 'Dr.B karplus'],
+      [/\b(marimba|glockenspiel|celeste|harpsichord|varo|gm\s*style)\b/i, 'catalog-v25-varo-13marimba', 'Varo marimba'],
+      [/\b(anagrain|smaragdis)\b/i, 'catalog-v25-smaragdis-anagrain', 'Smaragdis anagrain'],
+      [/\b(phaser|string\s*pad|costello)\b/i, 'catalog-v25-costello-stringphaser', 'Costello string phaser'],
+      [/\b(csound\s*catalog|catalog\s*v2|selected\s*instrument)\b/i, 'catalog-v25-drb-comajuncosas-analogpad1', 'Csound Catalog v2.5'],
+    ]
+    for (const [re, exId, label] of catalogGolden) {
+      if (re.test(q)) {
+        const ex = csdExamples.get(exId)
+        if (ex) {
+          parts.push(
+            `<golden-pattern source="Csound Catalog v2.5: ${label}">\n${ex.slice(0, 2400)}\n</golden-pattern>`,
+          )
+        }
+        break
+      }
+    }
 
     // Book-verified golden patterns (Boulanger workshop starters)
     if (/\b(fm|bell|chime|foscil)\b/.test(q)) {
@@ -276,7 +517,12 @@ export namespace Retrieval {
     // Catalog CSDs (FLOSS Manual, Lazzarini, Horner / Boulanger) — adapt before inventing
     const catalogExamples = searchExamples(query, isProPlus() ? 4 : 2)
     for (const ex of catalogExamples) {
-      const src = ex.id.startsWith('flossmanual') ? 'FLOSS Manual'
+      const src = ex.id.startsWith('granular-') ? 'Granular Models (Dr.B foundation)'
+        : ex.id.startsWith('catalog-v25-drb') ? 'Csound Catalog v2.5 (Dr.B pick)'
+        : ex.id.startsWith('catalog-v25') ? 'Csound Catalog v2.5 (selected)'
+        : ex.id.startsWith('mccurdy-haiku-') ? 'McCurdy Haiku (generative ambient)'
+        : ex.id.startsWith('elected-') ? 'Elected Model (Dr.B foundation)'
+        : ex.id.startsWith('flossmanual') ? 'FLOSS Manual'
         : ex.id.startsWith('lazzarini') ? 'Lazzarini'
         : ex.id.startsWith('hornerbook') ? 'Csound Book (Horner)'
         : 'Csound Catalog'

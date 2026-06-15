@@ -19,7 +19,7 @@ import QuotaCooldown from '../components/QuotaCooldown'
 import { isQuotaError } from '../lib/providerGuide'
 import { applyQuotaCooldownFromMessage, isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
 import { mechanicalPlayerAdapt } from '../lib/mechanicalPlayerAdapt'
-import { loadWorkshopPlayerDemo } from '../lib/workshopDemos'
+import { loadWorkshopPlayerDemo, WORKSHOP_PLAYER_PLUCK_ID } from '../lib/workshopDemos'
 import type { UsageRecord } from '../lib/usageFormat'
 
 type AdaptStatus =
@@ -331,9 +331,9 @@ export default function PlayerPage() {
   const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
   const loadDisabled = loadBusy
 
-  const handleWorkshopDemo = useCallback(async () => {
+  const handleWorkshopDemo = useCallback(async (id?: string) => {
     setAdaptStatus({ kind: 'reading' })
-    const demo = await loadWorkshopPlayerDemo()
+    const demo = await loadWorkshopPlayerDemo(id)
     if (!demo) {
       setAdaptStatus({ kind: 'error', message: 'Workshop demo file missing — reinstall Dr.C or use Web Apps (no key).' })
       return
@@ -372,9 +372,18 @@ export default function PlayerPage() {
             onClick={() => void handleWorkshopDemo()}
             style={styles.workshopBtn}
             disabled={loadDisabled}
-            title="FM bell with reverb — keyboard + knobs, no API key"
+            title="Shimmering FM bell — no API key"
           >
-            Workshop demo (no key)
+            FM bell demo
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleWorkshopDemo(WORKSHOP_PLAYER_PLUCK_ID)}
+            style={styles.workshopBtn}
+            disabled={loadDisabled}
+            title="Ping-pong pluck bass — no API key"
+          >
+            Bass demo
           </button>
           <button
             onClick={() => void handleLoadAgentCsd()}

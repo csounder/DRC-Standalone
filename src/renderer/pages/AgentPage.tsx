@@ -596,8 +596,8 @@ export default function AgentPage() {
   const needsApiKey = providersAvailable !== null && providersAvailable.length === 0
   const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
 
-  const loadWorkshopStarter = useCallback(async () => {
-    const r = await readWorkshopStarter('fm_bell')
+  const loadWorkshopStarter = useCallback(async (id: 'fm_bell' | 'pluck_bass') => {
+    const r = await readWorkshopStarter(id)
     if (!r) return
     addArtifact(
       { type: 'csd', title: r.meta.title, content: r.content, sourceMessageId: `workshop_${Date.now()}` },
@@ -726,8 +726,11 @@ export default function AgentPage() {
               </p>
               {needsApiKey && (
                 <div style={styles.workshopRow}>
-                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter()}>
-                    Load workshop FM bell (no key)
+                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter('fm_bell')}>
+                    Load shimmer FM bell (no key)
+                  </button>
+                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter('pluck_bass')}>
+                    Load ping-pong bass (no key)
                   </button>
                   <Link to="/apps" style={styles.workshopLink}>Web Apps →</Link>
                   <Link to="/player" style={styles.workshopLink}>Player demo →</Link>

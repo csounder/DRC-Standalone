@@ -16,13 +16,26 @@ export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
     title: 'FM Bell (Player)',
     filename: 'player_fm_bell.csd',
     playerReady: true,
-    description: 'Live FM bell with reverb — keyboard + knobs, no API key',
+    description: 'Shimmering dual-modulator FM bell (Dr.B golden model) — keyboard + knobs, no API key',
+  },
+  {
+    id: 'player_pluck_bass',
+    title: 'Ping-pong Bass (Player)',
+    filename: 'player_pluck_bass.csd',
+    playerReady: true,
+    description: 'FM pluck bass with ping-pong delay — keyboard + knobs, no API key',
   },
   {
     id: 'fm_bell',
     title: 'FM Bell (Agent score)',
     filename: 'fm_bell_starter.csd',
-    description: 'Golden workshop bell — plays on Agent; Player wraps locally',
+    description: 'Shimmering FM bell with descending melody — Agent golden starter',
+  },
+  {
+    id: 'pluck_bass',
+    title: 'Ping-pong Bass (Agent score)',
+    filename: 'pluck_bass_starter.csd',
+    description: 'FM pluck bass with cross-fed vdelay3 echo — Agent golden starter',
   },
   {
     id: 'fm',

@@ -26,10 +26,11 @@ export async function readWorkshopStarter(id: string): Promise<{ meta: WorkshopS
   }
 }
 
-/** Default one-tap demo for Player — fully player-ready, no LLM. */
+/** Default one-tap demos for Player — fully player-ready, no LLM. */
 export const WORKSHOP_PLAYER_DEMO_ID = 'player_fm_bell'
+export const WORKSHOP_PLAYER_PLUCK_ID = 'player_pluck_bass'
 
-export async function loadWorkshopPlayerDemo(): Promise<string | null> {
-  const r = await readWorkshopStarter(WORKSHOP_PLAYER_DEMO_ID)
+export async function loadWorkshopPlayerDemo(id = WORKSHOP_PLAYER_DEMO_ID): Promise<string | null> {
+  const r = await readWorkshopStarter(id)
   return r?.content ?? null
 }
