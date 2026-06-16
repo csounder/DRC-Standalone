@@ -1,16 +1,27 @@
-/** Load bundled LAC workshop CSDs — no API key required. */
+/** Load bundled workshop / player demo CSDs — no API key required. */
 
 export interface WorkshopStarterMeta {
   id: string
   title: string
   filename: string
   playerReady?: boolean
+  playerDemo?: boolean
+  demoGroup?: string
+  demoOrder?: number
   description: string
 }
 
 export async function listWorkshopStarters(): Promise<WorkshopStarterMeta[]> {
   try {
     return (await window.api?.workshop?.list?.()) ?? []
+  } catch {
+    return []
+  }
+}
+
+export async function listPlayerDemos(): Promise<WorkshopStarterMeta[]> {
+  try {
+    return (await window.api?.workshop?.listDemos?.()) ?? []
   } catch {
     return []
   }
@@ -26,19 +37,18 @@ export async function readWorkshopStarter(id: string): Promise<{ meta: WorkshopS
   }
 }
 
-/** Default one-tap demos for Player — fully player-ready, no LLM. */
-export const WORKSHOP_PLAYER_DEMO_ID = 'player_fm_bell'
-export const WORKSHOP_PLAYER_PLUCK_ID = 'player_pluck_bass'
-export const WORKSHOP_PLAYER_FM_ID = 'player_fm_starter'
+export const WORKSHOP_PLAYER_FM_BELL_ID = 'player_fm_bell'
 
-/** Agent landing buttons → pre-built Player CSDs (skip offline adapt). */
-export const WORKSHOP_PLAYER_BY_AGENT: Record<string, string> = {
-  fm_bell: WORKSHOP_PLAYER_DEMO_ID,
-  pluck_bass: WORKSHOP_PLAYER_PLUCK_ID,
-  fm_simple: WORKSHOP_PLAYER_FM_ID,
-}
-
-export async function loadWorkshopPlayerDemo(id = WORKSHOP_PLAYER_DEMO_ID): Promise<string | null> {
+export async function loadWorkshopPlayerDemo(id: string): Promise<string | null> {
   const r = await readWorkshopStarter(id)
   return r?.content ?? null
+}
+
+export async function deletePlayerDemo(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const r: any = await window.api?.workshop?.deleteUserDemo?.(id)
+    return r?.ok ? { ok: true } : { ok: false, error: r?.error ?? 'Delete failed' }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Delete failed' }
+  }
 }

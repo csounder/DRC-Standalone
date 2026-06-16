@@ -1,8 +1,8 @@
 import { primaryContent, type Artifact } from '../stores/artifactStore'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { useSessionStore } from '../stores/sessionStore'
-import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
 import { prepareCsdForOfflineRender } from '../../shared/csd-offline-prepare'
+import { prepareCsdForWebappCompile } from '../../shared/csd-webapp-prepare'
 
 export interface PlayArtifactOptions {
   /** False when replaying after an auto-fix (no second auto-fix). */
@@ -11,7 +11,7 @@ export interface PlayArtifactOptions {
 
 // One auto-fix attempt per artifact — prevents compile→fix→play→fail→fix loops.
 const autofixAttempts = new Map<string, number>()
-const AUTOFIX_LIMIT = 1
+const AUTOFIX_LIMIT = 2
 
 /** Prepare CSD for offline WAV render (strips realtime flags, injects demo score if needed). */
 export function prepareCsdForWavRender(csd: string): string {
@@ -38,6 +38,19 @@ export async function compileCheckCsd(
   }
 }
 
+export async function compileCheckWebappCsd(
+  csd: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!window.api?.csound) return { ok: true }
+  try {
+    const { path } = await window.api.csound.writeCsd(prepareCsdForWebappCompile(csd))
+    const res = await window.api.csound.compile(path)
+    return res.success ? { ok: true } : { ok: false, error: String(res.error ?? 'compile failed') }
+  } catch (err: any) {
+    return { ok: false, error: String(err?.message ?? err) }
+  }
+}
+
 export async function playArtifact(
   artifact: Artifact,
   opts: PlayArtifactOptions = {},
@@ -46,8 +59,6 @@ export async function playArtifact(
   if (!window.api?.csound) return
   const store = usePlaybackStore.getState()
   store.set({ artifactId: artifact.id, status: 'compiling', message: 'Rendering with Csound…' })
-  useCsoundConsoleStore.getState().setEnabled(true)
-  useCsoundConsoleStore.getState().setExpanded(true)
 
   try {
     const { path } = await window.api.csound.writeCsd(prepareCsdForWavRender(primaryContent(artifact)))

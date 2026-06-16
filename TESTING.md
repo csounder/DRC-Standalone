@@ -16,8 +16,8 @@ npm test
 
 This runs:
 
-1. **`scripts/test-platform-launchers.mjs`** — launcher files + cross-platform PATH contract (run on **each OS** before LAC)
-2. **`scripts/smoke-test.mjs`** — 99 checks (PATH, platform launchers, Player, Settings, knowledge bundle, workshop starters, TypeScript regression guard)
+1. **`scripts/test-platform-launchers.mjs`** — launcher files + PATH contract (macOS and Linux)
+2. **`scripts/smoke-test.mjs`** — 126 checks (**macOS and Linux only** — exits immediately on Windows)
 3. **`scripts/check-memory.mjs`** — better-sqlite3 loads under Electron
 4. **`npm run build`** — production bundle compiles
 
@@ -33,7 +33,7 @@ Platform launchers only:
 npm run test:platform
 ```
 
-**Expected:** `99 passed, 0 failed` (smoke) + platform launcher checks, then `Workshop tests passed`.
+**Expected:** `126 passed, 0 failed` (smoke) + platform launcher checks, then `Workshop tests passed`.
 
 ---
 
@@ -54,19 +54,18 @@ Participant guide: **`Dr.C/opencode/GET-STARTED.md`**
 
 ---
 
-## Cross-platform gate (run on each OS)
+## Cross-platform gate (macOS & Linux — LAC 2026)
 
-Before LAC, run the automated gate on **macOS**, **Linux**, and **Windows** (VM or physical machine):
+Run the full automated gate on **macOS and Linux** before LAC:
 
 | OS | Dr.C Standalone | Dr.C Terminal |
 |----|-----------------|---------------|
-| **macOS** | `npm run test:platform && npm run test:smoke` | `npm run test:platform && npm run test:workshop` |
-| **Linux** | same | same |
-| **Windows** | `npm run test:platform` then `npm run test:smoke` in PowerShell | `npm run test:platform` then `npm run test:workshop` |
+| **macOS** | `npm test` | `npm run test:platform && npm run test:workshop` |
+| **Linux** | `npm test` | `npm run test:platform && npm run test:workshop` |
 
-**Verified on macOS (darwin arm64):** Standalone 28 platform + 99 smoke; Terminal 18 platform + 12 workshop — all passed.
+**Verified on macOS (darwin arm64):** Standalone 27 platform + 126 smoke; Terminal 18 platform + 12 workshop — all passed (2026-06-15).
 
-Linux/Windows: file/syntax checks always run; `csound`/`bun` runtime checks skip gracefully if not installed on the CI/VM host.
+Linux: `csound`/`bun` runtime checks skip gracefully if not installed on the CI/VM host.
 
 **Linux caveat (verified on Ubuntu 22.04 VM):** `apt install csound` ships **6.17** — `test:platform` reports a **SKIP** for Csound 7; `test:smoke` may still pass (98/98). Full workshop gate needs Csound 7 built from source. See `PARTICIPANTS.md` Linux section.
 
@@ -99,9 +98,10 @@ Launch attendee mode:
 |---|------|-------|
 | A1 | Agent → **Load workshop FM bell (no key)** — CSD appears in panel | |
 | A2 | **Web Apps** tab opens without key prompt | |
-| A3 | Player → **Workshop demo (no key)** — status reaches “Live — click keyboard” | |
-| A4 | Click keyboard — hear sound | |
+| A3 | Player → **Demos** dropdown → load FM-Bell or any MIDI model → “Live — click keyboard” | |
+| A4 | Click keyboard (or QWERTY keys) — hear sound at normal level | |
 | A5 | Settings → **Done** returns to Agent; gear toggles Settings off | |
+| A6 | Web App artifact → **Open in Browser** (set browser in Settings if needed) → **Start Audio** | |
 
 ### B. With API keys (Gemini + Groq)
 
@@ -118,7 +118,8 @@ Launch Pro+ or attendee with keys in Settings:
 | B2 | Rate limit: if throttled, **countdown** shows; **Try again** works after wait | |
 | B3 | Player → **Load current CSD from Agent** → adapt → keyboard plays | |
 | B4 | Artifact → **Open in CsoundQt** opens in your CS7 CsoundQt | |
-| B5 | Convert to Web App → preview plays in browser | |
+| B5 | Convert to Web App → preview plays; **Open in Browser** works; keyboard uses Hz (no `cpsmidinn` errors) | |
+| B6 | Player → load **Henon** or **Moog** demo — velocity loud enough (not ~127× too quiet) | |
 
 ### C. Dr.C Terminal
 
@@ -149,6 +150,8 @@ Double-click **`Launch Web App.command`** → Start audio → load a sample → 
 | “Playing” but no sound | `-iadc` with no mic | Fixed — no default ADC unless configured |
 | Blank screen after send | Stale dev server on port 5173 | `launch-drc.sh` kills 5173 first |
 | Gemini empty / no CSD | Free tier rate limit | Wait for countdown; use Groq; or attendee mode |
+| Web app `cpsmidinn` out of range | Old export used MIDI opcodes with Hz keyboard | Re-convert; or use latest `webHarness` (adapts at compile) |
+| Web app silent in browser | Skipped **Start Audio** or offline | Click Start Audio; need CDN network |
 | `better-sqlite3` error | Node/Electron ABI mismatch | `npx electron-builder install-app-deps` |
 | Packaged app “damaged” (macOS) | Unsigned build | Right-click → Open, or notarize for wide release |
 

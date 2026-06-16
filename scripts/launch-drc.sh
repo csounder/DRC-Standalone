@@ -14,7 +14,7 @@ cd "$ROOT"
 
 if ! command -v csound >/dev/null 2>&1; then
   echo "Csound not found. Install Csound 7 and ensure it is on PATH."
-  echo "See PARTICIPANTS.md (macOS / Linux / Windows section for your OS)."
+  echo "See PARTICIPANTS.md (macOS or Linux section)."
   exit 1
 fi
 
@@ -42,6 +42,18 @@ fi
 if [[ "${DRC_DRY_RUN:-}" == "1" ]]; then
   echo "DRC_DRY_RUN=1 — preflight OK (skipping npm run dev)"
   exit 0
+fi
+
+# Start Ollama when installed but not already serving (local LLM for Agent).
+if command -v ollama >/dev/null 2>&1; then
+  if ! curl -sf --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+    echo "Starting Ollama (local LLM)…"
+    nohup ollama serve >/tmp/ollama-drc.log 2>&1 &
+    for _ in {1..24}; do
+      curl -sf --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
+      sleep 0.5
+    done
+  fi
 fi
 
 exec npm run dev

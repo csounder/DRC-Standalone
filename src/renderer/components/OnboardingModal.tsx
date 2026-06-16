@@ -15,6 +15,7 @@ const ORDER: Step[] = ['welcome', 'tour', 'key', 'done']
 export default function OnboardingModal({ onClose }: Props) {
   const [step, setStep] = useState<Step>('welcome')
   const [groqKey, setGroqKey] = useState('')
+  const [googleKey, setGoogleKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [savingProvider, setSavingProvider] = useState<'google' | 'groq' | null>(null)
   const [available, setAvailable] = useState<string[]>([])
@@ -63,6 +64,7 @@ export default function OnboardingModal({ onClose }: Props) {
         setSavingProvider(null)
         return
       }
+      if (provider === 'google') setGoogleKey('')
       if (provider === 'groq') setGroqKey('')
       setStep('done')
     } catch (e) {
@@ -93,7 +95,9 @@ export default function OnboardingModal({ onClose }: Props) {
           {step === 'key' && (
             <KeyStep
               groqKey={groqKey}
+              googleKey={googleKey}
               setGroqKey={setGroqKey}
+              setGoogleKey={setGoogleKey}
               onSave={handleSaveKey}
               saving={saving}
               savingProvider={savingProvider}
@@ -175,10 +179,12 @@ function Tour({ onJump }: { onJump: (path: string) => void }) {
 }
 
 function KeyStep({
-  groqKey, setGroqKey, onSave, saving, savingProvider, error, alreadyHas,
+  groqKey, googleKey, setGroqKey, setGoogleKey, onSave, saving, savingProvider, error, alreadyHas,
 }: {
   groqKey: string
+  googleKey: string
   setGroqKey: (v: string) => void
+  setGoogleKey: (v: string) => void
   onSave: (provider: 'google' | 'groq', key: string) => void
   saving: boolean
   savingProvider: 'google' | 'groq' | null
@@ -186,14 +192,16 @@ function KeyStep({
   alreadyHas: boolean
 }) {
   const groq = PROVIDER_OPTIONS.find((p) => p.id === 'groq')!
+  const gemini = PROVIDER_OPTIONS.find((p) => p.id === 'google')!
 
   return (
     <div style={styles.stepBody}>
       <div style={styles.eyebrow}>One thing to set up</div>
-      <h2 style={styles.h2}>Add a free Groq key.</h2>
+      <h2 style={styles.h2}>Add an API key.</h2>
       <p style={styles.body}>
-        The Agent needs an LLM key. <strong>Groq</strong> is free and works best for workshops.
-        If Dr.C pauses, wait for the countdown and try again. <strong>Web Apps</strong> need no key.
+        Free <strong>Groq</strong> or <strong>Gemini</strong> keys work for trying Dr.C (rate limits apply — Dr.C shows a countdown).
+        For the best sound design, use <strong>your own</strong> Anthropic or OpenAI key in Settings later.
+        <strong> Web Apps</strong> need no key.
       </p>
 
       {alreadyHas ? (
@@ -204,7 +212,7 @@ function KeyStep({
         <>
           <div style={styles.providerBlock}>
             <div style={styles.providerLabel}>{groq.label} <span style={styles.freeTag}>Free</span></div>
-            <p style={styles.hintLine}>Key from {groq.signupLabel}</p>
+            <p style={styles.hintLine}>Recommended free tier — key from {groq.signupLabel}</p>
             <div style={styles.keyRow}>
               <input
                 type="password"
@@ -221,6 +229,28 @@ function KeyStep({
                 style={{ ...styles.primaryButton, opacity: !groqKey.trim() ? 0.4 : 1 }}
               >
                 {savingProvider === 'groq' ? 'Checking…' : 'Save'}
+              </button>
+            </div>
+          </div>
+
+          <div style={styles.providerBlock}>
+            <div style={styles.providerLabel}>{gemini.label} <span style={styles.freeTag}>Free backup</span></div>
+            <p style={styles.hintLine}>Optional — key from {gemini.signupLabel}</p>
+            <div style={styles.keyRow}>
+              <input
+                type="password"
+                value={googleKey}
+                onChange={(e) => setGoogleKey(e.target.value)}
+                placeholder={gemini.keyPlaceholder}
+                style={styles.input}
+                onKeyDown={(e) => e.key === 'Enter' && onSave('google', googleKey)}
+              />
+              <button
+                onClick={() => onSave('google', googleKey)}
+                disabled={!googleKey.trim() || saving}
+                style={{ ...styles.primaryButton, opacity: !googleKey.trim() ? 0.4 : 1 }}
+              >
+                {savingProvider === 'google' ? 'Checking…' : 'Save'}
               </button>
             </div>
           </div>

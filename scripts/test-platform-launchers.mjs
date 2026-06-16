@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Cross-platform launcher + PATH contract checks.
- * Run on each OS before workshop (Mac/Linux/Windows).
+ * LAC 2026 workshop gate — macOS and Linux launchers + PATH contract.
  *
  *   node scripts/test-platform-launchers.mjs
  */
@@ -68,7 +68,7 @@ if (csoundPathSrc.includes('win32') && csoundPathSrc.includes('linux') && csound
 
 // PARTICIPANTS.md sections
 const participants = readFileSync(join(REPO, 'PARTICIPANTS.md'), 'utf-8')
-for (const section of ['### macOS', '### Linux', '### Windows']) {
+for (const section of ['### macOS', '### Linux']) {
   if (participants.includes(section)) ok(`PARTICIPANTS.md has ${section}`)
   else bad(`PARTICIPANTS.md missing ${section}`)
 }

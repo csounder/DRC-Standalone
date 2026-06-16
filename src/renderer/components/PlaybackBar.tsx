@@ -1,7 +1,7 @@
 import { type CSSProperties } from 'react'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { useArtifactStore } from '../stores/artifactStore'
-import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
+import { useCsoundConsoleStore, isConsoleVisible } from '../stores/csoundConsoleStore'
 import { CSOUND_CONSOLE_HEIGHT } from './CsoundConsole'
 import { stopPlayback } from '../lib/playback'
 
@@ -13,14 +13,16 @@ export default function PlaybackBar() {
   const message = usePlaybackStore((s) => s.message)
   const setActive = useArtifactStore((s) => s.setActive)
   const artifact = useArtifactStore((s) => s.artifacts.find((a) => a.id === artifactId))
-  const consoleEnabled = useCsoundConsoleStore((s) => s.enabled)
+  const consoleVisible = useCsoundConsoleStore((s) =>
+    isConsoleVisible({ userPinned: s.userPinned, errorReveal: s.errorReveal, editorHidesConsole: s.editorHidesConsole }),
+  )
   const consoleExpanded = useCsoundConsoleStore((s) => s.expanded)
   const setConsoleExpanded = useCsoundConsoleStore((s) => s.setExpanded)
 
   if (!artifactId || status === 'idle') return null
 
   const isError = status === 'error'
-  const consoleOffset = consoleEnabled && consoleExpanded ? CSOUND_CONSOLE_HEIGHT + 14 : 14
+  const consoleOffset = consoleVisible && consoleExpanded ? CSOUND_CONSOLE_HEIGHT + 14 : 14
 
   return (
     <div style={{ ...styles.bar, ...(isError ? styles.barError : {}), bottom: consoleOffset }}>
@@ -41,7 +43,7 @@ export default function PlaybackBar() {
         <span style={styles.title}>{artifact?.title ?? 'Csound'}</span>
         <span style={styles.status}>{message || status}</span>
       </button>
-      {isError && consoleEnabled && !consoleExpanded && (
+      {isError && consoleVisible && !consoleExpanded && (
         <button
           type="button"
           onClick={() => setConsoleExpanded(true)}

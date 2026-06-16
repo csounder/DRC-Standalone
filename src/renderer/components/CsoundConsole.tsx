@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import {
   formatCsoundConsoleLines,
+  isConsoleVisible,
   isCsoundErrorLine,
   useCsoundConsoleStore,
 } from '../stores/csoundConsoleStore'
@@ -9,12 +10,16 @@ import {
 const PANEL_HEIGHT = 200
 
 export default function CsoundConsole() {
-  const enabled = useCsoundConsoleStore((s) => s.enabled)
+  const userPinned = useCsoundConsoleStore((s) => s.userPinned)
+  const errorReveal = useCsoundConsoleStore((s) => s.errorReveal)
+  const editorHidesConsole = useCsoundConsoleStore((s) => s.editorHidesConsole)
+  const visible = isConsoleVisible({ userPinned, errorReveal, editorHidesConsole })
   const expanded = useCsoundConsoleStore((s) => s.expanded)
   const lines = useCsoundConsoleStore((s) => s.lines)
   const append = useCsoundConsoleStore((s) => s.append)
   const clear = useCsoundConsoleStore((s) => s.clear)
   const setExpanded = useCsoundConsoleStore((s) => s.setExpanded)
+  const dismiss = useCsoundConsoleStore((s) => s.dismiss)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [copyHint, setCopyHint] = useState<string | null>(null)
   const [saveHint, setSaveHint] = useState<string | null>(null)
@@ -59,14 +64,18 @@ export default function CsoundConsole() {
     el.scrollTop = el.scrollHeight
   }, [lines])
 
-  if (!enabled) return null
+  if (!visible) return null
 
   return (
     <div style={{ ...styles.shell, ...(expanded ? {} : styles.shellCollapsed) }}>
       <div style={styles.header}>
         <span style={styles.title}>Csound output</span>
         <span style={styles.hint}>
-          {lines.length === 0 ? 'Compile and play messages appear here' : `${lines.length} lines`}
+          {errorReveal && !userPinned
+            ? 'Opened for error — hide with ▼ or sidebar >_'
+            : lines.length === 0
+              ? 'Compile and play messages appear here'
+              : `${lines.length} lines`}
         </span>
         <div style={{ flex: 1 }} />
         <button
@@ -92,9 +101,9 @@ export default function CsoundConsole() {
         </button>
         <button
           type="button"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => (expanded ? dismiss() : setExpanded(true))}
           style={styles.headerBtn}
-          title={expanded ? 'Collapse' : 'Expand'}
+          title={expanded ? 'Hide panel' : 'Expand'}
         >
           {expanded ? '▼' : '▲'}
         </button>
@@ -103,7 +112,7 @@ export default function CsoundConsole() {
         <div ref={scrollRef} style={styles.body}>
           {lines.length === 0 ? (
             <div style={styles.placeholder}>
-              Compile and play output appears here. On errors the panel opens automatically — use{' '}
+              On errors the panel opens automatically — use{' '}
               <strong>Copy all</strong> or <strong>Save log</strong>, or drag to select text.
             </div>
           ) : (

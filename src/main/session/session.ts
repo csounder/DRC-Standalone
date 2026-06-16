@@ -5,6 +5,7 @@ import { Tool } from '../tool/registry'
 import { Retrieval } from '../retrieval/engine'
 import { MemoryStore } from '../memory/store'
 import { MemoryRetrieval } from '../memory/retrieve'
+import { matchGoldenShortcut } from './golden-shortcut'
 import { Lessons } from '../memory/lessons'
 import { NarrationManager } from './narration'
 import { ascending } from '../util/id'
@@ -142,11 +143,32 @@ export namespace SessionManager {
 
     yield { type: 'status', content: retry ? 'Retrying your request…' : 'Preparing your request…' }
 
+    const isAutofix = /^The CSD you just wrote failed to (compile|run)\b/.test(content)
+
+    if (!isAutofix && !retry && !isConversionTurn(content)) {
+      const golden = matchGoldenShortcut(content)
+      if (golden) {
+        Log.info(`Golden shortcut: ${golden.starterId}`)
+        yield { type: 'status', content: 'Using verified golden pattern (Csound 7 compile-checked)…' }
+        const response = `${golden.intro}\n\n${golden.csd}`
+        yield { type: 'text', content: response }
+        const assistantMsg: SessionMessage = {
+          id: ascending('message'),
+          role: 'assistant',
+          content: response,
+          timestamp: Date.now(),
+        }
+        session.messages.push(assistantMsg)
+        MemoryStore.appendMessage({ ...assistantMsg, sessionId: sessionID })
+        MemoryStore.touchSession(sessionID)
+        Bus.emit('session:message', { sessionID, role: 'assistant', content: response })
+        return
+      }
+    }
+
     const abort = { cancelled: false, forceEnd: undefined as (() => void) | undefined }
     generationAbort.set(sessionID, abort)
     const clearAbort = () => generationAbort.delete(sessionID)
-
-    const isAutofix = /^The CSD you just wrote failed to (compile|run)\b/.test(content)
 
     Retrieval.init()
     const [ragContext, specialistBrief] = await Promise.all([

@@ -10,27 +10,26 @@ This branch targets **Csound 7** for native CLI compile/render and **@csound/bro
 - **Runtime detection** injects detected Csound version into the agent environment
 - **Web app conversion** compile-checks orchestra before wrapping HTML
 - **Workshop starters** in `resources/workshop-starters/` (verified compile targets)
+- **Player demo menu** — 70+ MIDI models + Trapped in Convert + FM-Bell (`player-model-demos.json`)
+- **Web apps** — Csound 7 WASM harness; compile-then-start; Hz keyboard adapt; **Open in Browser**
+- **Golden shortcuts** — FM woodblock → `fmpercfl` starter (Agent, no LLM)
 - **Workshop-lite mode** (`DRC_WORKSHOP_LITE=1`): skips narration so each turn uses **one** cheap model call — useful for free-tier workshops only
 - **Pro+ mode** (default in `scripts/launch-drc.sh` via `DRC_PRO_PLUS=1`): Gemini Pro, narration, specialist consults, full book RAG
 
-## Groq (recommended for workshops)
+## Agent models (workshops)
 
-Each Agent turn uses one API call (workshop-lite mode). **Groq is the default** when a Groq key is saved — free Gemini is disabled for Agent.
+See **[LOCAL-LLM.md](./LOCAL-LLM.md)** for the full local-setup handout (Ollama install, model picks, troubleshooting).
 
-- Get a free key at [console.groq.com/keys](https://console.groq.com/keys)
-- Free tier rate limits (~30 requests/minute) may pause Dr.C — wait for the **countdown**, then **Try again**
-- **Ollama** (local) is an optional fallback with no rate limits
-- Use `./scripts/launch-drc.sh` (Pro+ defaults for Dr. B; set `DRC_WORKSHOP_LITE=1` for attendee builds)
-- **Web Apps** need no API key
+| Path | Best for |
+|------|----------|
+| **Your own Anthropic/OpenAI key** | Best Csound output — encourage attendees to bring one |
+| **Ollama (local)** | Best **free** option — no signup, no rate limits |
+| Groq / Gemini (free tier) | Try-it backups — rate limits + variable quality |
+| No model | Web Apps, Player workshop demos |
 
-## Free provider options
+**Ollama quick start:** [ollama.com/download](https://ollama.com/download) → `ollama pull qwen2.5-coder:7b` → Settings → Use Ollama for Agent
 
-| Provider | Cost | Get a key |
-|----------|------|-----------|
-| Groq (default) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
-| Ollama (local) | Free | [ollama.com](https://ollama.com/download) |
-
-Free Gemini is not used for workshop Agent turns. Pro+ builds may optionally add Gemini for narration/consults only.
+**Attendee launchers** (macOS/Linux): `launch-workshop-attendee.sh`
 
 ## Quick start
 
@@ -69,22 +68,18 @@ sudo apt install build-essential cmake libjack-jackd2-dev
 # Follow Csound 7 build instructions at https://github.com/csound/csound
 ```
 
-### Windows
-
-Install Csound 7 from [csound.com/download](https://csound.com/download.html) and ensure `csound` is on PATH.
-
 ## Workshop smoke test
 
-Run on **macOS, Linux, and Windows** before the session:
+Run on **macOS and Linux** before the session:
 
 ```bash
 export PATH="$HOME/bin:$HOME/Applications/Csound:$HOME/.local/bin:$PATH"
 cd ~/DRC-Standalone
-npm run test:platform   # launchers + PARTICIPANTS.md sections
-npm test                # platform + smoke + memory + build
+npm run test:platform
+npm test
 ```
 
-Quick smoke only: `npm run test:smoke` (99 checks).
+Quick smoke only (macOS/Linux): `npm run test:smoke`
 
 See also: **`PARTICIPANTS.md`** (attendee handout), **`TESTING.md`** (manual checklist), **`VERSIONS.md`**, **`RELEASE-CHECKLIST.md`**.
 

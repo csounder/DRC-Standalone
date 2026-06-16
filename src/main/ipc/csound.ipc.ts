@@ -10,8 +10,8 @@ import { withCsoundPath } from '../util/csound-path'
 import { getCsoundEnvironment, refreshCsoundEnvironment } from '../util/csound-version'
 import { buildRealtimeIoFlags, describeAudioRouting, readAudioIoConfig } from '../csound/audio-flags'
 import { getConfigValue, setConfigValue } from '../util/config'
-import { AUDIO_OUTPUT_KEY, AUDIO_INPUT_KEY, MIDI_INPUT_KEY } from './config-keys'
-import { listAudioDevices } from '../util/audio-devices'
+import { AUDIO_INPUT_KEY, AUDIO_INPUT_OFF, AUDIO_OUTPUT_KEY, MIDI_INPUT_KEY } from './config-keys'
+import { listAudioDevices, resolveStoredOutputIndex } from '../util/audio-devices'
 import {
   compileCheckPath,
   needsHoldScoreShortening,
@@ -33,18 +33,113 @@ let playKilledBySignal = false
 /** True once realtime csound has finished its initial score and accepts stdin events. */
 let playReady = false
 
+/** Best-effort note-offs + score end before killing realtime csound (avoids layered tails). */
+function flushRealtimeNotes(stdin: NodeJS.WritableStream | null | undefined): void {
+  if (!stdin || (stdin as NodeJS.WritableStream & { destroyed?: boolean }).destroyed) return
+  try {
+    for (let midi = 0; midi < 128; midi++) {
+      const tag = `1.${midi.toString().padStart(3, '0')}`
+      stdin.write(`i -${tag} 0 0\n`)
+    }
+    stdin.write('i -1 0 0\n')
+    stdin.write('i -99 0 0\n')
+    stdin.write('e\n')
+  } catch { /* ignore */ }
+}
+
+/** Orphan csound processes (from crashed stops) can lock macOS Core Audio system-wide. */
+async function killOrphanDrcCsoundProcesses(): Promise<void> {
+  if (process.platform === 'win32') return
+  const drcTemp = join(app.getPath('temp'), 'drc')
+  for (const name of ['realtime-play.csd', 'current.csd', 'offline-render.csd']) {
+    try {
+      await execFileAsync('pkill', ['-9', '-f', join(drcTemp, name)])
+    } catch {
+      /* no matching processes */
+    }
+  }
+}
+
+/** Kill the running csound/afplay process and wait until the OS releases the audio device. */
+function stopPlayProcess(): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = () => {
+      void killOrphanDrcCsoundProcesses().finally(() => setTimeout(resolve, 150))
+    }
+    if (!playProcess) {
+      playReady = false
+      finish()
+      return
+    }
+    const proc = playProcess
+    const stdin = proc.stdin
+    const pid = proc.pid
+    playKilledBySignal = true
+    playReady = false
+    playProcess = null
+
+    flushRealtimeNotes(stdin)
+
+    let settled = false
+    const done = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(forceKill)
+      clearTimeout(hardCap)
+      finish()
+    }
+
+    proc.once('close', done)
+    proc.once('error', done)
+
+    const forceKill = setTimeout(() => {
+      try {
+        if (process.platform !== 'win32' && pid) {
+          process.kill(-pid, 'SIGKILL')
+        } else {
+          proc.kill('SIGKILL')
+        }
+      } catch {
+        try { proc.kill('SIGKILL') } catch { /* ignore */ }
+      }
+    }, 80)
+
+    const hardCap = setTimeout(done, 2000)
+
+    try {
+      if (process.platform !== 'win32' && pid) {
+        process.kill(-pid, 'SIGKILL')
+      } else {
+        proc.kill('SIGKILL')
+      }
+    } catch {
+      try { proc.kill('SIGKILL') } catch { done() }
+    }
+  })
+}
+
 /** Drop saved dac/adc indices that no longer match csound --devices (wrong backend = silent output). */
 async function ensureAudioDevicesValid(): Promise<Awaited<ReturnType<typeof listAudioDevices>>> {
   const devs = await listAudioDevices().catch(() => ({ outputs: [], inputs: [], midiInputs: [] }))
   const out = getConfigValue(AUDIO_OUTPUT_KEY) ?? ''
   const inp = getConfigValue(AUDIO_INPUT_KEY) ?? ''
   const midi = getConfigValue(MIDI_INPUT_KEY) ?? ''
-  if (/^\d+$/.test(out) && !devs.outputs.some((d) => String(d.index) === out)) {
-    setConfigValue(AUDIO_OUTPUT_KEY, '')
-    Log.warn(`Cleared stale audio output index ${out} — device not in csound list`)
+  const resolvedOut = resolveStoredOutputIndex(out, devs.outputs)
+  if (resolvedOut !== out) {
+    setConfigValue(AUDIO_OUTPUT_KEY, resolvedOut)
+    const from = out || 'Auto'
+    const toLabel =
+      resolvedOut === ''
+        ? 'Auto (physical output)'
+        : (() => {
+            const toDev = devs.outputs.find((d) => String(d.index) === resolvedOut)
+            return toDev ? `${toDev.name} (${toDev.id})` : resolvedOut
+          })()
+    Log.warn(`Audio output ${from} → ${toLabel}`)
   }
   if (/^\d+$/.test(inp) && !devs.inputs.some((d) => String(d.index) === inp)) {
-    setConfigValue(AUDIO_INPUT_KEY, '')
+    setConfigValue(AUDIO_INPUT_KEY, AUDIO_INPUT_OFF)
+    Log.warn(`Cleared stale audio input index ${inp} — device not in csound list`)
   }
   if (/^\d+$/.test(midi) && !devs.midiInputs.some((d) => String(d.index) === midi)) {
     setConfigValue(MIDI_INPUT_KEY, '')
@@ -177,9 +272,10 @@ async function playRealtimeCsound(
 ): Promise<{ success: boolean; output?: string; error?: string }> {
   let playPath = csdPath
   let cleanupPlay = false
+  const cfg = readAudioIoConfig()
   try {
     const raw = readFileSync(csdPath, 'utf-8')
-    const prepared = prepareCsdForRealtimePlay(raw)
+    const prepared = prepareCsdForRealtimePlay(raw, cfg)
     playPath = join(getTempDir(), 'realtime-play.csd')
     writeFileSync(playPath, prepared, 'utf-8')
     cleanupPlay = true
@@ -192,10 +288,10 @@ async function playRealtimeCsound(
 
   const devs = await listAudioDevices().catch(() => ({ outputs: [], inputs: [], midiInputs: [] }))
   const deviceCtx = { outputs: devs.outputs, inputs: devs.inputs }
-  const cfg = readAudioIoConfig()
-  const ioFlags = buildRealtimeIoFlags(playPath, cfg, deviceCtx)
+  const playerIo = { webMidiOnly: true }
+  const ioFlags = buildRealtimeIoFlags(playPath, cfg, deviceCtx, playerIo)
   const playArgs = [...ioFlags, '-d', '-m0', '-Lstdin', playPath]
-  emitCsoundOutput(sender, 'info', describeAudioRouting(playPath, cfg, deviceCtx))
+  emitCsoundOutput(sender, 'info', describeAudioRouting(playPath, cfg, deviceCtx, playerIo))
   emitCsoundOutput(sender, 'info', `▶ csound ${playArgs.join(' ')}`)
 
   return new Promise((resolve) => {
@@ -232,6 +328,7 @@ async function playRealtimeCsound(
     playProcess = spawn('csound', playArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: withCsoundPath(),
+      detached: process.platform !== 'win32',
     })
 
     const maybeReady = () => {
@@ -415,6 +512,10 @@ function extractCsoundError(raw: string): string {
 
 export function handleCsoundIPC(ipcMain: IpcMain): void {
   void refreshCsoundEnvironment()
+  void killOrphanDrcCsoundProcesses()
+  app.on('before-quit', () => {
+    void killOrphanDrcCsoundProcesses()
+  })
 
   ipcMain.handle('csound:getEnvironment', async () => {
     const env = await refreshCsoundEnvironment()
@@ -522,12 +623,7 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle('csound:play', async (event, csdPath: string, opts?: { realtime?: boolean }) => {
-    if (playProcess) {
-      playKilledBySignal = true
-      playReady = false
-      playProcess.kill()
-      playProcess = null
-    }
+    await stopPlayProcess()
 
     // Agent playback: render WAV + afplay → macOS system output (headphones, USB DAC, etc.).
     // Player page: realtime csound with live MIDI/knobs.
@@ -585,13 +681,7 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle('csound:stop', async () => {
-    if (playProcess) {
-      playKilledBySignal = true
-      playReady = false
-      playProcess.kill()
-      playProcess = null
-      return { success: true }
-    }
+    await stopPlayProcess()
     return { success: true }
   })
 

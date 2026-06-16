@@ -94,6 +94,15 @@ Format:
   - **INSTALLATION.md is an agent-oriented runbook** (distinct from the human-facing README): ordered steps with a **Verify** gate each, key setup both ways (`.env` dev / Settings packaged), an end-to-end smoke test, packaging + `gh release` steps, and a Gotchas section (the AI-SDK v1 pin is #1). Keep it in sync with README's Releases filename patterns.
   - **Shipped mac only.** `dist:win`/`dist:linux` not run (need Windows/Linux tooling). Unsigned — Gatekeeper note still applies. tsc baseline unchanged (only new errors in touched files would be mine; none).
 
+## [2026-06-15] Cursor agent — LAC workshop push: Player demos, web apps, browser export, docs
+- branch: `lac-2026-csound7` (pushed)
+- files: Player (`PlayerDemosMenu`, `midiModelPlayerWrap`, 60+ models in `workshop-starters/models/`), web (`webHarness.ts`, `csd-webapp-prepare.ts`, `openInBrowser`), Agent (`golden-shortcut.ts`, RAG `engine.ts`), `browser-path.ts`, docs (`HOTEL-RESUME.md`, `PARTICIPANTS.md`, `TESTING.md`, …)
+- tests: macOS `npm test` → 126 smoke + 27 platform + build pass
+- notes:
+  - **Player MIDI volume:** keyboard sends p5 0–1; wrap must use `p5 * scale`, not `p5/127`.
+  - **Web apps:** adapt `cpsmidinn(p4)` → `p4` (Hz); WASM7 compileCsdText then start(); Open in Browser + Settings → Web Browser.
+  - **Resume new chats with `HOTEL-RESUME.md`** — do not paste full transcript.
+
 ## [2026-06-14] Cursor agent — LAC 2026 workshop: CsoundQt, free-tier UX, timeout/cancel/retry
 - files (Standalone, branch `lac-2026-csound7`, **uncommitted**):
   - CsoundQt: `src/main/util/{csoundqt-path,launch-external}.ts`, `export.ipc.ts`, `ArtifactPanel.tsx`, Settings

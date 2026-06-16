@@ -219,6 +219,8 @@ export namespace Retrieval {
       else if (id.startsWith('mccurdy-haiku-')) score *= 5.5
       else if (id.startsWith('elected-')) score *= 5
       else if (id.startsWith('flossmanual')) score *= 4
+      else if (id.startsWith('csoundmanual-')) score *= 5.5
+      else if (id.startsWith('zuccobook-')) score *= 4.5
       else if (id.startsWith('lazzarinispectral') || id.startsWith('lazzarinicsound')) score *= 3.5
       else if (id.startsWith('lazzarini')) score *= 3
       else if (id.startsWith('hornerbook')) score *= 2.5
@@ -280,7 +282,36 @@ export namespace Retrieval {
     init()
     const parts: string[] = []
     const q = query.toLowerCase()
-    const cap = isProPlus() ? 6000 : 3000
+    const cap = isProPlus() ? 6000 : 4500
+
+    const pushCatalogGolden = (exId: string, label: string, maxLen = 2400) => {
+      const ex = csdExamples.get(exId)
+      if (ex) {
+        parts.push(
+          `<golden-pattern source="${label}" priority="adapt-this">\n${ex.slice(0, maxLen)}\n</golden-pattern>`,
+        )
+      }
+    }
+
+    // FM synthesis — pin Csound Manual + catalog models FIRST (before cap truncation).
+    if (/\b(fm|foscil|fmbell|fmpercfl|modulat|carrier|modulator)\b/.test(q)) {
+      if (/\b(wood\s*block|woodblock|clave|block|percussion|perc|drum)\b/.test(q)) {
+        pushCatalogGolden('csoundmanual-fmpercfl', 'Csound Manual — fmpercfl (FM percussion; kc1/kc2 decay)')
+        pushCatalogGolden('zuccobook-cap-10-6-wood', 'Zucco Book Cap 10.6 — modal wood plate')
+      }
+      if (/\b(bell|chime|glock|marimba)\b/.test(q)) {
+        pushCatalogGolden('csoundmanual-fmbell', 'Csound Manual — fmbell (standard kc1/kc2 bell FM)')
+        pushCatalogGolden('flossmanual-04d10-bell', 'FLOSS Manual — inharmonic FM bell (5:7 ratio)')
+      }
+      if (/\b(midi|keyboard|controller)\b/.test(q)) {
+        parts.push(
+          `<knowledge-doc source="Dr.C MIDI pattern">\n` +
+          `For MIDI keyboard: massign 0, 1; iFreq cpsmidi or cpsmidinn(p4); iAmp ampmidi 1 or p5/127; ` +
+          `CsOptions: -+rtmidi=NULL -M0 --midi-key-cps=4 --midi-velocity-amp=5. ` +
+          `Adapt fmpercfl/fmbell from the golden patterns above — do NOT reinvent foscili wiring.\n</knowledge-doc>`,
+        )
+      }
+    }
 
     // Elected Csound Models — foundational workshop authorities
     const electedGolden: [RegExp, string, string][] = [
@@ -473,6 +504,11 @@ export namespace Retrieval {
 
     if (/\b(shimmer|bell|chime)\b/i.test(q) && !/\b(simple|plain|2-?\s*operator)\b/i.test(q)) {
       pushGoldenStarter('fm_bell_starter.csd', 'Dr.B shimmer FM bell starter (verified Csound 7)')
+    } else if (/\b(wood\s*block|woodblock|temple\s*block|clave)\b/i.test(q) && /\b(fm|percussion|perc|midi)\b/i.test(q)) {
+      pushGoldenStarter('fm_woodblock_midi_starter.csd', 'Dr.B FM woodblock MIDI — fmpercfl kc1/kc2 (verified Csound 7)')
+      pushCatalogGolden('csoundmanual-fmpercfl', 'Csound Manual — fmpercfl')
+    } else if (/\b(wood\s*block|woodblock|temple\s*block)\b/i.test(q) && /\b(fm|percussion|perc)\b/i.test(q)) {
+      pushGoldenStarter('fm_woodblock_midi_starter.csd', 'Dr.B FM woodblock — fmpercfl (verified Csound 7)')
     } else if (
       /\b(simple|plain|2-?\s*operator|two-?\s*operator|warm|resonant)\b/i.test(q) &&
       /\b(fm|synth|foscil)\b/i.test(q)
@@ -498,8 +534,24 @@ export namespace Retrieval {
       )
     }
 
-    // Always pin foscili when FM is mentioned
+    // Always pin foscili when FM is mentioned (after catalog FM opcodes above).
     if (/\b(fm|bell|chime|foscil|modulat)\b/.test(q)) {
+      const fmperc = opcodeMap.get('fmpercfl')
+      const fmbell = opcodeMap.get('fmbell')
+      if (fmperc) {
+        parts.push(
+          `<opcode name="fmpercfl" critical="true">` +
+          `FM percussion — use for woodblock/clave hits. Syntax: ares fmpercfl xamp, kcps, kc1, kc2, kvdepth, kvrate. ` +
+          `Decay kc2 with expsegr. ${fmperc.description}</opcode>`,
+        )
+      }
+      if (fmbell) {
+        parts.push(
+          `<opcode name="fmbell" critical="true">` +
+          `FM bell — textbook kc1/kc2 ratios. Syntax: ares fmbell xamp, kcps, kc1, kc2, kvdepth, kvrate. ` +
+          `${fmbell.description}</opcode>`,
+        )
+      }
       const card = opcodeMap.get('foscili')
       if (card) {
         parts.push(

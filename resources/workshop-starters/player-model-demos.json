@@ -1,0 +1,542 @@
+[
+  {
+    "id": "model_models_bass_analogsynth",
+    "title": "Analog Synth",
+    "filename": "models/bass/AnalogSynth.csd",
+    "playerDemo": true,
+    "demoGroup": "Bass",
+    "demoOrder": 200,
+    "description": "Analog Synth — Bass (Dr. B collection)"
+  },
+  {
+    "id": "model_models_bass_basssequencer",
+    "title": "Bass Sequencer",
+    "filename": "models/bass/BassSequencer.csd",
+    "playerDemo": true,
+    "demoGroup": "Bass",
+    "demoOrder": 201,
+    "description": "Bass Sequencer — Bass (Dr. B collection)"
+  },
+  {
+    "id": "model_models_bass_buzzbass",
+    "title": "Buzz Bass",
+    "filename": "models/bass/BuzzBass.csd",
+    "playerDemo": true,
+    "demoGroup": "Bass",
+    "demoOrder": 202,
+    "description": "Buzz Bass — Bass (Dr. B collection)"
+  },
+  {
+    "id": "model_models_bass_moogbass",
+    "title": "Moog Bass",
+    "filename": "models/bass/MoogBass.csd",
+    "playerDemo": true,
+    "demoGroup": "Bass",
+    "demoOrder": 203,
+    "description": "Moog Bass — Bass (Dr. B collection)"
+  },
+  {
+    "id": "model_models_bass_tb303subtractive",
+    "title": "TB303Subtractive",
+    "filename": "models/bass/TB303Subtractive.csd",
+    "playerDemo": true,
+    "demoGroup": "Bass",
+    "demoOrder": 204,
+    "description": "TB303Subtractive — Bass (Dr. B collection)"
+  },
+  {
+    "id": "model_models_bass_technobass",
+    "title": "Techno Bass",
+    "filename": "models/bass/TechnoBass.csd",
+    "playerDemo": true,
+    "demoGroup": "Bass",
+    "demoOrder": 205,
+    "description": "Techno Bass — Bass (Dr. B collection)"
+  },
+  {
+    "id": "model_models_chinese_instruments_hulusi",
+    "title": "Hulusi",
+    "filename": "models/chinese_instruments/Hulusi.csd",
+    "playerDemo": true,
+    "demoGroup": "Chinese Instruments",
+    "demoOrder": 210,
+    "description": "Hulusi — Chinese Instruments (Dr. B collection)"
+  },
+  {
+    "id": "model_models_chinese_instruments_sheng",
+    "title": "Sheng",
+    "filename": "models/chinese_instruments/Sheng.csd",
+    "playerDemo": true,
+    "demoGroup": "Chinese Instruments",
+    "demoOrder": 211,
+    "description": "Sheng — Chinese Instruments (Dr. B collection)"
+  },
+  {
+    "id": "model_models_crickets_crickets",
+    "title": "Crickets",
+    "filename": "models/crickets/Crickets.csd",
+    "playerDemo": true,
+    "demoGroup": "Crickets",
+    "demoOrder": 220,
+    "description": "Crickets — Crickets (Dr. B collection)"
+  },
+  {
+    "id": "model_models_filters_yi_diodeladderfilter",
+    "title": "Yi Diode Ladder Filter",
+    "filename": "models/filters/Yi-DiodeLadderFilter.csd",
+    "playerDemo": true,
+    "demoGroup": "Filters",
+    "demoOrder": 230,
+    "description": "Yi Diode Ladder Filter — Filters (Dr. B collection)"
+  },
+  {
+    "id": "model_models_pulse_width_mod_pulsewidthmodsynth",
+    "title": "Pulse Width Mod Synth",
+    "filename": "models/pulse_width_mod/_PulseWidthModSynth.csd",
+    "playerDemo": true,
+    "demoGroup": "Pulse Width Mod",
+    "demoOrder": 240,
+    "description": "Pulse Width Mod Synth — Pulse Width Mod (Dr. B collection)"
+  },
+  {
+    "id": "model_models_handpan_handpan1_handpan",
+    "title": "handpan1",
+    "filename": "models/handpan/handpan1/handpan.csd",
+    "playerDemo": true,
+    "demoGroup": "HandPan",
+    "demoOrder": 250,
+    "description": "handpan1 — HandPan (Dr. B collection)"
+  },
+  {
+    "id": "model_models_handpan_handpan2_handpan",
+    "title": "handpan2",
+    "filename": "models/handpan/handpan2/handpan.csd",
+    "playerDemo": true,
+    "demoGroup": "HandPan",
+    "demoOrder": 251,
+    "description": "handpan2 — HandPan (Dr. B collection)"
+  },
+  {
+    "id": "model_models_granular_synth_granular_eugenio_giordani",
+    "title": "SYNTH   Granular   Eugenio Giordani",
+    "filename": "models/granular/SYNTH - Granular - Eugenio Giordani.csd",
+    "playerDemo": true,
+    "demoGroup": "Granular",
+    "demoOrder": 260,
+    "description": "SYNTH   Granular   Eugenio Giordani — Granular (Dr. B collection)"
+  },
+  {
+    "id": "model_models_fm_synth_fm_fm_bell_bass_clairnet_wood",
+    "title": "FM Bell Bass Clairnet Wood",
+    "filename": "models/fm/synth_fm_FM_Bell_Bass_Clairnet_Wood.csd",
+    "playerDemo": true,
+    "demoGroup": "FM",
+    "demoOrder": 270,
+    "description": "FM Bell Bass Clairnet Wood — FM (Dr. B collection)"
+  },
+  {
+    "id": "model_models_fm_synth_fm_fm_stringpad",
+    "title": "FM String Pad",
+    "filename": "models/fm/synth_fm_FM_StringPad.csd",
+    "playerDemo": true,
+    "demoGroup": "FM",
+    "demoOrder": 271,
+    "description": "FM String Pad — FM (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_analoggbuzzbass",
+    "title": "Analog Gbuzz Bass",
+    "filename": "models/misc_synths/AnalogGbuzzBass.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 280,
+    "description": "Analog Gbuzz Bass — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_analogsynth",
+    "title": "Analog Synth",
+    "filename": "models/misc_synths/AnalogSynth.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 281,
+    "description": "Analog Synth — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_bambooflute1",
+    "title": "Bamboo Flute1",
+    "filename": "models/misc_synths/BambooFlute1.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 282,
+    "description": "Bamboo Flute1 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_bambooflute2",
+    "title": "Bamboo Flute2",
+    "filename": "models/misc_synths/BambooFlute2.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 283,
+    "description": "Bamboo Flute2 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_bassclarinet",
+    "title": "Bass Clarinet",
+    "filename": "models/misc_synths/BassClarinet.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 284,
+    "description": "Bass Clarinet — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_crickets",
+    "title": "Crickets",
+    "filename": "models/misc_synths/Crickets.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 285,
+    "description": "Crickets — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_deepnote",
+    "title": "Deep Note",
+    "filename": "models/misc_synths/DeepNote.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 286,
+    "description": "Deep Note — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_dizi",
+    "title": "Dizi",
+    "filename": "models/misc_synths/Dizi.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 287,
+    "description": "Dizi — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_fmbellbrassclarinetwood",
+    "title": "FMBell Brass Clarinet Wood",
+    "filename": "models/misc_synths/FMBellBrassClarinetWood.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 288,
+    "description": "FMBell Brass Clarinet Wood — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_fm_sitar_brass_bell_pianowood",
+    "title": "FM Sitar,Brass,Bell,Piano Wood",
+    "filename": "models/misc_synths/FM_Sitar,Brass,Bell,PianoWood.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 289,
+    "description": "FM Sitar,Brass,Bell,Piano Wood — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_fmstringpad",
+    "title": "FMstring Pad",
+    "filename": "models/misc_synths/FMstringPad.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 290,
+    "description": "FMstring Pad — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_pads_fatsubtractivepad",
+    "title": "Fat Subtractive Pad",
+    "filename": "models/pads/FatSubtractivePad.csd",
+    "playerDemo": true,
+    "demoGroup": "Pads",
+    "demoOrder": 290,
+    "description": "Fat Subtractive Pad — Pads (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_fofchoir",
+    "title": "FOFchoir",
+    "filename": "models/misc_synths/FOFchoir.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 291,
+    "description": "FOFchoir — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_pads_noiseglisspad",
+    "title": "Noise Gliss Pad",
+    "filename": "models/pads/NoiseGlissPad.csd",
+    "playerDemo": true,
+    "demoGroup": "Pads",
+    "demoOrder": 291,
+    "description": "Noise Gliss Pad — Pads (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_feedbacksimulator",
+    "title": "Feedback Simulator",
+    "filename": "models/misc_synths/FeedbackSimulator.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 292,
+    "description": "Feedback Simulator — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_pads_pulsewidthmodsynth",
+    "title": "Pulse Width Mod Synth",
+    "filename": "models/pads/PulseWidthModSynth.csd",
+    "playerDemo": true,
+    "demoGroup": "Pads",
+    "demoOrder": 292,
+    "description": "Pulse Width Mod Synth — Pads (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_flute1",
+    "title": "Flute1",
+    "filename": "models/misc_synths/Flute1.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 293,
+    "description": "Flute1 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_flute2",
+    "title": "Flute2",
+    "filename": "models/misc_synths/Flute2.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 294,
+    "description": "Flute2 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_frenchhorn",
+    "title": "French Horn",
+    "filename": "models/misc_synths/FrenchHorn.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 295,
+    "description": "French Horn — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_hulusi",
+    "title": "Hulusi",
+    "filename": "models/misc_synths/Hulusi.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 296,
+    "description": "Hulusi — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_iteratedsinesynthtechinque",
+    "title": "Iterated Sine Synth Techinque",
+    "filename": "models/misc_synths/IteratedSineSynthTechinque.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 297,
+    "description": "Iterated Sine Synth Techinque — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_karplusstrongsynthtechnique",
+    "title": "Karplus Strong Synth Technique",
+    "filename": "models/misc_synths/KarplusStrongSynthTechnique.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 298,
+    "description": "Karplus Strong Synth Technique — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_noiseglisspad",
+    "title": "Noise Gliss Pad",
+    "filename": "models/misc_synths/NoiseGlissPad.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 299,
+    "description": "Noise Gliss Pad — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_physicalmodels1",
+    "title": "Physical Models1",
+    "filename": "models/misc_synths/PhysicalModels1.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 300,
+    "description": "Physical Models1 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_analog_synth_analogsynth",
+    "title": "Analog Synth",
+    "filename": "models/analog_synth/_AnalogSynth.csd",
+    "playerDemo": true,
+    "demoGroup": "Analog Synth",
+    "demoOrder": 300,
+    "description": "Analog Synth — Analog Synth (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_pulsewidthmodsynth",
+    "title": "Pulse Width Mod Synth",
+    "filename": "models/misc_synths/PulseWidthModSynth.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 301,
+    "description": "Pulse Width Mod Synth — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_scott_daughtrey_ghostbell_syn",
+    "title": "Ghost Bell",
+    "filename": "models/misc_synths/Scott_Daughtrey-GhostBell-synth+fx/GhostBell.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 302,
+    "description": "Ghost Bell — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_sheng",
+    "title": "Sheng",
+    "filename": "models/misc_synths/Sheng.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 303,
+    "description": "Sheng — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_stepsequencer",
+    "title": "Step Sequencer",
+    "filename": "models/misc_synths/StepSequencer.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 304,
+    "description": "Step Sequencer — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_subtract808opcode",
+    "title": "Subtract808Opcode",
+    "filename": "models/misc_synths/Subtract808Opcode.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 305,
+    "description": "Subtract808Opcode — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_subtracttb303",
+    "title": "Subtract TB303",
+    "filename": "models/misc_synths/SubtractTB303.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 306,
+    "description": "Subtract TB303 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_subtracttb808math",
+    "title": "Subtract TB808Math",
+    "filename": "models/misc_synths/SubtractTB808Math.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 307,
+    "description": "Subtract TB808Math — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_subtractivefatpad",
+    "title": "Subtractive Fat Pad",
+    "filename": "models/misc_synths/SubtractiveFatPad.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 308,
+    "description": "Subtractive Fat Pad — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_wavesequencing",
+    "title": "Wave Sequencing",
+    "filename": "models/misc_synths/WaveSequencing.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 309,
+    "description": "Wave Sequencing — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_waveshapefatpad",
+    "title": "Wave Shape Fat Pad",
+    "filename": "models/misc_synths/WaveShapeFatPad.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 310,
+    "description": "Wave Shape Fat Pad — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_cz_synth_czdblsine",
+    "title": "CZdblsine",
+    "filename": "models/cz_synth/CZdblsine.csd",
+    "playerDemo": true,
+    "demoGroup": "CZ Synth",
+    "demoOrder": 310,
+    "description": "CZdblsine — CZ Synth (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_waveshapeanalogpad1",
+    "title": "Waveshape Analogpad1",
+    "filename": "models/misc_synths/WaveshapeAnalogpad1.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 311,
+    "description": "Waveshape Analogpad1 — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_cz_synth_czresonance_copy",
+    "title": "CZresonance copy",
+    "filename": "models/cz_synth/CZresonance copy.csd",
+    "playerDemo": true,
+    "demoGroup": "CZ Synth",
+    "demoOrder": 311,
+    "description": "CZresonance copy — CZ Synth (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_waveshapebrass",
+    "title": "Waveshape Brass",
+    "filename": "models/misc_synths/WaveshapeBrass.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 312,
+    "description": "Waveshape Brass — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_cz_synth_czresonance",
+    "title": "CZresonance",
+    "filename": "models/cz_synth/CZresonance.csd",
+    "playerDemo": true,
+    "demoGroup": "CZ Synth",
+    "demoOrder": 312,
+    "description": "CZresonance — CZ Synth (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_waveshapeclarinet",
+    "title": "Waveshape Clarinet",
+    "filename": "models/misc_synths/WaveshapeClarinet.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 313,
+    "description": "Waveshape Clarinet — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_cz_synth_czresonance2",
+    "title": "CZresonance2",
+    "filename": "models/cz_synth/CZresonance2.csd",
+    "playerDemo": true,
+    "demoGroup": "CZ Synth",
+    "demoOrder": 313,
+    "description": "CZresonance2 — CZ Synth (Dr. B collection)"
+  },
+  {
+    "id": "model_models_misc_synths_scanhammer_plucktest_scanhamm",
+    "title": "Scan Hammer Displace Test",
+    "filename": "models/misc_synths/scanHammer+PluckTest/ScanHammerDisplaceTest.csd",
+    "playerDemo": true,
+    "demoGroup": "Misc Synths",
+    "demoOrder": 314,
+    "description": "Scan Hammer Displace Test — Misc Synths (Dr. B collection)"
+  },
+  {
+    "id": "model_models_cz_synth_czsqr",
+    "title": "CZsqr",
+    "filename": "models/cz_synth/CZsqr.csd",
+    "playerDemo": true,
+    "demoGroup": "CZ Synth",
+    "demoOrder": 314,
+    "description": "CZsqr — CZ Synth (Dr. B collection)"
+  }
+]

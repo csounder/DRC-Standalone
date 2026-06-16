@@ -2,6 +2,7 @@
 <CsOptions>
 -o dac
 -d
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 sr = 44100

@@ -42,6 +42,13 @@ function lookupPricing(providerID: string, modelID: string) {
     return PRICING['openai:gpt-4.1-mini']
   }
   if (providerID === 'openai') return PRICING['openai:gpt-4.1']
+  if (providerID === 'openrouter') {
+    if (modelID.includes('haiku')) return PRICING['anthropic:claude-haiku-4-5']
+    if (modelID.startsWith('anthropic/')) return PRICING['anthropic:claude-sonnet-4-5']
+    if (modelID.includes('mini')) return PRICING['openai:gpt-4.1-mini']
+    if (modelID.startsWith('openai/')) return PRICING['openai:gpt-4.1']
+    if (modelID.startsWith('google/')) return PRICING['google:gemini-2.5-flash']
+  }
   return { input: 0, output: 0 }
 }
 

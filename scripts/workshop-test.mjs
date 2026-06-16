@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 //
-// Workshop readiness test — run before LAC sessions:
+// Workshop readiness test — **macOS and Linux gate** before LAC sessions:
 //
 //     node scripts/workshop-test.mjs
 //
-// Runs smoke tests + memory check + starter compiles. Exits non-zero on failure.
+// On Windows: runs platform launcher checks only (smoke/memory/build skipped).
 
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
@@ -22,6 +22,12 @@ function run(label, cmd, args, opts = {}) {
 }
 
 run('Platform launchers', 'node', ['scripts/test-platform-launchers.mjs'])
+
+if (process.platform === 'win32') {
+  console.log('\n⊘ Smoke/workshop gate skipped on Windows — run `npm test` on macOS or Linux before LAC.')
+  process.exit(0)
+}
+
 run('Smoke test suite', 'node', ['scripts/smoke-test.mjs'])
 run('Memory module check', 'npm', ['run', 'check-memory', '--silent'])
 run('Production build', 'npm', ['run', 'build'], { timeout: 120_000 })

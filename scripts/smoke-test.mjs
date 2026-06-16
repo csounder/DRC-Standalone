@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 //
-// End-to-end smoke test for the fixes landed in this commit. Run with:
+// End-to-end smoke test — **macOS and Linux only** (not a Windows workshop gate).
 //
 //     node scripts/smoke-test.mjs
+//
+// On Windows this script exits 0 immediately with a skip message.
+// Run the full gate on macOS or Linux before LAC.
 //
 // What it exercises (all in process, no Electron, no GUI):
 //
@@ -38,6 +41,13 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)))
+
+if (process.platform === 'win32') {
+  console.log('\n[smoke-test] SKIP — workshop smoke runs on macOS and Linux only.')
+  console.log('On Windows, run: npm run test:platform (launcher file checks)\n')
+  process.exit(0)
+}
+
 const TMP = mkdtempSync(join(tmpdir(), 'drc-smoke-'))
 
 let passed = 0
@@ -171,8 +181,8 @@ for (const rel of launcherFiles) {
 }
 
 const part = readFileSync(join(REPO, 'PARTICIPANTS.md'), 'utf-8')
-if (part.includes('### macOS') && part.includes('### Linux') && part.includes('### Windows')) {
-  ok('PARTICIPANTS.md covers macOS, Linux, and Windows')
+if (part.includes('### macOS') && part.includes('### Linux')) {
+  ok('PARTICIPANTS.md covers macOS and Linux (LAC 2026)')
 } else bad('PARTICIPANTS.md missing OS install sections')
 
 // ───────────────────────────────────────────────────────────────────────
@@ -475,11 +485,60 @@ if (settingsSrc.includes('Saved in DRC:') && settingsSrc.includes('detected via 
   bad('status banner does not distinguish saved keys from env-var keys')
 }
 
-const providerSrc = readFileSync(join(REPO, 'src/main/provider/provider.ts'), 'utf-8')
-if (providerSrc.includes('if (hasGroq())') && providerSrc.includes("return { providerID: 'groq'")) {
-  ok('defaultProvider prefers Groq whenever a Groq key is configured')
+if (
+  settingsSrc.includes('SETUP_GUIDE') &&
+  settingsSrc.includes('formatWorkshopLinksForClipboard')
+) {
+  ok('Settings: setup guide section with copy links')
 } else {
-  bad('provider.ts must use Groq before Gemini when Groq key is saved')
+  bad('Settings missing setup guide copy links')
+}
+
+if (settingsSrc.includes('Local LLM server') && settingsSrc.includes('Server URL')) {
+  ok('Settings: Local LLM server + URL field')
+} else {
+  bad('Settings missing Local LLM server URL field')
+}
+
+const audioDevSrc = readFileSync(join(REPO, 'src/main/util/audio-devices.ts'), 'utf-8')
+if (
+  audioDevSrc.includes('findPreferredDefaultOutput') &&
+  audioDevSrc.includes('isPoorDefaultOutput') &&
+  /blackhole/i.test(audioDevSrc)
+) {
+  ok('audio-devices skips BlackHole/virtual outputs for default dac')
+} else {
+  bad('audio-devices must never default to BlackHole')
+}
+
+const ollamaProbeSrc = readFileSync(join(REPO, 'src/main/provider/ollama.ts'), 'utf-8')
+if (ollamaProbeSrc.includes('probeLocalLlm') && ollamaProbeSrc.includes('/v1/models')) {
+  ok('local LLM probe uses OpenAI /v1/models')
+} else {
+  bad('ollama.ts must probe /v1/models for OpenAI-compatible servers')
+}
+
+const providerSrc = readFileSync(join(REPO, 'src/main/provider/provider.ts'), 'utf-8')
+if (providerSrc.includes("case 'openrouter'") && providerSrc.includes('OPENROUTER_BASE_URL')) {
+  ok('provider.ts supports OpenRouter')
+} else {
+  bad('provider.ts missing OpenRouter integration')
+}
+if (providerSrc.includes('hasOpenRouter()') && providerSrc.includes("providerID: 'openrouter'")) {
+  ok('defaultProvider prefers OpenRouter when key is saved')
+} else {
+  bad('defaultProvider must prefer OpenRouter over free cloud keys')
+}
+if (providerSrc.includes('if (ollamaAvailable())') && providerSrc.includes("return { providerID: 'ollama'")) {
+  ok('defaultProvider still supports Ollama path')
+} else {
+  bad('provider.ts missing Ollama fallback in defaultProvider')
+}
+
+if (settingsSrc.includes('OpenRouter') && settingsSrc.includes("handleSaveKey('openrouter'")) {
+  ok('Settings: OpenRouter key field')
+} else {
+  bad('Settings missing OpenRouter key field')
 }
 
 // ───────────────────────────────────────────────────────────────────────
@@ -845,6 +904,29 @@ if (offlinePrepareSrc.includes('stripCsOptionsHandledByCli')) {
   bad('csd-offline-prepare.ts missing stripCsOptionsHandledByCli')
 }
 
+const webappPrepareSrc = existsSync(join(REPO, 'src/shared/csd-webapp-prepare.ts'))
+  ? readFileSync(join(REPO, 'src/shared/csd-webapp-prepare.ts'), 'utf-8')
+  : ''
+  if (
+  webappPrepareSrc.includes('prepareOrchestraForWebapp') &&
+  webappPrepareSrc.includes('adaptOrchestraPitchVelocityForWebKeyboard') &&
+  webappPrepareSrc.includes('isMisplacedScoreLine') &&
+  webappPrepareSrc.includes('instr\\s+100')
+) {
+  ok('webapp prepare strips misplaced score lines and adapts Hz keyboard pitch/velocity')
+} else {
+  bad('csd-webapp-prepare.ts missing orchestra cleanup for web export')
+}
+
+const webHarnessSrc = existsSync(join(REPO, 'src/renderer/lib/webHarness.ts'))
+  ? readFileSync(join(REPO, 'src/renderer/lib/webHarness.ts'), 'utf-8')
+  : ''
+if (webHarnessSrc.includes('compileCsdText') && webHarnessSrc.includes('adaptOrcForWebKeyboard')) {
+  ok('webHarness compiles CSD then starts WASM7 audio with keyboard Hz adapt')
+} else {
+  bad('webHarness.ts missing compileCsdText / keyboard adapt runtime')
+}
+
 const audioFlagsSrc = readFileSync(join(REPO, 'src/main/csound/audio-flags.ts'), 'utf-8')
 if (audioFlagsSrc.includes('resolveDacOutputArg') && audioFlagsSrc.includes("flags.push('-o',")) {
   ok('realtime play maps device index → dac id (-o dac1 not dac0)')
@@ -867,7 +949,12 @@ if (csoundIpcSrc.includes('prepareCsdForOfflineRender') && csoundIpcSrc.includes
 }
 
 const playbackSrc = readFileSync(join(REPO, 'src/main/csound/csd-playback.ts'), 'utf-8')
-if (playbackSrc.includes('prepareCsdForRealtimePlay') && playbackSrc.includes('csoundOutputIndicatesRealtimeReady')) {
+  if (playbackSrc.includes('ensureRealtimeChannelHeaders') && playbackSrc.includes('nchnls_i')) {
+    ok('prepareCsdForRealtimePlay injects nchnls_i for laptop mono mic / output-only play')
+  } else {
+    bad('csd-playback must inject nchnls_i for realtime channel mismatch')
+  }
+  if (playbackSrc.includes('prepareCsdForRealtimePlay') && playbackSrc.includes('csoundOutputIndicatesRealtimeReady')) {
   ok('csd-playback strips offline -o and demo scores for Player realtime')
   if (playbackSrc.includes('stripCsOptionsHandledByCli')) {
     ok('prepareCsdForRealtimePlay strips CsOptions flags handled on CLI')
@@ -940,16 +1027,25 @@ if (mechSrc.includes('export function mechanicalPlayerAdapt')) {
 }
 
 const agentSrc = readFileSync(join(REPO, 'src/renderer/pages/AgentPage.tsx'), 'utf-8')
-if (agentSrc.includes('Simple FM demo') && agentSrc.includes('pluck_bass') && agentSrc.includes('WORKSHOP_PLAYER_BY_AGENT')) {
-  ok('Agent offers no-key workshop starters (simple FM + bell + bass)')
+if (
+  agentSrc.includes('Explore Csound Models in Player') &&
+  agentSrc.includes('/player?demos=1')
+) {
+  ok('Agent links to Player demo menu')
 } else {
-  bad('Agent missing workshop starter paths')
+  bad('Agent missing Player demo menu link')
 }
 
-if (playerSrc.includes('Workshop demo (no key)') && playerSrc.includes('mechanicalPlayerAdapt')) {
-  ok('Player: workshop demo + mechanical adapt before LLM')
+const playerDemosMenuSrc = existsSync(join(REPO, 'src/renderer/components/player/PlayerDemosMenu.tsx'))
+  ? readFileSync(join(REPO, 'src/renderer/components/player/PlayerDemosMenu.tsx'), 'utf-8')
+  : ''
+if (
+  playerSrc.includes('PlayerDemosMenu') &&
+  playerDemosMenuSrc.includes('Demos — No API Key Required')
+) {
+  ok('Player: demo menu + mechanical adapt before LLM')
 } else {
-  bad('Player missing offline workshop paths')
+  bad('Player missing offline demo menu')
 }
 
 if (existsSync(join(REPO, 'scripts/launch-workshop-attendee.sh'))) {
@@ -958,6 +1054,24 @@ if (existsSync(join(REPO, 'scripts/launch-workshop-attendee.sh'))) {
   bad('scripts/launch-workshop-attendee.sh missing')
 }
 
+if (existsSync(join(REPO, 'resources/workshop/LAC-2026-one-slide.pdf'))) {
+  ok('workshop one-slide PDF handout present')
+} else {
+  bad('resources/workshop/LAC-2026-one-slide.pdf missing — run npm run generate:workshop-handout')
+}
+
+const workshopLinksSrc = readFileSync(join(REPO, 'src/shared/workshop-links.ts'), 'utf-8')
+if (
+  workshopLinksSrc.includes('formatWorkshopLinksForClipboard') &&
+  workshopLinksSrc.includes('WORKSHOP_LINK_GROUPS') &&
+  workshopLinksSrc.includes('SETUP_GUIDE')
+) {
+  ok('shared setup-links module present (SETUP_GUIDE for classes)')
+} else {
+  bad('src/shared/workshop-links.ts missing or incomplete')
+}
+
+
 for (const [file, opts] of [
   ['fm_bell_starter.csd', {}],
   ['pluck_bass_starter.csd', {}],
@@ -965,6 +1079,9 @@ for (const [file, opts] of [
   ['fm_piano_reverb_starter.csd', {}],
   ['pad_starter.csd', {}],
   ['player_fm_bell.csd', { shortenScore: true }],
+  ['player_trapped_blue.csd', { shortenScore: true }],
+  ['player_trapped_black.csd', { shortenScore: true }],
+  ['player_trapped_sand.csd', { shortenScore: true }],
   ['player_pluck_bass.csd', { shortenScore: true }],
   ['player_fm_starter.csd', { shortenScore: true }],
   ['midi_synth_starter.csd', { shortenScore: true, renderScore: '<CsScore>\ni 1 0 0.2 440 100\n</CsScore>' }],

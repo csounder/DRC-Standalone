@@ -3,6 +3,8 @@
 **Dr.C Standalone** (GUI) + optional **Dr.C Terminal** (CLI).  
 Branch: **`lac-2026-csound7`** · Version **1.3.1**
 
+> **LAC 2026 supports macOS and Linux only.** Windows builds and launchers are not part of this session.
+
 ---
 
 ## Choose your path
@@ -17,7 +19,7 @@ Branch: **`lac-2026-csound7`** · Version **1.3.1**
 
 ---
 
-## 1. Install Csound 7 (all platforms)
+## 1. Install Csound 7 (macOS & Linux)
 
 Verify after install:
 
@@ -65,16 +67,7 @@ sudo apt install -y nodejs
 
 User-local install path (optional): `~/Applications/Csound/csound` on `PATH` via `~/bin`.
 
-**Headless Linux (SSH, no desktop):** GUI launchers need a display (`DISPLAY` or Wayland). Use `npm run test:platform` and `npm run test:smoke` in the repo; run the Electron app on a machine with a desktop session.
-
-### Windows
-
-1. Download installer from [csound.com/download.html](https://csound.com/download.html).
-2. Run installer — note install folder (e.g. `C:\Program Files\Csound`).
-3. Ensure `csound.exe` is on **PATH** (installer usually does this).
-4. Open **new** Command Prompt and run: `csound --version`
-
-**Also need:** [Node.js 22 LTS](https://nodejs.org/) — check **Add to PATH** during install.
+**Headless Linux (SSH, no desktop):** GUI launchers need a display (`DISPLAY` or Wayland). Use `npm run test:platform` and `npm test` in the repo; run the Electron app on a machine with a desktop session.
 
 ---
 
@@ -89,7 +82,6 @@ User-local install path (optional): `~/Applications/Csound/csound` on `PATH` via
 | macOS Apple Silicon | `DrC-*-arm64.dmg` |
 | macOS Intel | `DrC-*-x64.dmg` |
 | Linux | `DrC-*.AppImage` |
-| Windows | `DrC Setup *.exe` |
 
 **macOS first launch:** app is unsigned — **Right-click → Open → Open**, or:
 ```bash
@@ -135,42 +127,54 @@ chmod +x launchers/*.sh scripts/*.sh
 ./launchers/Dr.C-Standalone.sh            # instructor
 ```
 
-### Windows
-
-**Double-click:**
-
-| Role | Launcher |
-|------|----------|
-| Attendee | `launchers\Dr.C-Workshop-Attendee.bat` |
-| Instructor | `launchers\Dr.C-Standalone.bat` |
-
-Or Command Prompt:
-
-```bat
-cd DRC-Standalone
-scripts\launch-workshop-attendee.bat
-```
-
-If PowerShell blocks scripts, launchers use `-ExecutionPolicy Bypass` automatically.
-
 ---
 
-## 4. API keys (optional)
+## 4. Agent model (optional)
 
-Open **Settings** in Dr.C:
+Dr.C needs a language model for the **Agent** tab. Three paths — pick what fits your workshop.
+
+### Best quality: your own API key (recommended for instructors)
+
+**Simplest:** one **[OpenRouter](https://openrouter.ai/keys)** key — routes to Claude, GPT, Gemini, and more. Add credits at [openrouter.ai/credits](https://openrouter.ai/credits). Paste in **Settings → Agent model → OpenRouter** → **Test**.
 
 | Provider | Cost | Get a key |
 |----------|------|-----------|
-## Groq (recommended)
+| **OpenRouter** (one key, many models) | Pay per use | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| Anthropic (Claude) direct | Paid credits | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
+| OpenAI direct | Paid credits | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+
+Paste in **Settings → API Keys** → **Test**.
+
+### Free cloud (backup — rate limits apply)
 
 | Provider | Cost | Get a key |
 |----------|------|-----------|
-| Groq (default) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
-| Ollama (local) | Free | [ollama.com/download](https://ollama.com/download) |
+| Groq | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
+| Google Gemini | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 
-Free Gemini is not used for workshop Agent turns. Paste a **Groq** key in Settings and click **Test**.
+Free tiers are weak for Csound sound design and hit rate limits (~20–30 requests/minute). Dr.C shows a **countdown timer** when throttled and switches between Groq and Gemini if both keys are saved. **Your own paid key works much better.**
 
-**Attendee launchers (macOS/Linux/Windows):** use `launch-workshop-attendee.sh` or `.ps1` — sets Groq-first, one LLM call per turn.
+### Best free option: local model (Ollama)
+
+No API key, no rate limits, runs on your Mac or Linux machine.
+
+| Step | Action |
+|------|--------|
+| 1 | Install [Ollama](https://ollama.com/download) |
+| 2 | Terminal: `ollama pull qwen2.5-coder:7b` |
+| 3 | Dr.C **Settings** → **Local LLM server** → **Use local LLM for Agent** → On → **Test** |
+
+**Full guide with model choices and troubleshooting:** **[LOCAL-LLM.md](./LOCAL-LLM.md)**
+
+Smaller laptops: `ollama pull qwen2.5-coder:3b` or `ollama pull llama3.2:3b`
+
+### No model at all
+
+- **Web Apps** tab — no key
+- **Player → Workshop demo** — no key
+- **Agent** → **Load workshop FM bell (no key)**
+
+**Attendee launchers:** `launch-workshop-attendee.sh` (macOS/Linux).
 
 ---
 
@@ -178,9 +182,20 @@ Free Gemini is not used for workshop Agent turns. Paste a **Groq** key in Settin
 
 ### Without any API key
 
-1. **Agent** → **Load workshop FM bell (no key)**
-2. **Player** → **Workshop demo (no key)** → click keyboard
-3. **Web Apps** tab — works offline
+1. **Agent** → **Load workshop FM bell (no key)** (or use golden starters via prompt)
+2. **Player** → **Demos** dropdown (FM-Bell, Trapped in Convert, 60+ MIDI models) → keyboard / QWERTY
+3. **Web Apps** tab — preview in app; **Open in Browser** after converting an artifact (needs network for WASM CDN)
+
+### Player demo menu groups
+
+| Group | Examples |
+|-------|----------|
+| Csound Models | FM-Bell |
+| Trapped in Convert | Blue, Black, Sand |
+| MIDI Synths | Moog, Henon, FM Pan, … |
+| Bass / Chinese / HandPan / FM / Pads / … | From Dr. B model collection |
+
+Refresh bundled demos from source folders: `node scripts/ingest-player-model-demos.mjs`
 
 ### With API key — try these prompts
 
@@ -205,17 +220,10 @@ Golden reference CSDs: `resources/workshop-starters/`
 ```bash
 export PATH="$HOME/bin:$HOME/Applications/Csound:$HOME/.local/bin:$PATH"
 cd DRC-Standalone
-npm run test:smoke
+npm test
 ```
 
-Expected: **99 passed, 0 failed**
-
-### Windows (PowerShell)
-
-```powershell
-cd DRC-Standalone
-npm run test:smoke
-```
+Expected: platform checks + **126 passed, 0 failed** (smoke) + build
 
 ---
 
@@ -227,7 +235,6 @@ For shell-native users — full guide: **`Dr.C/opencode/GET-STARTED.md`**
 |----|----------|
 | macOS | `Dr.C/opencode/launchers/Dr.C-Terminal.command` |
 | Linux | `Dr.C/opencode/launchers/Dr.C-Terminal.sh` |
-| Windows | `Dr.C/opencode/launchers/Dr.C-Terminal.bat` |
 
 ```bash
 git clone https://github.com/mateolarreaferro/Dr.C.git
@@ -247,6 +254,7 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 
 | Resource | URL |
 |----------|-----|
+| **One-slide handout (PDF)** | `resources/workshop/LAC-2026-one-slide.pdf` — or **Settings → Copy workshop links** / **Open one-slide PDF** in the app |
 | Dr.C Standalone repo | https://github.com/mateolarreaferro/DRC-Standalone |
 | Dr.C Terminal repo | https://github.com/mateolarreaferro/Dr.C |
 | Csound 7 releases | https://github.com/csound/csound/releases |
@@ -263,11 +271,13 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 |---------|-----|
 | `csound not found` | Re-run OS install steps; restart terminal; use workshop launcher (sets PATH) |
 | Blank screen after Send | Close app; launcher kills stale port 5173 |
-| Gemini empty / rate limit | Use Groq key; wait for countdown; use offline demos |
+| Agent empty / weak Csound | Enable Ollama, or add Anthropic/OpenAI; use offline demos |
 | macOS "damaged" app | Right-click → Open, or `xattr -cr DrC.app` |
-| Windows script blocked | Use `.bat` launchers in `launchers/` |
 | Linux `npm install` fails | Use Node 22; `npx electron-builder install-app-deps` |
 | Linux apt `csound` is 6.x | Ubuntu 22.04 ships 6.17 — build Csound 7 from source (see Linux section above) |
 | `test:platform` fails Csound 7 | Same — workshop gate needs 7.x even if `test:smoke` passes on 6.x |
+| Web app silent in browser | Press **Start Audio**; need internet for Csound WASM CDN; re-convert if console shows `cpsmidinn` errors |
+| MIDI demos very quiet | Update to latest `lac-2026-csound7` (velocity 0–1 fix in Player wrap) |
+| Settings → **Web Browser** | Choose Chrome/Safari/Firefox for **Open in Browser** on web app artifacts |
 
 Instructor docs: `WORKSHOP.md`, `TESTING.md`, `VERSIONS.md`

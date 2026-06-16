@@ -53,9 +53,10 @@ See `WORKSHOP.md` for detail. Summary:
 - **PATH** + runtime version detection for Csound
 - **Player compile-check** — shortens `f 0 36000` hold scores so compile does not hang
 - **Provider fallback** Groq ↔ Gemini + rate-limit countdown UI
-- **Offline workshop path** — `player_fm_bell.csd`, mechanical Player adapt, no-key buttons
-- **Workshop starters** in `resources/workshop-starters/`
-- Automated tests: `npm test` (platform launchers + 99 smoke checks + build)
+- **Offline workshop path** — `player_fm_bell.csd`, mechanical Player adapt, **Demos** dropdown
+- **Web app WASM 7** + Open in Browser + Settings → Web Browser
+- **Workshop starters** + **ingest-player-model-demos.mjs** for MIDI model menu
+- Automated tests: `npm test` on **macOS and Linux** (platform launchers + **126** smoke checks + build)
 
 ---
 
@@ -65,7 +66,7 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 
 - Versioned **Cabbage.app** detection (`Cabbage-2.10.x.app`)
 - CSD panel **Open in Cabbage** with auto-convert for plain CSDs
-- Workshop smoke: `npm run test:workshop` in `Dr.C/opencode`
+- Workshop smoke: `npm run test:workshop` in `Dr.C/opencode` (**macOS/Linux**)
 
 ---
 
@@ -77,7 +78,9 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 | `src/main/csound/compile-check.ts` | Short hold scores before dry-run compile |
 | `src/renderer/lib/mechanicalPlayerAdapt.ts` | Offline Player wrap (no LLM) |
 | `src/main/ipc/workshop.ipc.ts` | Load starters from renderer |
-| `scripts/smoke-test.mjs` | 99 automated checks |
+| `scripts/smoke-test.mjs` | **126** automated checks |
+| `scripts/ingest-player-model-demos.mjs` | Refresh Player MIDI demo menu from source folders |
+| `HOTEL-RESUME.md` | Short resume doc for new Cursor chats (token saver) |
 | `scripts/test-platform-launchers.mjs` | cross-platform launcher contract |
 | `scripts/workshop-test.mjs` | smoke + memory + production build |
 | `scripts/launch-workshop-attendee.sh` | Attendee env vars |

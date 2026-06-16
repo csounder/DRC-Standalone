@@ -18,7 +18,7 @@ chnset 0.7, "volume"
 
 instr 1
   iFreq = p4
-  iAmp  = p5 / 127
+  iAmp  = p5
   kCut  chnget "cutoff"
   kCut  port kCut, 0.05
   kRes  chnget "res"

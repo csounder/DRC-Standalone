@@ -1,6 +1,6 @@
 # Release Checklist — LAC 2026 → GitHub
 
-Steps to publish a **tested, proven** workshop build for Mac, Linux, and Windows attendees.
+Steps to publish a **tested, proven** workshop build for **macOS and Linux** (LAC 2026).
 
 **Do not skip manual testing** — run `TESTING.md` checklist first.
 
@@ -16,8 +16,8 @@ git status                                  # review diff
 git log -5 --oneline                        # commit message style
 ```
 
-- [ ] `npm run test:platform` on **macOS, Linux, and Windows**
-- [ ] `npm test` — platform launchers + 99 smoke + memory + build
+- [ ] `npm run test:platform` on **macOS and Linux**
+- [ ] `npm test` on **macOS and Linux** — platform + 99 smoke + memory + build
 - [ ] Manual checklist A1–B5 in `TESTING.md`
 - [ ] `WORKSHOP.md` and `VERSIONS.md` accurate
 - [ ] No secrets in diff (`.env`, API keys)

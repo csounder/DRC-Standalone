@@ -278,7 +278,24 @@ for (var mk in KEY_BIND) { BIND_TO_MIDI[KEY_BIND[mk]] = Number(mk); }
 function noteName(m) { return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1); }
 function isBlack(m) { var p = m % 12; return p === 1 || p === 3 || p === 6 || p === 8 || p === 10; }
 function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
-function tagFor(m) { return (1 + m / 1000).toFixed(3); }
+function tagFor(m) { return "1." + String(m).padStart(3, "0"); }
+
+// Web keyboard sends Hz in p4 and 0..1 velocity in p5 — not MIDI note numbers.
+function adaptOrcForWebKeyboard(orc) {
+  var b = orc;
+  b = b.replace(/\\bcpsmidinn\\s*\\(\\s*p4\\s*\\)/gi, "p4");
+  b = b.replace(/\\bcpsmidinn\\s*\\(\\s*p5\\s*\\)/gi, "p5");
+  b = b.replace(/^\\s*(\\w+)\\s+cpsmidinn\\s+p4\\b([^\\n]*)/gim, "$1 = p4$2");
+  b = b.replace(/^\\s*(\\w+)\\s+cpsmidinn\\s+p5\\b([^\\n]*)/gim, "$1 = p5$2");
+  b = b.replace(/^\\s*(\\w+)\\s+cpsmidib\\s+\\d+\\b([^\\n;]*)/gim, "$1 = p4$2");
+  b = b.replace(/^\\s*(\\w+)\\s+cpsmidib\\s+p4\\b([^\\n;]*)/gim, "$1 = p4$2");
+  b = b.replace(/^\\s*iamp\\s+ampmidi\\s+([^\\n;]+)/gim, "iAmp = p5 * ($1)");
+  b = b.replace(/^\\s*ilevl\\s+ampmidi\\s+([^\\n;]+)/gim, "iAmp = p5 * ($1)");
+  b = b.replace(/^\\s*iveloc\\s+ampmidi\\s+([^\\n;]+)/gim, "iveloc = p5 * ($1)");
+  b = b.replace(/^\\s*(\\w+)\\s+ampmidi\\s+([^\\n;]+)/gim, "$1 = p5 * ($2)");
+  b = b.replace(/\\bp5\\s*\\/\\s*127\\b/g, "p5");
+  return b;
+}
 
 function noteOn(m) {
   if (!running || !csound || active[m]) return;
@@ -343,14 +360,22 @@ async function start() {
     csound = await withTimeout(Csound({ useWorker: false, useSPN: false, outputChannelCount: 2 }), 20000, "Starting the audio engine");
     await csound.setOption("-odac");
     await csound.setOption("-m0");
+    await csound.setOption("-Lstdin");
+    var orcBody = adaptOrcForWebKeyboard(ORC);
+    var csdText =
+      "<CsoundSynthesizer>\\n<CsOptions>\\n-odac\\n-m0\\n-Lstdin\\n</CsOptions>\\n" +
+      "<CsInstruments>\\n" + orcBody + "\\n</CsInstruments>\\n" +
+      "<CsScore>\\nf 0 36000\\n</CsScore>\\n</CsoundSynthesizer>";
     setStatus("Compiling orchestra...", "");
-    // compileOrc resolves to a Csound status code (0 = success). On a parse
-    // error it does NOT reject — it returns non-zero and leaves instruments
-    // undefined, which would otherwise look like a silent "Ready" with no sound.
-    var compileStatus = await csound.compileOrc(ORC);
-    if (typeof compileStatus === "number" && compileStatus !== 0) {
+    // Compile the full CSD first (Csound 7 WASM), then start audio — same order as fm-bell.html.
+    var compileStatus = await csound.compileCsdText(csdText);
+    if (compileStatus !== undefined && compileStatus !== 0) {
+      compileStatus = await csound.compileOrc(orcBody);
+    }
+    if (compileStatus !== undefined && compileStatus !== 0) {
       throw new Error("the orchestra has a Csound syntax error (code " + compileStatus + "). See the browser console for the parser message.");
     }
+    setStatus("Starting audio engine...", "");
     await csound.start();
     // Init every channel to its slider default so the first k-period never reads 0.
     for (var i = 0; i < CHANNELS.length; i++) {

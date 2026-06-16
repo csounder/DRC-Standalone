@@ -62,9 +62,11 @@ export async function launchExternalOnFile(
 export const LAUNCH_HINTS = {
   cabbage: 'No Cabbage app found. Set its path in Settings → Cabbage.',
   csoundqt: 'No CsoundQt found. Install CsoundQt 7 (see docs) and set its path in Settings → CsoundQt.',
+  browser: 'No browser found. Choose your default browser in Settings → Web Browser.',
 }
 
 export const MAC_FALLBACK = {
   cabbage: MAC_CABBAGE_NAMES,
   csoundqt: MAC_CSOUNDQT_NAMES,
+  browser: ['Google Chrome', 'Safari', 'Firefox', 'Microsoft Edge', 'Brave Browser'],
 }

@@ -70,6 +70,8 @@ export default function ArtifactPanel({ onConvert }: Props) {
   const [cabbageSavedPath, setCabbageSavedPath] = useState<string>('')
   const [csoundQtStatus, setCsoundQtStatus] = useState<string>('')
   const [csoundQtSavedPath, setCsoundQtSavedPath] = useState<string>('')
+  const [browserStatus, setBrowserStatus] = useState<string>('')
+  const [browserSavedPath, setBrowserSavedPath] = useState<string>('')
   const handleOpenInCabbage = useCallback(async () => {
     if (!active || active.type !== 'vst') return
     setCabbageStatus('Saving and launching Cabbage…')
@@ -105,6 +107,24 @@ export default function ArtifactPanel({ onConvert }: Props) {
   const handleRevealCsoundQtFile = useCallback(() => {
     if (csoundQtSavedPath) void window.api?.export?.revealFile?.(csoundQtSavedPath)
   }, [csoundQtSavedPath])
+
+  const handleOpenInBrowser = useCallback(async () => {
+    if (!active || active.type !== 'webapp') return
+    setBrowserStatus('Saving and opening in browser…')
+    setBrowserSavedPath('')
+    const res = await window.api?.export?.openInBrowser?.(primaryContent(active), active.title)
+    if (res?.success) {
+      setBrowserStatus(`Opened ${res.path?.split('/').pop() ?? 'index.html'} in browser`)
+      setTimeout(() => setBrowserStatus(''), 6000)
+    } else {
+      setBrowserStatus(res?.error ? `Browser: ${String(res.error).slice(0, 200)}` : 'Browser launch failed')
+      if (res?.path) setBrowserSavedPath(res.path)
+    }
+  }, [active])
+
+  const handleRevealBrowserFile = useCallback(() => {
+    if (browserSavedPath) void window.api?.export?.revealFile?.(browserSavedPath)
+  }, [browserSavedPath])
 
   const handleSave = useCallback(() => {
     if (!active) return
@@ -226,6 +246,11 @@ export default function ArtifactPanel({ onConvert }: Props) {
           </button>
         )}
         <button onClick={handleSave} style={styles.secondary}>↓ Save</button>
+        {active.type === 'webapp' && (
+          <button onClick={handleOpenInBrowser} style={styles.secondary}>
+            🌐 Open in Browser
+          </button>
+        )}
         {active.type !== 'webapp' && (
           <button onClick={handleOpenInCsoundQt} style={styles.secondary}>
             ⌨ Open in CsoundQt
@@ -234,6 +259,11 @@ export default function ArtifactPanel({ onConvert }: Props) {
         {active.type === 'vst' && (
           <button onClick={handleOpenInCabbage} style={styles.secondary}>
             ⬡ Open in Cabbage
+          </button>
+        )}
+        {browserSavedPath && (
+          <button onClick={handleRevealBrowserFile} style={styles.secondary}>
+            Reveal HTML
           </button>
         )}
         {csoundQtSavedPath && (
@@ -247,8 +277,8 @@ export default function ArtifactPanel({ onConvert }: Props) {
           </button>
         )}
         {onConvert && <ConvertMenu currentType={active.type} onConvert={onConvert} />}
-        {(status || cabbageStatus || csoundQtStatus) && (
-          <span style={styles.status}>{csoundQtStatus || cabbageStatus || status}</span>
+        {(status || cabbageStatus || csoundQtStatus || browserStatus) && (
+          <span style={styles.status}>{browserStatus || csoundQtStatus || cabbageStatus || status}</span>
         )}
       </div>
     </div>

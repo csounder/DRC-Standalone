@@ -1,12 +1,11 @@
 import { useState, useCallback, useRef, useMemo, useEffect, type CSSProperties, type DragEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { usePlayerStore } from '../stores/playerStore'
 import { useEditorStore } from '../stores/editorStore'
 import { useArtifactStore } from '../stores/artifactStore'
 import { resolveAgentCsd } from '../lib/playerLoad'
 import Knob from '../components/player/Knob'
 import PianoKeyboard from '../components/player/PianoKeyboard'
-import WaveformDisplay from '../components/player/WaveformDisplay'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
 import { buildConvertPrompt, needsPlayerAdapt } from '../prompts/convert'
@@ -20,7 +19,10 @@ import { isQuotaError } from '../lib/providerGuide'
 import { applyQuotaCooldownFromMessage, isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
 import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
 import { mechanicalPlayerAdapt } from '../lib/mechanicalPlayerAdapt'
-import { loadWorkshopPlayerDemo, WORKSHOP_PLAYER_PLUCK_ID, WORKSHOP_PLAYER_FM_ID } from '../lib/workshopDemos'
+import { loadWorkshopPlayerDemo } from '../lib/workshopDemos'
+import PlayerDemosMenu from '../components/player/PlayerDemosMenu'
+import PlayerAudioScope from '../components/player/PlayerAudioScope'
+import PlayerCsdPanel from '../components/player/PlayerCsdPanel'
 import type { UsageRecord } from '../lib/usageFormat'
 
 type AdaptStatus =
@@ -49,22 +51,36 @@ async function waitForCsoundEvents(maxMs = 10000): Promise<boolean> {
   return false
 }
 
-async function playDemoArpeggio(): Promise<void> {
+const DEMO_ARPEGGIO_NOTES = [60, 64, 67, 72]
+
+function arpeggioTag(midi: number): string {
+  return `1.${midi.toString().padStart(3, '0')}`
+}
+
+async function releaseDemoArpeggioNotes(): Promise<void> {
+  const api = window.api?.csound
+  if (!api?.event) return
+  for (const midi of DEMO_ARPEGGIO_NOTES) {
+    await api.event(`i -${arpeggioTag(midi)} 0 0`).catch(() => {})
+  }
+}
+
+async function playDemoArpeggio(isActive: () => boolean): Promise<void> {
   if (!window.api?.csound?.event) return
-  const notes = [60, 64, 67, 72]
-  for (const midi of notes) {
+  for (const midi of DEMO_ARPEGGIO_NOTES) {
+    if (!isActive()) return
     const hz = 440 * 2 ** ((midi - 69) / 12)
-    const tag = `1.${midi.toString().padStart(3, '0')}`
+    const tag = arpeggioTag(midi)
     let ok = false
-    for (let attempt = 0; attempt < 8 && !ok; attempt++) {
-      const r = await window.api.csound.event(`i ${tag} 0 -1 ${hz.toFixed(3)} 0.75`)
+    for (let attempt = 0; attempt < 6 && !ok; attempt++) {
+      if (!isActive()) return
+      // Short finite notes — indefinite p3=-1 notes survived engine switches and layered FM-Bell.
+      const r = await window.api.csound.event(`i ${tag} 0 0.28 ${hz.toFixed(3)} 0.55`)
       ok = Boolean(r?.success)
-      if (!ok) await sleep(100)
+      if (!ok) await sleep(80)
     }
-    if (!ok) break
-    await sleep(320)
-    await window.api.csound.event(`i -${tag} 0 0`)
-    await sleep(60)
+    if (!ok || !isActive()) return
+    await sleep(200)
   }
 }
 
@@ -84,7 +100,17 @@ export default function PlayerPage() {
   // Source-of-truth set used by note handlers — synchronous dedupe avoids
   // double-trigger on browser keydown autorepeat or simultaneous touch+mouse.
   const activeNotesRef = useRef<Set<number>>(new Set())
+  /** Block note events while the engine is stopping or between loads. */
+  const notesEnabledRef = useRef(false)
+
+  useEffect(() => {
+    notesEnabledRef.current = isPlaying
+  }, [isPlaying])
   const workshopAutoLoadRef = useRef(false)
+  const demosSectionRef = useRef<HTMLDivElement>(null)
+  const playSessionRef = useRef(0)
+  const [lastGoodCsd, setLastGoodCsd] = useState('')
+  const [searchParams] = useSearchParams()
   // The CSD declares its own knobs via `chn_k`; we re-parse on every CSD change
   // and merge with prior values so live tweaks survive an identical reload.
   const channelSpecs = useMemo<ChannelSpec[]>(() => {
@@ -109,10 +135,20 @@ export default function PlayerPage() {
   }, [channelSpecs])
   const [adaptStatus, setAdaptStatus] = useState<AdaptStatus>({ kind: 'idle' })
   const [dragging, setDragging] = useState(false)
+  const [showCsd, setShowCsd] = useState(false)
+  const [currentDemoId, setCurrentDemoId] = useState<string | undefined>()
+  const [currentDemoTitle, setCurrentDemoTitle] = useState<string | undefined>()
+  const [demoMenuVersion, setDemoMenuVersion] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const rateLimitUntil = useRateLimitStore((s) => s.until)
   const rateLimitProvider = useRateLimitStore((s) => s.providerLabel)
   const clearRateLimit = useRateLimitStore((s) => s.clearCooldown)
+  const setEditorHidesConsole = useCsoundConsoleStore((s) => s.setEditorHidesConsole)
+
+  useEffect(() => {
+    setEditorHidesConsole(showCsd)
+    return () => setEditorHidesConsole(false)
+  }, [showCsd, setEditorHidesConsole])
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -125,7 +161,26 @@ export default function PlayerPage() {
   // hits exactly the instance to release. The voice's linsegr handles the tail.
   const tagFor = (midi: number) => `1.${midi.toString().padStart(3, '0')}`
 
+  const releaseAllHeldNotes = useCallback(async () => {
+    const api = window.api?.csound
+    if (!api?.event) return
+    for (const midi of [...activeNotesRef.current]) {
+      await api.event(`i -${tagFor(midi)} 0 0`).catch(() => {})
+    }
+    activeNotesRef.current.clear()
+    setActiveNotes(new Set())
+  }, [])
+
+  const stopPlayerEngine = useCallback(async () => {
+    notesEnabledRef.current = false
+    setPlaying(false)
+    await releaseAllHeldNotes()
+    await releaseDemoArpeggioNotes()
+    await window.api?.csound?.stop?.().catch(() => {})
+  }, [releaseAllHeldNotes, setPlaying])
+
   const handleNoteOn = useCallback((midi: number, velocity = 0.8) => {
+    if (!notesEnabledRef.current) return
     if (activeNotesRef.current.has(midi)) return
     activeNotesRef.current.add(midi)
     setActiveNotes((prev) => new Set(prev).add(midi))
@@ -137,6 +192,7 @@ export default function PlayerPage() {
   }, [audioEnabled])
 
   const handleNoteOff = useCallback((midi: number) => {
+    if (!notesEnabledRef.current) return
     if (!activeNotesRef.current.has(midi)) return
     activeNotesRef.current.delete(midi)
     setActiveNotes((prev) => {
@@ -200,9 +256,21 @@ export default function PlayerPage() {
     handleParamChange(spec, value)
   }, [channelSpecs, handleParamChange])
 
-  useMidi({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff }, handleCCBinding)
+  const handleHardwareCC = useCallback((cc: number, normalized01: number) => {
+    const ch = `cc${cc}`
+    if (channelSpecs.some((c) => c.name === ch)) {
+      handleCCBinding(ch, normalized01)
+    }
+  }, [channelSpecs, handleCCBinding])
+
+  useMidi(
+    { onNoteOn: handleNoteOn, onNoteOff: handleNoteOff, onCC: handleHardwareCC },
+    handleCCBinding,
+  )
 
   const ccLabelFor = (channel: string): string | null => {
+    const auto = /^cc(\d+)$/i.exec(channel)
+    if (auto) return `CC ${auto[1]}`
     for (const k of Object.keys(midiBindings)) {
       const b = midiBindings[k]
       if (b.channel === channel) return `CC ${b.cc}`
@@ -219,10 +287,12 @@ export default function PlayerPage() {
       return
     }
 
-    // Stop Agent preview / prior Player csound so compile and realtime play don't fight.
-    await window.api.csound.stop().catch(() => {})
-    useCsoundConsoleStore.getState().setEnabled(true)
-    useCsoundConsoleStore.getState().setExpanded(true)
+    const session = ++playSessionRef.current
+    const isActive = () => playSessionRef.current === session
+
+    // Stop prior instrument completely — release keys, kill csound, cancel arpeggio.
+    await stopPlayerEngine()
+    if (!isActive()) return
 
     let csd = raw.trim()
     if (needsPlayerAdapt(csd)) {
@@ -235,10 +305,11 @@ export default function PlayerPage() {
         if (!hasKey) {
           setAdaptStatus({
             kind: 'error',
-            message: 'This CSD needs adapting, but no API key is saved. Click Workshop demo (no key) below, or add a free Groq key in Settings.',
+            message: 'This CSD needs adapting, but no model is configured. Click Workshop demo (no key) below, or enable Ollama in Settings.',
           })
           return
         }
+        if (!isActive()) return
         setAdaptStatus({ kind: 'adapting' })
         const prompt = buildConvertPrompt('player', csd)
         const resp = await window.api.llm.adaptCsd(prompt).catch((err: any) => ({ ok: false, error: err?.message ?? 'adapt failed' })) as {
@@ -270,22 +341,32 @@ export default function PlayerPage() {
     }
 
     setCsdContent(csd)
+    const specs = parseChannels(csd)
+    setParamValues(Object.fromEntries(specs.map((s) => [s.name, s.default])))
+    if (!isActive()) return
     setAdaptStatus({ kind: 'compiling' })
     try {
       const { path } = await window.api.csound.writeCsd(csd)
+      if (!isActive()) return
       const compile = await window.api.csound.compile(path)
       if (!compile.success) {
         setAdaptStatus({ kind: 'error', message: `Compile error: ${String(compile.error ?? '').slice(0, 240)}` })
         return
       }
+      if (!isActive()) return
       setAdaptStatus({ kind: 'starting' })
       const playRes = await window.api.csound.play(path, { realtime: true })
+      if (!isActive()) {
+        await stopPlayerEngine()
+        return
+      }
       if (!playRes.success) {
         setAdaptStatus({ kind: 'error', message: `Playback error: ${String(playRes.error ?? '').slice(0, 240)}` })
         setPlaying(false)
         return
       }
       const eventsLive = await waitForCsoundEvents()
+      if (!isActive()) return
       if (!eventsLive) {
         setAdaptStatus({
           kind: 'error',
@@ -294,14 +375,20 @@ export default function PlayerPage() {
         setPlaying(false)
         return
       }
+      for (const spec of specs) {
+        await window.api.csound.setChannel(spec.name, spec.default).catch(() => {})
+      }
+      setLastGoodCsd(csd)
       setAdaptStatus({ kind: 'ready', hint: 'Playing demo…' })
       setPlaying(true)
-      await playDemoArpeggio()
+      await playDemoArpeggio(isActive)
+      if (!isActive()) return
       setAdaptStatus({ kind: 'ready', hint: 'Live — click the keyboard below or use MIDI' })
     } catch (err: any) {
+      if (!isActive()) return
       setAdaptStatus({ kind: 'error', message: err?.message ?? 'Unexpected error' })
     }
-  }, [setCsdContent, setPlaying])
+  }, [setCsdContent, setPlaying, stopPlayerEngine])
 
   const handleFile = useCallback(async (file: File) => {
     setAdaptStatus({ kind: 'reading' })
@@ -372,19 +459,78 @@ export default function PlayerPage() {
   const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
   const loadDisabled = loadBusy
 
-  const handleWorkshopDemo = useCallback(async (id?: string) => {
+  const handleWorkshopDemo = useCallback(async (id: string) => {
     setAdaptStatus({ kind: 'reading' })
     const demo = await loadWorkshopPlayerDemo(id)
     if (!demo) {
-      setAdaptStatus({ kind: 'error', message: 'Workshop demo file missing — reinstall Dr.C or use Web Apps (no key).' })
+      setAdaptStatus({ kind: 'error', message: 'Demo file missing — reinstall Dr.C or pick another demo.' })
       return
     }
+    setCurrentDemoId(id)
+    const meta = (await window.api?.workshop?.read?.(id))?.meta
+    setCurrentDemoTitle(meta?.title)
     await loadAndPlayCsd(demo)
   }, [loadAndPlayCsd])
 
+  useEffect(() => {
+    if (searchParams.get('demos') !== '1') return
+    demosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [searchParams])
+
+  const handleSaveDemoToMenu = useCallback(async (title: string, opts?: { updateExisting?: boolean }) => {
+    const updateId =
+      opts?.updateExisting && currentDemoId?.startsWith('user_') ? currentDemoId : undefined
+    const r: any = await window.api?.workshop?.saveUserDemo?.({
+      title,
+      content: csdContent,
+      id: updateId,
+    })
+    if (!r?.ok) throw new Error(r?.error ?? 'Save failed')
+    setCurrentDemoId(r.meta?.id)
+    setCurrentDemoTitle(r.meta?.title)
+    setDemoMenuVersion((v) => v + 1)
+  }, [csdContent, currentDemoId])
+
+  const handleDeleteCurrentDemo = useCallback(async () => {
+    if (!currentDemoId?.startsWith('user_')) return
+    const name = currentDemoTitle ?? 'this demo'
+    if (!window.confirm(`Remove “${name}” from your demo menu?`)) return
+    const r: any = await window.api?.workshop?.deleteUserDemo?.(currentDemoId)
+    if (!r?.ok) throw new Error(r?.error ?? 'Delete failed')
+    setCurrentDemoId(undefined)
+    setCurrentDemoTitle(undefined)
+    setDemoMenuVersion((v) => v + 1)
+  }, [currentDemoId, currentDemoTitle])
+
+  const handleDemoDeleted = useCallback((id: string) => {
+    if (currentDemoId === id) {
+      setCurrentDemoId(undefined)
+      setCurrentDemoTitle(undefined)
+    }
+    setDemoMenuVersion((v) => v + 1)
+  }, [currentDemoId])
+
+  const handleRevertCsd = useCallback(async () => {
+    if (!lastGoodCsd.trim()) return
+    setCsdContent(lastGoodCsd)
+    await loadAndPlayCsd(lastGoodCsd)
+  }, [lastGoodCsd, loadAndPlayCsd, setCsdContent])
+
+  const canRevertCsd =
+    Boolean(lastGoodCsd.trim()) &&
+    csdContent.trim() !== lastGoodCsd.trim()
+
+  const handleApplyCsd = useCallback(async () => {
+    await loadAndPlayCsd(csdContent)
+  }, [csdContent, loadAndPlayCsd])
+
   return (
     <div
-      style={{ ...styles.container, ...(dragging ? styles.containerDrag : {}) }}
+      style={{
+        ...styles.container,
+        ...(dragging ? styles.containerDrag : {}),
+        ...(showCsd ? styles.containerEditorOpen : {}),
+      }}
       onDragOver={(e) => { e.preventDefault(); if (!dragging) setDragging(true) }}
       onDragLeave={(e) => {
         // Only clear when the drag leaves the whole container, not child elements.
@@ -408,32 +554,24 @@ export default function PlayerPage() {
       <div style={styles.header}>
         <h1 style={styles.title}>Player</h1>
         <div style={styles.headerActions}>
+          <PlayerDemosMenu
+            refreshKey={demoMenuVersion}
+            sectionRef={demosSectionRef}
+            disabled={loadDisabled}
+            onLoad={(id) => void handleWorkshopDemo(id)}
+            onDeleted={handleDemoDeleted}
+          />
           <button
             type="button"
-            onClick={() => void handleWorkshopDemo(WORKSHOP_PLAYER_FM_ID)}
-            style={styles.workshopBtn}
-            disabled={loadDisabled}
-            title="Simple 2-op FM — no API key"
+            onClick={() => setShowCsd((v) => !v)}
+            style={{
+              ...styles.loadButton,
+              ...(showCsd ? styles.loadButtonPrimary : {}),
+            }}
+            disabled={false}
+            title="View and edit the loaded Csound .csd"
           >
-            Simple FM demo
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleWorkshopDemo()}
-            style={styles.workshopBtn}
-            disabled={loadDisabled}
-            title="Shimmering FM bell — no API key"
-          >
-            FM bell demo
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleWorkshopDemo(WORKSHOP_PLAYER_PLUCK_ID)}
-            style={styles.workshopBtn}
-            disabled={loadDisabled}
-            title="Ping-pong pluck bass — no API key"
-          >
-            Bass demo
+            {showCsd ? 'Hide Csound' : 'Show Csound'}
           </button>
           <button
             onClick={() => void handleLoadAgentCsd()}
@@ -499,13 +637,25 @@ export default function PlayerPage() {
         />
       )}
 
-      {/* Waveform */}
-      <div style={styles.waveformArea}>
-        <WaveformDisplay currentTime={currentTime} duration={duration} height={140} />
-      </div>
+      {showCsd && (
+        <PlayerCsdPanel
+          fillHeight
+          csd={csdContent}
+          onChange={setCsdContent}
+          onApply={() => void handleApplyCsd()}
+          onSaveToMenu={handleSaveDemoToMenu}
+          onRevert={() => void handleRevertCsd()}
+          onHide={() => setShowCsd(false)}
+          onDeleteDemo={currentDemoId?.startsWith('user_') ? handleDeleteCurrentDemo : undefined}
+          canRevert={canRevertCsd}
+          applyBusy={loadBusy}
+          currentDemoTitle={currentDemoTitle}
+          currentDemoId={currentDemoId}
+        />
+      )}
 
       {/* Transport */}
-      <div style={styles.transport}>
+      <div style={{ ...styles.transport, ...(showCsd ? styles.transportCompact : {}) }}>
         <button
           onClick={() => {
             setPlaying(!isPlaying)
@@ -540,7 +690,15 @@ export default function PlayerPage() {
         </div>
       </div>
 
+      {/* Audio scope — hidden while editing Csound (editor uses the vertical space) */}
+      {!showCsd && (
+        <div style={styles.waveformArea}>
+          <PlayerAudioScope activeNotes={activeNotes} isPlaying={isPlaying} height={160} />
+        </div>
+      )}
+
       {/* Parameters — built from chn_k declarations in the CSD */}
+      {!showCsd && (
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>
           Parameters
@@ -570,9 +728,10 @@ export default function PlayerPage() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Keyboard */}
-      {hasP4 && (
+      {!showCsd && hasP4 && (
         <div style={styles.section}>
           <h3 style={styles.sectionTitle}>Keyboard</h3>
           <div style={styles.keyboardWrapper}>
@@ -582,13 +741,14 @@ export default function PlayerPage() {
               activeNotes={activeNotes}
               onNoteOn={handleNoteOn}
               onNoteOff={handleNoteOff}
+              keyboardEnabled={isPlaying}
             />
           </div>
         </div>
       )}
 
       {/* Always show keyboard in demo mode */}
-      {!hasP4 && (
+      {!showCsd && !hasP4 && (
         <div style={styles.section}>
           <h3 style={styles.sectionTitle}>
             Keyboard
@@ -601,6 +761,7 @@ export default function PlayerPage() {
               activeNotes={activeNotes}
               onNoteOn={handleNoteOn}
               onNoteOff={handleNoteOff}
+              keyboardEnabled={isPlaying}
             />
           </div>
         </div>
@@ -614,6 +775,14 @@ const styles: Record<string, CSSProperties> = {
     height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column',
     alignItems: 'center', padding: '32px 48px', gap: 28, maxWidth: 900, margin: '0 auto',
     transition: 'background 150ms ease, box-shadow 150ms ease',
+  },
+  containerEditorOpen: {
+    height: '100%',
+    overflow: 'hidden',
+    padding: '12px 20px 10px',
+    gap: 10,
+    maxWidth: 'min(1200px, 100%)',
+    alignItems: 'stretch',
   },
   containerDrag: {
     background: 'var(--accent-muted)',
@@ -644,15 +813,20 @@ const styles: Record<string, CSSProperties> = {
   midiActive: { borderColor: 'var(--accent)', color: 'var(--accent)' },
   header: {
     width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    flexShrink: 0,
   },
   title: { fontSize: 28, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '0.04em' },
-  headerActions: { display: 'flex', gap: 8 },
+  headerActions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   waveformArea: {
     width: '100%', borderRadius: 16, overflow: 'hidden',
     border: 'var(--border-width) solid var(--border)', background: 'var(--bg-secondary)',
   },
   transport: {
     display: 'flex', alignItems: 'center', gap: 16, width: '100%',
+  },
+  transportCompact: {
+    gap: 10,
+    flexShrink: 0,
   },
   transportMeta: {
     flex: 1,

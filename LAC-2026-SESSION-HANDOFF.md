@@ -1,16 +1,27 @@
 # LAC 2026 Workshop — Session Handoff
 
-**Date:** 2026-06-15 (airport pause)  
+**Date:** 2026-06-15 (hotel pause — work pushed)  
 **For:** Richard Boulanger  
-**Goal:** Dr.C Standalone + Terminal ready for a Csound 7 workshop at LAC (Maynooth, June 18–20, 2026)
+**Goal:** Dr.C Standalone ready for Csound 7 workshop at LAC (Maynooth, June 18–20, 2026)
 
-> **START HERE:** [`AIRPORT-PICKUP.md`](AIRPORT-PICKUP.md) — no-sound status, uncommitted fixes, 5-minute diagnostics.
+> **START HERE (new chat):** [`HOTEL-RESUME.md`](HOTEL-RESUME.md) — one page, token-cheap.  
+> **Full diagnostics:** [`AIRPORT-PICKUP.md`](AIRPORT-PICKUP.md) (historical no-sound notes).
 
 ---
 
-## Where we are leaving off (2026-06-15)
+## Where we are leaving off (2026-06-15 evening)
 
-**BLOCKER: No sound in Dr.C** (Player demos + Agent FM bass). Workshop CSD files **do** produce audio via `csound`/`afplay` in Terminal — problem is in the app playback path.
+**Pushed to `origin/lac-2026-csound7`:** Player demo menu (70+ MIDI models), MIDI velocity fix, web app WASM7 + Hz keyboard + Open in Browser, golden FM woodblock, limiter, orphan csound cleanup, docs refresh.
+
+**`npm test` on macOS:** 27 platform + 126 smoke + build — **all pass**.
+
+**Resume at hotel:** `git pull`, `npm run build`, `./scripts/launch-drc.sh`. New Cursor chat → `@HOTEL-RESUME.md`.
+
+---
+
+## Where we were (airport — superseded by push)
+
+**BLOCKER (was): No sound in Dr.C** — fixes for auhal routing, offline demo scores, and Player demos are now in the branch.
 
 **Root causes identified (fixes local, not pushed):**
 
@@ -28,7 +39,8 @@
 
 | Doc | Purpose |
 |-----|---------|
-| **`AIRPORT-PICKUP.md`** | **No sound — read first at airport** |
+| **`HOTEL-RESUME.md`** | **Start new Cursor chats here (token saver)** |
+| **`AIRPORT-PICKUP.md`** | Historical no-sound diagnostics |
 | **`VERSIONS.md`** | All products, version numbers, launch modes |
 | **`TESTING.md`** | Automated + manual checklist before release |
 | **`RELEASE-CHECKLIST.md`** | Commit, build, GitHub release, USB |

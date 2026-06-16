@@ -89,6 +89,7 @@ export function useMidi(handlers: MidiHandlers, knobChange: (channel: string, no
         const binding: MidiBinding | undefined = findBinding(state.bindings, portId, cc)
         if (binding) {
           knobChangeRef.current(binding.channel, value)
+          return
         }
         handlersRef.current.onCC?.(cc, value, portId)
       }

@@ -82,6 +82,8 @@ const api = {
       ipcRenderer.invoke('export:openInCabbage', content, title),
     openInCsoundQt: (content: string, title: string) =>
       ipcRenderer.invoke('export:openInCsoundQt', content, title),
+    openInBrowser: (content: string, title: string) =>
+      ipcRenderer.invoke('export:openInBrowser', content, title),
     revealFile: (path: string) =>
       ipcRenderer.invoke('export:revealFile', path),
     stems: (sessionID: string) =>
@@ -119,6 +121,11 @@ const api = {
     setCsoundQtPath: (path: string) => ipcRenderer.invoke('config:setCsoundQtPath', path),
     detectCsoundQt: () => ipcRenderer.invoke('config:detectCsoundQt'),
     chooseCsoundQtPath: () => ipcRenderer.invoke('config:chooseCsoundQtPath'),
+    getBrowserPath: () => ipcRenderer.invoke('config:getBrowserPath'),
+    setBrowserPath: (path: string) => ipcRenderer.invoke('config:setBrowserPath', path),
+    detectBrowser: () => ipcRenderer.invoke('config:detectBrowser'),
+    listBrowsers: () => ipcRenderer.invoke('config:listBrowsers'),
+    chooseBrowserPath: () => ipcRenderer.invoke('config:chooseBrowserPath'),
     listAudioDevices: () => ipcRenderer.invoke('config:listAudioDevices'),
     getAudioConfig: () => ipcRenderer.invoke('config:getAudioConfig'),
     setAudioDevice: (field: string, value: string) =>
@@ -138,7 +145,13 @@ const api = {
 
   workshop: {
     list: () => ipcRenderer.invoke('workshop:list'),
+    listDemos: () => ipcRenderer.invoke('workshop:listDemos'),
+    saveUserDemo: (payload: { title: string; content: string; id?: string }) =>
+      ipcRenderer.invoke('workshop:saveUserDemo', payload),
+    deleteUserDemo: (id: string) => ipcRenderer.invoke('workshop:deleteUserDemo', id),
     read: (id: string) => ipcRenderer.invoke('workshop:read', id),
+    openHandout: () => ipcRenderer.invoke('workshop:openHandout'),
+    revealHandout: () => ipcRenderer.invoke('workshop:revealHandout'),
   },
 }
 

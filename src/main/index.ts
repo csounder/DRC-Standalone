@@ -6,6 +6,7 @@ import { registerAllIPC } from './ipc/register'
 import { MemoryDB } from './memory/db'
 import { seedBuiltinLessons } from './memory/seed-builtin'
 import { refreshCsoundEnvironment } from './util/csound-version'
+import { ensureOllamaRunning } from './util/ollama-launch'
 
 // Prevent GPU crashes in Electron
 app.disableHardwareAcceleration()
@@ -92,6 +93,7 @@ app.whenReady().then(() => {
   MemoryDB.init() // open the persistent memory DB before any memory:* handler can fire
   seedBuiltinLessons()
   void refreshCsoundEnvironment()
+  void ensureOllamaRunning()
   registerAllIPC()
   createWindow()
 

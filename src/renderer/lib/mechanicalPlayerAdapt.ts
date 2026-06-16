@@ -1,4 +1,6 @@
 import { needsPlayerAdapt } from '../prompts/convert'
+import { REALTIME_CSOPTIONS } from '../../shared/csd-realtime-options'
+import { wrapMidiModelForPlayer } from './midiModelPlayerWrap'
 
 const PLAYER_SCORE = `<CsScore>
 i 99 0 36000
@@ -171,7 +173,7 @@ instr 1
   outs aFat, aFat
 endin`
 
-function stripCabbageJunk(source: string): string {
+export function stripCabbageJunk(source: string): string {
   return source.replace(/<bsbPanel>[\s\S]*/i, '').trim()
 }
 
@@ -217,10 +219,7 @@ function buildPlayerCsd(
 ): string {
   const globalBlock = extraGlobals ? `${extraGlobals}\n${globals}`.trim() : globals
   return `<CsoundSynthesizer>
-<CsOptions>
--o dac
--d
-</CsOptions>
+${REALTIME_CSOPTIONS}
 <CsInstruments>
 sr = 44100
 ksmps = 64
@@ -242,6 +241,11 @@ ${score}
 export function mechanicalPlayerAdapt(source: string): string | null {
   const raw = stripCabbageJunk(source.trim())
   if (!raw || !needsPlayerAdapt(raw)) return raw
+
+  if (/\b(cpsmidi|ampmidi|cpsmidib)\b/i.test(raw)) {
+    const midi = wrapMidiModelForPlayer(raw)
+    if (midi) return midi
+  }
 
   const synth = raw.match(/<CsoundSynthesizer[\s\S]*?<\/CsoundSynthesizer>/i)?.[0]
   if (!synth) return null
@@ -283,6 +287,9 @@ export function mechanicalPlayerAdapt(source: string): string | null {
   if (isSimpleFosciliFm(voiceBody)) {
     return buildPlayerCsd(cleanGlobals(globals), PLAYER_CHN_FM, SIMPLE_FM_VOICE, PLAYER_INSTR_99, PLAYER_SCORE)
   }
+
+  const midiWrap = wrapMidiModelForPlayer(raw)
+  if (midiWrap) return midiWrap
 
   const oscLine =
     voiceBody.match(/^\s*(a\w+)\s*=\s*(foscili|oscili|poscil|vco2|pluck)\s*\((.+)\)\s*$/im) ??

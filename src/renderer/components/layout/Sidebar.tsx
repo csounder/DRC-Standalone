@@ -11,7 +11,7 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme, audioFeedbackEnabled } = useAppStore()
-  const consoleEnabled = useCsoundConsoleStore((s) => s.enabled)
+  const userPinned = useCsoundConsoleStore((s) => s.userPinned)
   const toggleConsole = useCsoundConsoleStore((s) => s.toggle)
   const [hoverKey, setHoverKey] = useState<string | null>(null)
   const lastMainTab = useRef('/agent')
@@ -95,7 +95,7 @@ export default function Sidebar() {
             }}
             style={{
               ...styles.navButton,
-              ...(consoleEnabled ? styles.navButtonActive : {}),
+              ...(userPinned ? styles.navButtonActive : {}),
             }}
             aria-label="Csound output console"
             className="no-drag"
@@ -104,8 +104,8 @@ export default function Sidebar() {
           </button>
           {hoverKey === consoleKey && (
             <Tooltip
-              label={consoleEnabled ? 'Hide Csound console' : 'Show Csound console'}
-              desc="Diagnostic log at the bottom — render commands, errors, device routing."
+              label={userPinned ? 'Hide Csound console' : 'Show Csound console'}
+              desc="Hidden by default — opens on errors, or pin it on to keep visible."
             />
           )}
         </div>

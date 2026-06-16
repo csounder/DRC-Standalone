@@ -3,6 +3,8 @@
  * Player hold scores (f 0 36000) compile-check OK but render silence.
  */
 
+import { ensureCsoundLimiterCsOptions } from './csd-realtime-options'
+
 export function csdHasScheduledDemoScore(csd: string): boolean {
   const m = csd.match(/<CsScore>([\s\S]*?)<\/CsScore>/i)
   if (!m) return false
@@ -86,7 +88,8 @@ function orchestraNeedsEchoBus(csd: string): boolean {
 
 /** Prepare Agent CSD for offline WAV preview (afplay / file render). */
 export function prepareCsdForOfflineRender(csd: string): string {
-  let s = stripCsOptionsHandledByCli(csd.trim())
+  let s = ensureCsoundLimiterCsOptions(csd.trim())
+  s = stripCsOptionsHandledByCli(s)
   const hasVoice = /\binstr\s+1\b/.test(s)
   const hasDemo = csdHasScheduledDemoScore(s)
 

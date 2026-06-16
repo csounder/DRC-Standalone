@@ -3,10 +3,11 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { generateText, type LanguageModelV1 } from 'ai'
 import { Log } from '../util/log'
-import { defaultOllamaModel, probeOllama } from './ollama'
+import { defaultOllamaModel, localLlmOpenAiBase, probeOllama } from './ollama'
 import { isProPlus } from '../util/tier'
 
 interface ProviderConfig {
+  openrouterKey?: string
   anthropicKey?: string
   openaiKey?: string
   googleKey?: string
@@ -20,6 +21,7 @@ interface ProviderConfig {
 // Free AI Studio keys resolve against the Gemini Developer API. Pin it so an
 // SDK default change can't silently re-point us at v1 or Vertex.
 const GOOGLE_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
 let config: ProviderConfig = {}
 let ollamaReachable = false
@@ -33,10 +35,10 @@ export namespace Provider {
   }
 
   export async function refreshOllamaStatus(forceProbe = false): Promise<{ ok: boolean; models: string[] }> {
+    // Keep the last probe result when disabled so Settings Test/Refresh is not
+    // wiped by unrelated getApiKeys calls before the user turns local LLM on.
     if (!config.ollamaEnabled && !forceProbe) {
-      ollamaReachable = false
-      ollamaModels = []
-      return { ok: false, models: [] }
+      return { ok: ollamaReachable, models: ollamaModels }
     }
     const probe = await probeOllama(config.ollamaBaseUrl)
     ollamaReachable = probe.ok
@@ -57,7 +59,11 @@ export namespace Provider {
   }
 
   function ollamaAvailable(): boolean {
-    return Boolean(config.ollamaEnabled && ollamaReachable && (config.ollamaModel || ollamaModels.length))
+    if (!config.ollamaEnabled) return false
+    const model = config.ollamaModel?.trim() || ollamaModels[0]
+    if (!model) return false
+    // Prefer a live probe, but allow a saved model when the server is temporarily down.
+    return ollamaReachable || Boolean(config.ollamaModel?.trim())
   }
 
   export function getLanguageModel(providerID: string, modelID: string): LanguageModelV1 {
@@ -67,6 +73,24 @@ export namespace Provider {
     let model: LanguageModelV1
 
     switch (providerID) {
+      case 'openrouter': {
+        const apiKey = config.openrouterKey || process.env.OPENROUTER_API_KEY
+        if (!apiKey) {
+          throw new Error(
+            'OpenRouter API key not configured. Get one at https://openrouter.ai/keys and set it in Settings.',
+          )
+        }
+        const openrouter = createOpenAI({
+          apiKey,
+          baseURL: OPENROUTER_BASE_URL,
+          headers: {
+            'HTTP-Referer': 'https://github.com/mateolarreaferro/DRC-Standalone',
+            'X-Title': 'Dr.C',
+          },
+        })
+        model = openrouter(modelID) as unknown as LanguageModelV1
+        break
+      }
       case 'google': {
         const apiKey = config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
         if (!apiKey) throw new Error('Google AI API key not configured. Get a free key at https://aistudio.google.com/apikey and set it in Settings.')
@@ -100,13 +124,13 @@ export namespace Provider {
         break
       }
       case 'ollama': {
-        const baseURL = `${(config.ollamaBaseUrl || 'http://127.0.0.1:11434').replace(/\/$/, '')}/v1`
-        const ollama = createOpenAI({ apiKey: 'ollama', baseURL })
+        const baseURL = localLlmOpenAiBase(config.ollamaBaseUrl)
+        const ollama = createOpenAI({ apiKey: 'local', baseURL })
         model = ollama(modelID) as unknown as LanguageModelV1
         break
       }
       default:
-        throw new Error(`Unknown provider: ${providerID}. Supported: google, groq, anthropic, openai, ollama`)
+        throw new Error(`Unknown provider: ${providerID}. Supported: openrouter, google, groq, anthropic, openai, ollama`)
     }
 
     assertV1(providerID, model)
@@ -118,9 +142,10 @@ export namespace Provider {
   // Check which providers are available
   export function availableProviders(): string[] {
     const available: string[] = []
+    if (hasOpenRouter()) available.push('openrouter')
     if (ollamaAvailable()) available.push('ollama')
     if (hasGroq()) available.push('groq')
-    if (agentGoogleEnabled()) available.push('google')
+    if (hasGoogle()) available.push('google')
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) available.push('anthropic')
     if (config.openaiKey || process.env.OPENAI_API_KEY) available.push('openai')
     return available
@@ -131,16 +156,15 @@ export namespace Provider {
   }
 
   function hasGoogle(): boolean {
-    return agentGoogleEnabled()
+    return Boolean(config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY)
+  }
+
+  function hasOpenRouter(): boolean {
+    return Boolean(config.openrouterKey || process.env.OPENROUTER_API_KEY)
   }
 
   function hasGroq(): boolean {
     return Boolean(config.groqKey || process.env.GROQ_API_KEY)
-  }
-
-  /** Free Gemini is disabled for Agent — Pro+ may opt in with a saved key only (not env). */
-  function agentGoogleEnabled(): boolean {
-    return isProPlus() && Boolean(config.googleKey)
   }
 
   export function tierLabel(): string {
@@ -148,6 +172,7 @@ export namespace Provider {
   }
 
   export function providerLabel(providerID: string): string {
+    if (providerID === 'openrouter') return 'OpenRouter'
     if (providerID === 'google') return 'Gemini'
     if (providerID === 'groq') return 'Groq'
     if (providerID === 'ollama') return 'Ollama (local)'
@@ -172,6 +197,7 @@ export namespace Provider {
   }
 
   function mainModelFor(providerID: string): string {
+    if (providerID === 'openrouter') return 'anthropic/claude-sonnet-4'
     if (providerID === 'groq') return 'llama-3.3-70b-versatile'
     if (providerID === 'google') return isProPlus() ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
     if (providerID === 'ollama') return config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b'
@@ -181,6 +207,7 @@ export namespace Provider {
   }
 
   function smallModelFor(providerID: string): string {
+    if (providerID === 'openrouter') return 'google/gemini-2.5-flash'
     if (providerID === 'groq') return 'llama-3.1-8b-instant'
     if (providerID === 'google') return 'gemini-2.5-flash'
     if (providerID === 'ollama') return config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b'
@@ -209,31 +236,23 @@ export namespace Provider {
 
     add(primary.providerID, primary.modelID)
 
-    if (hasGroq() && primary.providerID !== 'groq') add('groq')
-    if (agentGoogleEnabled() && primary.providerID !== 'google') add('google')
-    if (ollamaAvailable() && primary.providerID !== 'ollama') add('ollama')
+    if (hasOpenRouter() && primary.providerID !== 'openrouter') add('openrouter')
     if ((config.anthropicKey || process.env.ANTHROPIC_API_KEY) && primary.providerID !== 'anthropic') {
       add('anthropic')
     }
     if ((config.openaiKey || process.env.OPENAI_API_KEY) && primary.providerID !== 'openai') {
       add('openai')
     }
+    if (hasGroq() && primary.providerID !== 'groq') add('groq')
+    if (hasGoogle() && primary.providerID !== 'google') add('google')
+    if (ollamaAvailable() && primary.providerID !== 'ollama') add('ollama')
 
     return chain
   }
 
   export function defaultProvider(): { providerID: string; modelID: string } {
-    if (hasGroq()) {
-      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
-    }
-    if (config.preferOllama && ollamaAvailable()) {
-      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
-    }
-    if (agentGoogleEnabled()) {
-      return { providerID: 'google', modelID: 'gemini-2.5-pro' }
-    }
-    if (ollamaAvailable()) {
-      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    if (hasOpenRouter()) {
+      return { providerID: 'openrouter', modelID: 'anthropic/claude-sonnet-4' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
       return { providerID: 'anthropic', modelID: 'claude-sonnet-4-5' }
@@ -241,27 +260,42 @@ export namespace Provider {
     if (config.openaiKey || process.env.OPENAI_API_KEY) {
       return { providerID: 'openai', modelID: 'gpt-4.1' }
     }
+    if (config.preferOllama && ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
+    if (hasGroq()) {
+      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
+    }
+    if (hasGoogle()) {
+      return { providerID: 'google', modelID: isProPlus() ? 'gemini-2.5-pro' : 'gemini-2.5-flash' }
+    }
+    if (ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
     throw new Error(
-      'No Agent provider configured. Add a free Groq key in Settings (console.groq.com/keys), or enable Ollama.',
+      'No Agent provider configured. Add an OpenRouter key, a direct API key, enable Ollama, or use Web Apps / workshop demos (no key).',
     )
   }
 
   // Small/fast model for narration, summaries, sine mode.
   export function smallModel(): { providerID: string; modelID: string } {
-    if (hasGroq()) {
-      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
-    }
-    if (config.preferOllama && ollamaAvailable()) {
-      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
-    }
-    if (agentGoogleEnabled()) {
-      return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    if (hasOpenRouter()) {
+      return { providerID: 'openrouter', modelID: 'google/gemini-2.5-flash' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
       return { providerID: 'anthropic', modelID: 'claude-haiku-4-5' }
     }
     if (config.openaiKey || process.env.OPENAI_API_KEY) {
       return { providerID: 'openai', modelID: 'gpt-4.1-mini' }
+    }
+    if (config.preferOllama && ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
+    if (hasGroq()) {
+      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
+    }
+    if (hasGoogle()) {
+      return { providerID: 'google', modelID: 'gemini-2.5-flash' }
     }
     if (ollamaAvailable()) {
       return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
@@ -288,19 +322,20 @@ export namespace Provider {
   export function emptyStreamMessage(providerID: string): string {
     if (providerID === 'google') {
       return (
-        'Gemini returned no output. Wait and retry, or use Groq in Settings for workshop Agent turns.'
+        'Gemini returned no output. Wait for the countdown and try again. ' +
+        'Dr.C will try Groq automatically if that key is saved. For better sound design, use your own Anthropic or OpenAI key.'
       )
     }
     if (providerID === 'groq') {
       return (
-        'Groq returned no output. The free tier has rate limits (~30 requests per minute). ' +
-        'Wait for the countdown and try again, or enable Ollama in Settings.'
+        'Groq returned no output. Wait for the countdown and try again. ' +
+        'Dr.C will try Gemini automatically if that key is saved. For better sound design, use your own Anthropic or OpenAI key.'
       )
     }
     if (providerID === 'ollama') {
       return (
-        'Ollama returned no output. Check that Ollama is running, the model is pulled ' +
-        '(e.g. ollama pull qwen2.5-coder:7b), and Settings → Local model is configured.'
+        'Ollama returned no output. Check the server is running, the model is loaded, and Settings → Local LLM server ' +
+        '(URL + model). Ollama: ollama pull qwen2.5-coder:7b · LM Studio: load a model and start the server.'
       )
     }
     return (
@@ -330,7 +365,7 @@ export namespace Provider {
         return 'Permission denied. The key may be a Vertex AI credential — the free tier needs a key from aistudio.google.com/apikey.'
       }
       if (lower.includes('resource_exhausted') || lower.includes('quota')) {
-        return 'Gemini rate limit reached. Wait for the countdown and try again.'
+        return 'Gemini rate limit reached. Wait for the countdown. Dr.C will try Groq automatically if that key is saved in Settings.'
       }
     }
 
@@ -339,16 +374,19 @@ export namespace Provider {
         return 'Invalid Groq API key. Get a free one at console.groq.com/keys.'
       }
       if (lower.includes('rate limit') || lower.includes('429') || lower.includes('quota')) {
-        return 'Groq free-tier rate limit reached. Wait for the countdown and try again, or enable Ollama in Settings.'
+        return 'Groq rate limit reached. Wait for the countdown. Dr.C will try Gemini automatically if that key is saved in Settings.'
       }
     }
 
     if (providerID === 'ollama') {
       if (lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
-        return 'Cannot reach Ollama. Install from ollama.com, run `ollama serve`, and pull a model.'
+        return (
+          'Cannot reach the local LLM server. Ollama: ollama.com · LM Studio: start the local server on port 1234 · ' +
+          'Check Settings → Local LLM server → Server URL.'
+        )
       }
       if (lower.includes('not found') && lower.includes('model')) {
-        return `Model not found in Ollama. Run: ollama pull ${config.ollamaModel || 'qwen2.5-coder:7b'}`
+        return `Model not found on local server. Pick a loaded model in Settings, or pull one (Ollama: ollama pull ${config.ollamaModel || 'qwen2.5-coder:7b'})`
       }
     }
 
@@ -367,6 +405,18 @@ export namespace Provider {
       }
       if (lower.includes('insufficient_quota') || lower.includes('exceeded your current quota')) {
         return 'OpenAI account is out of quota.'
+      }
+    }
+
+    if (providerID === 'openrouter') {
+      if (lower.includes('invalid') && lower.includes('api')) {
+        return 'Invalid OpenRouter API key. Get one at openrouter.ai/keys.'
+      }
+      if (lower.includes('insufficient') || lower.includes('credit') || lower.includes('balance')) {
+        return 'OpenRouter account needs credits — add funds at openrouter.ai/credits.'
+      }
+      if (lower.includes('not found') && lower.includes('model')) {
+        return 'This model is not available on OpenRouter. Dr.C uses anthropic/claude-sonnet-4 by default — check openrouter.ai/models.'
       }
     }
 
@@ -397,7 +447,7 @@ export namespace Provider {
   export async function testOllama(): Promise<{ ok: boolean; message: string }> {
     const status = await refreshOllamaStatus(true)
     if (!status.ok) {
-      return { ok: false, message: 'Ollama is not running. Install from ollama.com and start the app.' }
+      return { ok: false, message: 'Local LLM server is not running. Set Server URL in Settings (Ollama, LM Studio, or llama.cpp server).' }
     }
     const prevEnabled = config.ollamaEnabled
     config.ollamaEnabled = true
@@ -418,6 +468,7 @@ export namespace Provider {
 
   function pickTestModel(providerID: string): { modelID: string } {
     switch (providerID) {
+      case 'openrouter': return { modelID: 'google/gemini-2.5-flash' }
       case 'google': return { modelID: 'gemini-2.5-flash' }
       case 'groq': return { modelID: 'llama-3.1-8b-instant' }
       case 'anthropic': return { modelID: 'claude-haiku-4-5' }

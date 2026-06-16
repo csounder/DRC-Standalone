@@ -32,8 +32,6 @@ async function briefConsult(agentName: string, userPrompt: string): Promise<stri
 
 /** Pro+ parallel specialist briefs — synthesis and/or effects — before main generation. */
 export async function consultSpecialists(userPrompt: string): Promise<string> {
-  if (!isProPlus()) return ''
-
   const jobs: Array<Promise<{ label: string; text: string }>> = []
 
   if (SYNTH_RE.test(userPrompt)) {
@@ -41,6 +39,15 @@ export async function consultSpecialists(userPrompt: string): Promise<string> {
       briefConsult('csound-synthesis', userPrompt).then((text) => ({ label: 'synthesis', text })),
     )
   }
+
+  if (!isProPlus()) {
+    const results = await Promise.all(jobs)
+    return results
+      .filter((r) => r.text.length > 0)
+      .map((r) => `<specialist-${r.label}>\n${r.text}\n</specialist-${r.label}>`)
+      .join('\n')
+  }
+
   if (FX_RE.test(userPrompt)) {
     jobs.push(
       briefConsult('csound-effects', userPrompt).then((text) => ({ label: 'effects', text })),

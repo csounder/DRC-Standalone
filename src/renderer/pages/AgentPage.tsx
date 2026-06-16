@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useSessionStore, type AgentMode, type Message } from '../stores/sessionStore'
 import { useArtifactStore, primaryContent, type Artifact } from '../stores/artifactStore'
 import ArtifactPanel from '../components/artifacts/ArtifactPanel'
@@ -16,9 +16,10 @@ import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../
 import { playArtifact, stopPlayback, resetAutofix, isAutofixUserMessage } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
-import { parseChannels, extractOrchestra, usesKeyboard } from '../lib/parseChannels'
+import { parseChannels, usesKeyboard } from '../lib/parseChannels'
 import { buildWebApp } from '../lib/webHarness'
-import { compileCheckCsd } from '../lib/playback'
+import { compileCheckWebappCsd } from '../lib/playback'
+import { prepareOrchestraForWebapp } from '../../shared/csd-webapp-prepare'
 import UsageBar from '../components/chat/UsageBar'
 import AgentActivityBar from '../components/chat/AgentActivityBar'
 import PromptRetryBar from '../components/chat/PromptRetryBar'
@@ -27,7 +28,6 @@ import ApiKeyPromptDialog from '../components/ApiKeyPromptDialog'
 import { useUsageStore } from '../stores/usageStore'
 import { isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
 import { formatCostUSD, formatTokenCount } from '../lib/usageFormat'
-import { readWorkshopStarter, WORKSHOP_PLAYER_BY_AGENT } from '../lib/workshopDemos'
 
 // Strip a stray leading web-app wrapper so a fresh turn's CSD can be recovered.
 const DOCTYPE_RE = /<!DOCTYPE\s+html\s*>/gi
@@ -67,7 +67,6 @@ function cleanChatText(text: string): string {
 }
 
 export default function AgentPage() {
-  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [lastUserPrompt, setLastUserPrompt] = useState('')
   const [providersAvailable, setProvidersAvailable] = useState<string[] | null>(null)
@@ -85,10 +84,19 @@ export default function AgentPage() {
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
 
   useEffect(() => {
-    window.api?.config?.getApiKeys().then((r: any) => {
-      setProvidersAvailable(r?.available ?? [])
-    }).catch(() => setProvidersAvailable([]))
-  }, [messages.length])
+    const refresh = () => {
+      window.api?.config?.getApiKeys().then((r: any) => {
+        setProvidersAvailable(r?.available ?? [])
+      }).catch(() => setProvidersAvailable([]))
+    }
+    refresh()
+    window.addEventListener('drc:providers-changed', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.removeEventListener('drc:providers-changed', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [])
 
   // Map message IDs to artifact IDs for rendering
   const [msgArtifactMap, setMsgArtifactMap] = useState<Map<string, string>>(new Map())
@@ -141,9 +149,20 @@ export default function AgentPage() {
       const editBaseId = pendingConvert.editBaseId
       pendingWebappConvertRef.current = null
       void (async () => {
-        const compileCheck = await compileCheckCsd(csd)
-        if (!compileCheck.ok) return
-        const orc = extractOrchestra(csd)
+        const compileCheck = await compileCheckWebappCsd(csd)
+        if (!compileCheck.ok) {
+          addMessage({
+            id: `webapp-compile-${Date.now()}`,
+            role: 'assistant',
+            type: 'narration',
+            content:
+              `Web app conversion could not compile. ${compileCheck.error ?? 'Check the Csound console for details.'} ` +
+              'Common fix: score lines like f 0 3600 must live in <CsScore>, not <CsInstruments>. Try Convert to Web App again.',
+            timestamp: Date.now(),
+          })
+          return
+        }
+        const orc = prepareOrchestraForWebapp(csd)
         const html = buildWebApp({
           orc,
           channels: parseChannels(csd),
@@ -596,17 +615,6 @@ export default function AgentPage() {
   const needsApiKey = providersAvailable !== null && providersAvailable.length === 0
   const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
 
-  const loadWorkshopStarter = useCallback(async (id: keyof typeof WORKSHOP_PLAYER_BY_AGENT) => {
-    const playerId = WORKSHOP_PLAYER_BY_AGENT[id]
-    const r = await readWorkshopStarter(playerId)
-    if (!r) return
-    addArtifact(
-      { type: 'csd', title: r.meta.title, content: r.content, sourceMessageId: `workshop_${Date.now()}` },
-      { openPanel: false },
-    )
-    navigate('/player', { state: { autoLoadWorkshop: true } })
-  }, [addArtifact, navigate])
-
   function inputBar(centered: boolean) {
     return (
       <>
@@ -722,23 +730,15 @@ export default function AgentPage() {
               <p style={styles.emptyTitle}>What do you want to hear?</p>
               <p style={styles.emptyDesc}>
                 {needsApiKey
-                  ? 'No API key yet? Open Web Apps (no key), or load the workshop FM bell and try the Player — both work offline.'
+                  ? 'No API key yet? Explore bundled Csound models on the Player tab, or open Web Apps — both work offline.'
                   : 'Describe a sound in your own words. Curated web demos live under the Web Apps tab.'}
               </p>
-              {needsApiKey && (
-                <div style={styles.workshopRow}>
-                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter('fm_simple')}>
-                    Simple FM demo (no key)
-                  </button>
-                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter('fm_bell')}>
-                    Shimmer FM bell (no key)
-                  </button>
-                  <button type="button" style={styles.workshopBtn} onClick={() => void loadWorkshopStarter('pluck_bass')}>
-                    Ping-pong bass (no key)
-                  </button>
-                  <Link to="/apps" style={styles.workshopLink}>Web Apps →</Link>
-                </div>
-              )}
+              <div style={styles.workshopRow}>
+                <Link to="/player?demos=1" style={styles.workshopBtn}>
+                  Explore Csound Models in Player
+                </Link>
+                <Link to="/apps" style={styles.workshopLink}>Web Apps →</Link>
+              </div>
               {inputBar(true)}
             </div>
           </div>

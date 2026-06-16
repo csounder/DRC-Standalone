@@ -1,11 +1,13 @@
-import { isProPlus } from '../util/tier'
 import { IpcMain, dialog, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import { Provider } from '../provider/provider'
+import { isProPlus } from '../util/tier'
+import { ensureOllamaRunning } from '../util/ollama-launch'
 import { loadConfig, saveConfig, setConfigValue, getConfigValue, type DrcConfig } from '../util/config'
 import { detectCabbagePath } from '../util/cabbage-path'
 import { detectCsoundQtPath } from '../util/csoundqt-path'
-import { listAudioDevices } from '../util/audio-devices'
+import { detectBrowserPath, listBrowserCandidates } from '../util/browser-path'
+import { listAudioDevices, resolveStoredOutputIndex } from '../util/audio-devices'
 import {
   AUDIO_INPUT_OFF,
   AUDIO_OUTPUT_KEY,
@@ -17,26 +19,23 @@ import {
 // The only keys that hold provider API secrets — masked and surfaced by
 // config:getApiKeys. Everything else in config.json (e.g. cabbagePath) is a
 // plain setting and must NOT leak into the API-keys view.
-const PROVIDER_KEYS = ['google', 'groq', 'anthropic', 'openai'] as const
+const PROVIDER_KEYS = ['openrouter', 'google', 'groq', 'anthropic', 'openai'] as const
 
-/** Workshop default: Groq-only Agent — drop saved Gemini keys and preferOllama when Groq is present. */
+/** When Groq is saved, clear preferOllama so free cloud keys are not skipped. */
 function migrateProviderKeys(config: DrcConfig): DrcConfig {
   const next = { ...config }
-  let changed = false
-  if (next.google && !isProPlus()) {
-    delete next.google
-    changed = true
-  }
   if (next.groq && next.preferOllama === '1') {
-    delete next.preferOllama
-    changed = true
+    const migrated = { ...next }
+    delete migrated.preferOllama
+    return saveConfig(migrated)
   }
-  return changed ? saveConfig(next) : config
+  return config
 }
 
 function applyProviderConfig(config: Record<string, string | undefined>): void {
   Provider.configure({
-    googleKey: isProPlus() ? config.google : undefined,
+    openrouterKey: config.openrouter,
+    googleKey: config.google,
     groqKey: config.groq,
     anthropicKey: config.anthropic,
     openaiKey: config.openai,
@@ -47,24 +46,26 @@ function applyProviderConfig(config: Record<string, string | undefined>): void {
   })
 }
 
+/** After a successful probe, persist the auto-picked model so restarts keep it. */
+function persistProbedOllamaModel(): void {
+  const status = Provider.ollamaStatus()
+  const cfg = loadConfig()
+  if (status.model?.trim() && !cfg.ollamaModel?.trim()) {
+    applyProviderConfig(setConfigValue('ollamaModel', status.model.trim()))
+  }
+}
+
 export function handleConfigIPC(ipcMain: IpcMain): void {
-  // Load saved keys on startup
   try {
     const saved = migrateProviderKeys(loadConfig())
     if (Object.keys(saved).length > 0) {
       applyProviderConfig(saved)
     }
-    void Provider.refreshOllamaStatus()
+    void Provider.refreshOllamaStatus(saved.ollamaEnabled === '1')
+    void ensureOllamaRunning()
   } catch {}
 
   ipcMain.handle('config:setApiKey', async (_event, provider: string, key: string) => {
-    if (provider === 'google' && !isProPlus()) {
-      return {
-        success: false,
-        error: 'Free Gemini is disabled for workshops. Use Groq (below) or Web Apps (no key).',
-        available: Provider.availableProviders(),
-      }
-    }
     const config = setConfigValue(provider, key)
 
     applyProviderConfig(config)
@@ -96,8 +97,9 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle('config:getApiKeys', async () => {
-    await Provider.refreshOllamaStatus()
     const config = loadConfig()
+    await Provider.refreshOllamaStatus(config.ollamaEnabled === '1')
+    persistProbedOllamaModel()
     // Return masked keys — provider secrets only, never other settings.
     const masked: Record<string, string> = {}
     for (const k of PROVIDER_KEYS) {
@@ -113,11 +115,12 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
 
   ipcMain.handle('config:getOllama', async () => {
     const probe = await Provider.refreshOllamaStatus(true)
+    persistProbedOllamaModel()
     const cfg = loadConfig()
     return {
       enabled: cfg.ollamaEnabled === '1',
       preferOllama: cfg.preferOllama === '1',
-      model: cfg.ollamaModel ?? '',
+      model: cfg.ollamaModel ?? Provider.ollamaStatus().model ?? '',
       baseUrl: cfg.ollamaBaseUrl ?? '',
       running: probe.ok,
       models: probe.models,
@@ -130,17 +133,27 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     model?: string
     baseUrl?: string
   }) => {
-    const cfg = loadConfig()
     if (patch.enabled !== undefined) setConfigValue('ollamaEnabled', patch.enabled ? '1' : '')
     if (patch.preferOllama !== undefined) setConfigValue('preferOllama', patch.preferOllama ? '1' : '')
     if (patch.model !== undefined) setConfigValue('ollamaModel', patch.model.trim())
     if (patch.baseUrl !== undefined) setConfigValue('ollamaBaseUrl', patch.baseUrl.trim())
     applyProviderConfig(loadConfig())
     await Provider.refreshOllamaStatus(true)
-    return { success: true, available: Provider.availableProviders(), ...Provider.ollamaStatus() }
+    persistProbedOllamaModel()
+    const cfg = loadConfig()
+    return {
+      success: true,
+      available: Provider.availableProviders(),
+      ...Provider.ollamaStatus(),
+      model: cfg.ollamaModel ?? Provider.ollamaStatus().model ?? '',
+    }
   })
 
-  ipcMain.handle('config:testOllama', async () => Provider.testOllama())
+  ipcMain.handle('config:testOllama', async () => {
+    const result = await Provider.testOllama()
+    if (result.ok) persistProbedOllamaModel()
+    return result
+  })
 
   // Cabbage install path — lets users point us at their exact app/binary when
   // auto-detection misses it. `exists` is echoed back so the UI can warn about a
@@ -175,19 +188,24 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     }
   })
 
-  // Current selection ('' = system default for output/input; input 'none' = mic off).
-  ipcMain.handle('config:getAudioConfig', async () => ({
-    output: getConfigValue(AUDIO_OUTPUT_KEY) ?? '',
-    input: getConfigValue(AUDIO_INPUT_KEY) ?? '',
-    midiInput: getConfigValue(MIDI_INPUT_KEY) ?? '',
-  }))
-
-  ipcMain.handle('config:resetAudioDevices', async () => {
-    for (const key of AUDIO_KEYS) setConfigValue(key, '')
-    return { success: true, output: '', input: '', midiInput: '' }
+  // Current selection ('' = system default output; input 'none' = mic off).
+  ipcMain.handle('config:getAudioConfig', async () => {
+    const rawInput = getConfigValue(AUDIO_INPUT_KEY) ?? ''
+    return {
+      output: getConfigValue(AUDIO_OUTPUT_KEY) ?? '',
+      input: rawInput === '' ? AUDIO_INPUT_OFF : rawInput,
+      midiInput: getConfigValue(MIDI_INPUT_KEY) ?? '',
+    }
   })
 
-  // Persist one device field. Output/input: '' = system default; input 'none' = off.
+  ipcMain.handle('config:resetAudioDevices', async () => {
+    setConfigValue(AUDIO_OUTPUT_KEY, '')
+    setConfigValue(AUDIO_INPUT_KEY, AUDIO_INPUT_OFF)
+    setConfigValue(MIDI_INPUT_KEY, '')
+    return { success: true, output: '', input: AUDIO_INPUT_OFF, midiInput: '' }
+  })
+
+  // Persist one device field. Output: '' = system default; input 'none' = off.
   ipcMain.handle('config:setAudioDevice', async (_event, field: string, value: string) => {
     if (!AUDIO_KEYS.includes(field as (typeof AUDIO_KEYS)[number])) {
       return { success: false, error: `Unknown audio field: ${field}` }
@@ -209,12 +227,16 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     const inp = getConfigValue(AUDIO_INPUT_KEY) ?? ''
     const midi = getConfigValue(MIDI_INPUT_KEY) ?? ''
     let changed = false
-    if (/^\d+$/.test(out) && !devs.outputs.some((d) => String(d.index) === out)) {
-      setConfigValue(AUDIO_OUTPUT_KEY, '')
+    const resolvedOut = resolveStoredOutputIndex(out, devs.outputs)
+    if (resolvedOut !== out) {
+      setConfigValue(AUDIO_OUTPUT_KEY, resolvedOut)
       changed = true
     }
-    if (/^\d+$/.test(inp) && !devs.inputs.some((d) => String(d.index) === inp)) {
-      setConfigValue(AUDIO_INPUT_KEY, '')
+    if (inp === '') {
+      setConfigValue(AUDIO_INPUT_KEY, AUDIO_INPUT_OFF)
+      changed = true
+    } else if (/^\d+$/.test(inp) && !devs.inputs.some((d) => String(d.index) === inp)) {
+      setConfigValue(AUDIO_INPUT_KEY, AUDIO_INPUT_OFF)
       changed = true
     }
     if (/^\d+$/.test(midi) && !devs.midiInputs.some((d) => String(d.index) === midi)) {
@@ -274,6 +296,40 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
     if (result.canceled || !result.filePaths[0]) return { canceled: true }
     const chosen = result.filePaths[0]
     setConfigValue('csoundQtPath', chosen)
+    return { canceled: false, path: chosen, exists: existsSync(chosen) }
+  })
+
+  ipcMain.handle('config:getBrowserPath', async () => {
+    const path = getConfigValue('browserPath') ?? ''
+    const detected = path ? '' : ((await detectBrowserPath()) ?? '')
+    return { path, exists: path ? existsSync(path) : false, detected }
+  })
+
+  ipcMain.handle('config:setBrowserPath', async (_event, path: string) => {
+    const trimmed = (path ?? '').trim()
+    setConfigValue('browserPath', trimmed)
+    return { success: true, path: trimmed, exists: trimmed ? existsSync(trimmed) : false }
+  })
+
+  ipcMain.handle('config:detectBrowser', async () => {
+    return { detected: (await detectBrowserPath(true)) ?? '' }
+  })
+
+  ipcMain.handle('config:listBrowsers', async () => {
+    return { browsers: await listBrowserCandidates() }
+  })
+
+  ipcMain.handle('config:chooseBrowserPath', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    const options: Electron.OpenDialogOptions = {
+      title: 'Choose your default browser',
+      properties: process.platform === 'darwin' ? ['openFile', 'openDirectory'] : ['openFile'],
+      filters: process.platform === 'win32' ? [{ name: 'Executable', extensions: ['exe'] }] : undefined,
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || !result.filePaths[0]) return { canceled: true }
+    const chosen = result.filePaths[0]
+    setConfigValue('browserPath', chosen)
     return { canceled: false, path: chosen, exists: existsSync(chosen) }
   })
 }

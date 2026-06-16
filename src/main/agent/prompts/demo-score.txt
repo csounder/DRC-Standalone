@@ -59,6 +59,25 @@ endin
 
 Bell timbre: `xcar=1`, `xmod=3.51`, `kIdx` starts high and decays via `linsegr`.
 
+# FM woodblock / percussion hit (copy when asked for woodblock, clave, block — use fmpercfl)
+
+From **Csound Manual fmpercfl** — standard kc1/kc2 FM percussion. Decay `kc2` with `expsegr`. For MIDI add `massign 0, 1` and `cpsmidinn(p4)` / `ampmidi`.
+
+```
+massign 0, 1
+
+instr 1
+  iFreq = cpsmidinn(p4)
+  iAmp  = p5
+  kc1   = 5
+  kc2   expsegr 5, 0.002, 4.2, 0.07, 0.75, 0.015, 0.75
+  aSig  fmpercfl iAmp * 0.55, iFreq, kc1, kc2, 0.01, 9
+  outs  aSig, aSig
+endin
+```
+
+See golden `fm_woodblock_midi_starter.csd` and catalog `csoundmanual-fmpercfl`. For modal wood (not FM), see `zuccobook-cap-10-6-wood`.
+
 # FM bass / pluck bass (copy when asked for bass)
 
 Use `foscili` + `expsegr` pluck envelope. For ping-pong echo, use `gaEcho` + `instr 99` with `vdelay3` (see golden pluck_bass_starter). Score MUST include `i 1` note lines — never `f 0` hold only.

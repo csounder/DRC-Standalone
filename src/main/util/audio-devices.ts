@@ -101,9 +101,8 @@ export async function listAudioDevices(): Promise<DeviceList> {
 /** Map Settings list index → csound `-o` token (e.g. index 0 → `dac1`, not `dac0`). */
 export function resolveDacOutputArg(indexStr: string, outputs: AudioDevice[]): string {
   const dev = outputs.find((d) => String(d.index) === indexStr)
-  if (dev?.id && /^dac/i.test(dev.id)) return dev.id
-  const n = parseInt(indexStr, 10)
-  return Number.isFinite(n) ? `dac${n + 1}` : 'dac'
+  if (dev?.id && /^dac/i.test(dev.id) && dev.name.trim() && !isPoorDefaultOutput(dev)) return dev.id
+  return resolveDefaultDacOutputArg(outputs)
 }
 
 /** Map Settings list index → csound input flag (e.g. index 0 → `-iadc1`). */
@@ -114,16 +113,61 @@ export function resolveAdcInputFlag(indexStr: string, inputs: AudioDevice[]): st
   return Number.isFinite(n) ? `-iadc${n + 1}` : '-iadc'
 }
 
+/** Skip virtual/loopback devices when picking a sensible default output. */
+export function isPoorDefaultOutput(dev: AudioDevice): boolean {
+  const blob = `${dev.id} ${dev.name}`.toLowerCase()
+  if (!dev.name.trim()) return true
+  return (
+    /blackhole|soundflower|loopback|vb-?audio|virtual desktop|screen recording|landr sessions|zoomaudio|aggregate|multi[- ]output/i.test(
+      blob,
+    )
+  )
+}
+
+function listDacOutputs(outputs: AudioDevice[]): AudioDevice[] {
+  return outputs.filter((d) => /^dac/i.test(d.id))
+}
+
 /**
- * When Settings output is "system default", csound's bare `-o dac` often ignores
- * macOS routing (AirPods vs built-in). Prefer the first enumerated dac (usually
- * the active Core Audio default — AirPods when worn).
+ * Best physical output for workshop Player — Mac speakers, then headphones/AirPods,
+ * then any non-virtual dac. Never BlackHole / Zoom / loopback.
+ */
+export function findPreferredDefaultOutput(outputs: AudioDevice[]): AudioDevice | null {
+  const dacs = listDacOutputs(outputs)
+  if (!dacs.length) return null
+
+  const tiers: Array<(d: AudioDevice) => boolean> = [
+    (d) => /macbook.*speaker|built-?in.*speaker/i.test(d.name),
+    (d) => /airpod|beats|powerbeats/i.test(d.name),
+    (d) => /headphone|speakers?/i.test(d.name),
+    (d) => /usb|hdmi|display|external/i.test(d.name),
+    () => true,
+  ]
+
+  for (const match of tiers) {
+    const dev = dacs.find((d) => match(d) && !isPoorDefaultOutput(d))
+    if (dev) return dev
+  }
+  return null
+}
+
+/** Clear stale or virtual saved indices; empty string = Auto (resolved at play time only). */
+export function resolveStoredOutputIndex(indexStr: string, outputs: AudioDevice[]): string {
+  if (!indexStr) return ''
+  if (/^\d+$/.test(indexStr)) {
+    const dev = outputs.find((d) => String(d.index) === indexStr)
+    if (dev && !isPoorDefaultOutput(dev)) return indexStr
+  }
+  return ''
+}
+
+/**
+ * When Settings output is "system default", csound's bare `-o dac` often follows macOS
+ * routing to BlackHole / Zoom. Always pick an explicit physical `dacN` when possible.
  */
 export function resolveDefaultDacOutputArg(outputs: AudioDevice[]): string {
-  const first = outputs.find((d) => /^dac/i.test(d.id) && d.name.trim())
-  if (first) return first.id
-  const airpods = outputs.find((d) => /airpod|beats|powerbeats/i.test(d.name))
-  if (airpods) return airpods.id
+  const pref = findPreferredDefaultOutput(outputs)
+  if (pref) return pref.id
   return 'dac'
 }
 

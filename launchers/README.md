@@ -1,14 +1,17 @@
-# Workshop launchers (double-click or run from terminal)
+# Workshop launchers (macOS & Linux — LAC 2026)
 
 | OS | Instructor (Pro+) | Attendee (free tier) |
 |----|-----------------|----------------------|
 | **macOS** | `Dr.C-Standalone.command` | `Dr.C-Workshop-Attendee.command` |
 | **Linux** | `chmod +x Dr.C-Standalone.sh && ./Dr.C-Standalone.sh` | `chmod +x Dr.C-Workshop-Attendee.sh && ./Dr.C-Workshop-Attendee.sh` |
-| **Windows** | `Dr.C-Standalone.bat` | `Dr.C-Workshop-Attendee.bat` |
 
-From repo root you can also use:
+From repo root:
 
-- macOS / Linux: `./scripts/launch-drc.sh` or `./scripts/launch-workshop-attendee.sh`
-- Windows: `scripts\launch-drc.bat` or `scripts\launch-workshop-attendee.bat`
+```bash
+./scripts/launch-drc.sh                 # instructor
+./scripts/launch-workshop-attendee.sh   # attendees
+```
 
 Full install steps: **[PARTICIPANTS.md](../PARTICIPANTS.md)**
+
+> Windows `.bat` / `.ps1` launchers remain in the repo for future use but are **not** part of LAC 2026.

@@ -8,11 +8,19 @@ import {
   resolveDefaultDacOutputArg,
   outputLabelForIndex,
 } from '../util/audio-devices'
+import { CSOUND_OUTPUT_LIMITER, csoundLimiterCsOptionsLine } from '../../shared/csd-realtime-options'
 
 export interface AudioIoConfig {
   output: string
   input: string
   midiInput: string
+}
+
+/** @deprecated Use CSOUND_OUTPUT_LIMITER from shared/csd-realtime-options */
+export { CSOUND_OUTPUT_LIMITER }
+
+export function csoundLimiterCliFlag(ceiling = CSOUND_OUTPUT_LIMITER): string {
+  return csoundLimiterCsOptionsLine(ceiling)
 }
 
 export interface AudioDeviceContext {
@@ -21,11 +29,26 @@ export interface AudioDeviceContext {
 }
 
 export function readAudioIoConfig(): AudioIoConfig {
+  const rawInput = (getConfigValue('audioInputDevice') ?? '').trim()
   return {
     output: (getConfigValue('audioOutputDevice') ?? '').trim(),
-    input: (getConfigValue('audioInputDevice') ?? '').trim(),
+    input: rawInput === '' ? AUDIO_INPUT_OFF : rawInput,
     midiInput: (getConfigValue('midiInputDevice') ?? '').trim(),
   }
+}
+
+/** True when Player realtime spawn will pass `-iadc` / `-iadcN` (mic or interface input). */
+export function audioOpensInput(cfg: Pick<AudioIoConfig, 'input'>): boolean {
+  const input = (cfg.input ?? '').trim()
+  return Boolean(input && input !== AUDIO_INPUT_OFF)
+}
+
+export interface RealtimeIoOptions {
+  /**
+   * Player routes USB MIDI through Web MIDI → stdin score events only.
+   * When true, csound does not open rtmidi (avoids dual MIDI paths and layered voices).
+   */
+  webMidiOnly?: boolean
 }
 
 /** Build csound CLI I/O flags. Pass device lists from `csound --devices` for correct `-o dacN`. */
@@ -33,6 +56,7 @@ export function buildRealtimeIoFlags(
   _csdPath: string,
   cfg = readAudioIoConfig(),
   devices: AudioDeviceContext = { outputs: [], inputs: [] },
+  opts: RealtimeIoOptions = {},
 ): string[] {
   const flags: string[] = [realtimeAudioFlag()]
 
@@ -42,7 +66,7 @@ export function buildRealtimeIoFlags(
     flags.push('-o', resolveDefaultDacOutputArg(devices.outputs))
   }
 
-  if (!cfg.input || cfg.input === AUDIO_INPUT_OFF) {
+  if (!audioOpensInput(cfg)) {
     // no input
   } else if (/^\d+$/.test(cfg.input)) {
     flags.push(resolveAdcInputFlag(cfg.input, devices.inputs))
@@ -50,7 +74,7 @@ export function buildRealtimeIoFlags(
     flags.push('-iadc')
   }
 
-  if (/^\d+$/.test(cfg.midiInput)) {
+  if (!opts.webMidiOnly && /^\d+$/.test(cfg.midiInput)) {
     flags.push('-+rtmidi=portmidi', `-M${cfg.midiInput}`)
   }
 
@@ -66,8 +90,9 @@ export function describeAudioRouting(
   _csdPath: string,
   cfg = readAudioIoConfig(),
   devices: AudioDeviceContext = { outputs: [], inputs: [] },
+  opts: RealtimeIoOptions = {},
 ): string {
-  const flags = buildRealtimeIoFlags(_csdPath, cfg, devices)
+  const flags = buildRealtimeIoFlags(_csdPath, cfg, devices, opts)
   const parts: string[] = []
   if (/^\d+$/.test(cfg.output)) {
     parts.push(`output: ${outputLabelForIndex(cfg.output, devices.outputs)}`)
@@ -76,10 +101,12 @@ export function describeAudioRouting(
     const dev = devices.outputs.find((d) => d.id === dac)
     parts.push(dev ? `output: ${dev.name} (${dev.id}, system default)` : 'output: system default (-o dac)')
   }
-  if (!cfg.input || cfg.input === AUDIO_INPUT_OFF) parts.push('input: none')
+  if (!audioOpensInput(cfg)) parts.push('input: none')
   else if (/^\d+$/.test(cfg.input)) {
     const dev = devices.inputs.find((d) => String(d.index) === cfg.input)
     parts.push(dev ? `input: ${dev.name}` : `input adc${cfg.input}`)
   } else parts.push('input: system default')
+  if (opts.webMidiOnly) parts.push('MIDI: Web MIDI → stdin (no csound rtmidi)')
+  else if (/^\d+$/.test(cfg.midiInput)) parts.push(`MIDI: rtmidi device ${cfg.midiInput}`)
   return `Audio: ${parts.join(', ')} → ${flags.join(' ')}`
 }

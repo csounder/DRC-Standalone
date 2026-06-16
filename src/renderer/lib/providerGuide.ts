@@ -1,5 +1,17 @@
 /** Shared copy + helpers for API provider setup and free-tier limits. */
 
+export const OPENROUTER_OPTION = {
+  id: 'openrouter' as const,
+  label: 'OpenRouter',
+  tier: 'One key · many models',
+  signupUrl: 'https://openrouter.ai/keys',
+  signupLabel: 'openrouter.ai/keys',
+  keyPlaceholder: 'sk-or-...',
+  hint:
+    'Simplest paid path — one key routes to Claude, GPT, Gemini, Llama, and more. ' +
+    'Add credits at openrouter.ai. Dr.C uses Claude Sonnet for Agent and Gemini Flash for narration.',
+}
+
 export interface ProviderOption {
   id: 'google' | 'groq' | 'anthropic' | 'openai'
   label: string
@@ -23,20 +35,23 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     signupUrl: 'https://console.groq.com/keys',
     signupLabel: 'console.groq.com/keys',
     keyPlaceholder: 'gsk_...',
-    hint: 'Recommended for workshops. Free, no credit card. Dr.C uses Llama 3.3 70B on Groq.',
+    hint: 'Free tier — Dr.C tries Groq first when both free keys are saved. For best Agent results, use your own Anthropic, OpenAI, or OpenRouter key.',
     soloWarning:
-      'Groq\'s free tier has rate limits (~30 requests/minute). If Dr.C pauses, wait for the countdown on the Agent tab, then use Try again. Web Apps work with no key at all.',
+      'Groq\'s free tier has rate limits (~30 requests/minute). Wait for the countdown, then Try again. ' +
+      'Add a Gemini key in Settings as backup — Dr.C switches automatically. Your own paid API key works best.',
   },
   {
     id: 'google',
     label: 'Google AI (Gemini)',
-    tier: 'Pro+ only',
-    free: false,
+    tier: 'Free tier',
+    free: true,
     signupUrl: 'https://aistudio.google.com/apikey',
     signupLabel: 'aistudio.google.com/apikey',
     keyPlaceholder: 'AIza...',
-    hint: 'Pro+ only — optional for narration and specialist consults. Free Gemini is disabled for Agent.',
-    soloWarning: '',
+    hint: 'Free tier — quality varies. Dr.C falls back to Groq when Gemini is throttled (if both keys are saved). Your own Anthropic/OpenAI key is strongly recommended.',
+    soloWarning:
+      'Gemini\'s free tier has rate limits (~20 requests/minute). Wait for the countdown, then Try again. ' +
+      'Add a Groq key as backup — Dr.C switches automatically. Your own paid API key works best.',
   },
   {
     id: 'anthropic',
@@ -46,7 +61,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     signupUrl: 'https://console.anthropic.com/settings/keys',
     signupLabel: 'console.anthropic.com',
     keyPlaceholder: 'sk-ant-...',
-    hint: 'Paid API credits required. Strong for Complex mode when you have a budget.',
+    hint: 'Recommended for teaching — your own API key gives the best Csound output.',
     soloWarning: '',
   },
   {
@@ -57,7 +72,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     signupUrl: 'https://platform.openai.com/api-keys',
     signupLabel: 'platform.openai.com',
     keyPlaceholder: 'sk-...',
-    hint: 'Paid API credits required.',
+    hint: 'Your own API key — strong alternative to Anthropic for Complex mode.',
     soloWarning: '',
   },
 ]
@@ -66,18 +81,16 @@ export function providerOption(id: string): ProviderOption | undefined {
   return PROVIDER_OPTIONS.find((p) => p.id === id)
 }
 
-/** True when the user only has free-tier providers configured (typical workshop attendee). */
+/** True when the user only has free-tier providers configured (typical student / try-before-buy setup). */
 export function isFreeTierOnly(available: string[]): boolean {
   if (available.length === 0) return false
-  return available.every((id) => {
-    const p = providerOption(id)
-    return p?.free === true
-  })
+  return available.every((id) => id === 'ollama' || providerOption(id)?.free === true)
 }
 
 /** True when only one provider is configured and it is a free tier. */
 export function isSoloFreeProvider(available: string[]): boolean {
   if (available.length !== 1) return false
+  if (available[0] === 'ollama') return true
   const p = providerOption(available[0])
   return p?.free === true
 }
@@ -108,3 +121,28 @@ export function formatCountdown(msRemaining: number): string {
   const s = totalSec % 60
   return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`
 }
+
+/** Local LLM options for setup handouts and Settings copy. */
+export const LOCAL_LLM_OPTIONS = [
+  {
+    id: 'ollama',
+    label: 'Ollama',
+    recommended: true,
+    downloadUrl: 'https://ollama.com/download',
+    libraryUrl: 'https://ollama.com/library',
+    models: [
+      { name: 'qwen2.5-coder:7b', ram: '~8 GB', note: 'Default — best for Csound/code' },
+      { name: 'qwen2.5-coder:3b', ram: '~4 GB', note: 'Smaller laptops' },
+      { name: 'llama3.2:3b', ram: '~4 GB', note: 'Fast general model' },
+    ],
+    setup: 'Install Ollama → ollama pull <model> → Settings → Use Ollama for Agent',
+  },
+  {
+    id: 'lmstudio',
+    label: 'LM Studio',
+    recommended: false,
+    downloadUrl: 'https://lmstudio.ai/',
+    serverUrl: 'http://127.0.0.1:1234',
+    note: 'Load a model → start Local Server → set Server URL in Settings → Local LLM server',
+  },
+] as const

@@ -4,6 +4,7 @@ import { join } from 'path'
 import { getConfigValue } from '../util/config'
 import { detectCabbagePath } from '../util/cabbage-path'
 import { detectCsoundQtPath } from '../util/csoundqt-path'
+import { detectBrowserPath } from '../util/browser-path'
 import { prepareCsdForCsoundQt } from '../../shared/csd-realtime-options'
 import { launchExternalOnFile, LAUNCH_HINTS, MAC_FALLBACK } from '../util/launch-external'
 
@@ -22,9 +23,24 @@ function csoundQtDir(): string {
   return dir
 }
 
+function webAppDir(): string {
+  const dir = join(app.getPath('documents'), 'DrC', 'webapps')
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  return dir
+}
+
 function safeFileName(title: string): string {
   const base = title.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase()
   return (base || 'untitled') + '.csd'
+}
+
+function safeWebAppFolder(title: string): string {
+  return title.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'untitled'
+}
+
+function isHtmlContent(content: string): boolean {
+  const t = content.trim()
+  return /<!DOCTYPE\s+html/i.test(t) || /<html[\s>]/i.test(t)
 }
 
 function extractCsoundSynthesizer(content: string): string | null {
@@ -44,6 +60,12 @@ async function launchCsoundQt(csdPath: string) {
   const configured = (getConfigValue('csoundQtPath') ?? '').trim()
   const preferred = configured || ((await detectCsoundQtPath()) ?? '')
   return launchExternalOnFile(csdPath, preferred, MAC_FALLBACK.csoundqt, LAUNCH_HINTS.csoundqt)
+}
+
+async function launchBrowser(htmlPath: string) {
+  const configured = (getConfigValue('browserPath') ?? '').trim()
+  const preferred = configured || ((await detectBrowserPath()) ?? '')
+  return launchExternalOnFile(htmlPath, preferred, MAC_FALLBACK.browser, LAUNCH_HINTS.browser)
 }
 
 export function handleExportIPC(ipcMain: IpcMain): void {
@@ -88,6 +110,26 @@ export function handleExportIPC(ipcMain: IpcMain): void {
       return { success: true, path, launchedVia: result.method }
     } catch (err: any) {
       return { success: false, error: err?.message ?? 'Failed to write CSD' }
+    }
+  })
+
+  // Save web app HTML and open in the user's chosen browser (needs network for Csound WASM CDN).
+  ipcMain.handle('export:openInBrowser', async (_event, content: string, title: string) => {
+    if (!content?.trim() || !isHtmlContent(content)) {
+      return { success: false, error: 'Not an HTML web app — convert to Web App first.' }
+    }
+    try {
+      const folder = join(webAppDir(), safeWebAppFolder(title))
+      if (!existsSync(folder)) mkdirSync(folder, { recursive: true })
+      const path = join(folder, 'index.html')
+      writeFileSync(path, content, 'utf-8')
+      const result = await launchBrowser(path)
+      if (!result.ok) {
+        return { success: false, error: `${result.error} Saved to ${path}`, path }
+      }
+      return { success: true, path, launchedVia: result.method }
+    } catch (err: any) {
+      return { success: false, error: err?.message ?? 'Failed to write HTML' }
     }
   })
 

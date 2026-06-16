@@ -2,7 +2,7 @@
 
 AI-powered Csound creative tool. Electron app.
 
-**LAC 2026 workshop participants:** start with **[PARTICIPANTS.md](./PARTICIPANTS.md)** (macOS, Linux, Windows install, download, launchers).
+**LAC 2026 workshop participants:** start with **[PARTICIPANTS.md](./PARTICIPANTS.md)** (macOS and Linux). Resume chat: **[HOTEL-RESUME.md](./HOTEL-RESUME.md)**. Local LLM: **[LOCAL-LLM.md](./LOCAL-LLM.md)**.
 
 ## Install (no terminal needed)
 

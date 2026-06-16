@@ -1,10 +1,11 @@
-# Airport pickup — Dr.C no sound (2026-06-15)
+# Airport pickup — Dr.C (2026-06-15)
 
-**Read this first.** Richard is leaving with **no sound** still unresolved in Dr.C Standalone.
+> **Superseded for resume:** use [`HOTEL-RESUME.md`](HOTEL-RESUME.md) + `git pull` on `lac-2026-csound7`.  
+> Below is the **historical** no-sound investigation log (fixes are now committed).
 
 ---
 
-## 30-second status
+## 30-second status (historical)
 
 | Area | Status |
 |------|--------|

@@ -37,10 +37,11 @@ export default function QuotaCooldown({ until, providerLabel, onExpired, compact
       {!compact && (
         <>
           <span style={styles.hint}>
-            Wait for the timer, then use Try again. Enable Ollama in Settings for a local fallback with no rate limits.
+            Wait for the timer, then use Try again. Dr.C switches between Groq and Gemini automatically when both keys are saved.
+            For the best Agent results, use <strong>your own</strong> Anthropic, OpenAI, or OpenRouter API key.
           </span>
           <Link to="/settings" style={styles.link}>
-            Open Settings →
+            Add keys in Settings →
           </Link>
         </>
       )}

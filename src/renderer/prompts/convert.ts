@@ -1,3 +1,5 @@
+import { csoundLimiterCsOptionsLine } from '../../shared/csd-realtime-options'
+
 export type ConvertTarget = 'webapp' | 'vst' | 'csd' | 'player'
 
 const WEBAPP_TEMPLATE = `Convert the Csound project below into a web-ready orchestra CSD. DrC's web host builds the entire UI (controls, on/off, keyboard) deterministically from the \`chn_k\` declarations you emit — your ONLY job is the Csound. Do not write any HTML or JavaScript.
@@ -8,6 +10,7 @@ OUTPUT FORMAT (strict):
 - <CsOptions> is exactly:
 -o dac
 -d
+${csoundLimiterCsOptionsLine()}
 
 HOW THE WEB HOST USES YOUR CSD (so you emit the right thing):
 - It compiles ONLY your <CsInstruments> body (via compileOrc) and DISCARDS <CsScore>. So every function table MUST be created with \`ftgen\` at orchestra scope — NEVER as a score \`f\` statement (score f-statements will not run).
@@ -93,7 +96,11 @@ ADAPTATION RULES — follow precisely:
 
 7. **Function tables**: create them all with \`ftgen\` in the orchestra (the score is discarded). Keep wavetables and init-time setup. Drop MIDI opcodes, OSC, and hard-coded score melodies.
 
-8. **Score**: <CsScore> is ignored by the web host, so emit just a keep-alive: \`f 0 3600\`.
+8. **Score** — put this ONLY inside \`<CsScore>\`, never in \`<CsInstruments>\`. Score \`f\` / \`i\` lines in the orchestra cause a parser error (e.g. \`f 0 3600\`).
+
+       <CsScore>
+       f 0 1
+       </CsScore>
 
 9. **Quality bar**: compiles with stock Csound 6/7, renders stereo to \`-o dac\`, and is audible with default control values — a held key for shape A, or immediately after Start for shape B.
 
@@ -187,6 +194,7 @@ OUTPUT FORMAT (strict):
 - <CsOptions> is exactly:
 -o dac
 -d
+${csoundLimiterCsOptionsLine()}
 
 ADAPTATION RULES — follow precisely:
 
@@ -357,7 +365,12 @@ export function needsPlayerAdapt(source: string): boolean {
   if (!/\bchn_k\s+/i.test(source)) return true
   if (!/\bp4\b/.test(source)) return true
   if (!/\binstr\s+100\b/.test(source)) return true
-  if (!/\blinsegr\b/i.test(source)) return true
+  if (
+    !/\blinsegr\b/i.test(source) &&
+    !/\b(madsr|linenr|linen|expon|expseg|linseg)\b/i.test(source)
+  ) {
+    return true
+  }
   return false
 }
 

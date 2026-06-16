@@ -1,16 +1,16 @@
 import { type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { PROVIDER_OPTIONS } from '../lib/providerGuide'
-import { readWorkshopStarter } from '../lib/workshopDemos'
+import { OPENROUTER_OPTION, PROVIDER_OPTIONS } from '../lib/providerGuide'
 
 interface Props {
   onClose: () => void
 }
 
-/** Shown when the user tries to generate before configuring an API key. */
+/** Shown when the user tries to generate before configuring an LLM provider. */
 export default function ApiKeyPromptDialog({ onClose }: Props) {
   const navigate = useNavigate()
   const groq = PROVIDER_OPTIONS.find((p) => p.id === 'groq')!
+  const gemini = PROVIDER_OPTIONS.find((p) => p.id === 'google')!
 
   const goSettings = () => {
     navigate('/settings')
@@ -20,15 +20,32 @@ export default function ApiKeyPromptDialog({ onClose }: Props) {
   return (
     <div style={styles.backdrop} role="dialog" aria-modal="true" aria-label="API key needed">
       <div style={styles.modal}>
-        <h2 style={styles.title}>Add an API key first</h2>
+        <h2 style={styles.title}>Set up a model for the Agent</h2>
         <p style={styles.body}>
-          The Agent needs a personal or free LLM key before it can compose sound.
-          Paste one in <strong>Settings</strong> — a free <strong>Groq</strong> key is recommended.
-          Or skip keys: <strong>Web Apps</strong> and <strong>Player → Workshop demo</strong> need no key.
+          The Agent needs a configured model — not a URL pasted in chat.
+        </p>
+        <div style={styles.localBox}>
+          <strong>Using Ollama?</strong> If <strong>Test</strong> already worked in Settings:
+          <ol style={styles.steps}>
+            <li>Open <strong>Settings → Local LLM server</strong></li>
+            <li>Turn <strong>Use local LLM for Agent</strong> <strong>On</strong> (Test alone is not enough)</li>
+            <li>Return to Agent and send your Csound prompt</li>
+          </ol>
+          Server URL (<code style={styles.code}>http://127.0.0.1:11434</code>) belongs in Settings, not here.
+        </div>
+        <p style={styles.body}>
+          <strong>Other options:</strong> one <strong>OpenRouter</strong> key · free cloud <strong>Groq</strong> / <strong>Gemini</strong>
+          {' '}· no model: <strong>Web Apps</strong> or <strong>Player → Workshop demo</strong>.
         </p>
         <div style={styles.links}>
+          <a href={OPENROUTER_OPTION.signupUrl} target="_blank" rel="noopener noreferrer" style={styles.extLink}>
+            Get {OPENROUTER_OPTION.label} key →
+          </a>
           <a href={groq.signupUrl} target="_blank" rel="noopener noreferrer" style={styles.extLink}>
             Get free {groq.label} key →
+          </a>
+          <a href={gemini.signupUrl} target="_blank" rel="noopener noreferrer" style={styles.extLink}>
+            Get free {gemini.label} key →
           </a>
         </div>
         <div style={styles.footer}>
@@ -65,7 +82,7 @@ const styles: Record<string, CSSProperties> = {
     padding: 24,
   },
   modal: {
-    width: 'min(440px, 94vw)',
+    width: 'min(480px, 94vw)',
     padding: '28px 32px',
     borderRadius: 16,
     border: 'var(--border-width) solid var(--border)',
@@ -79,10 +96,28 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--text-primary)',
   },
   body: {
-    margin: 0,
+    margin: '0 0 10px',
     fontSize: 14,
     lineHeight: 1.55,
     color: 'var(--text-secondary)',
+  },
+  localBox: {
+    margin: '12px 0',
+    padding: '12px 14px',
+    borderRadius: 10,
+    border: '1px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: 'var(--text-secondary)',
+  },
+  steps: {
+    margin: '8px 0 0',
+    paddingLeft: 20,
+  },
+  code: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: 12,
   },
   links: {
     display: 'flex',
