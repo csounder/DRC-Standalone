@@ -5,14 +5,19 @@ import { withCsoundPath } from '../util/csound-path'
 import {
   needsHoldScoreShortening,
   shortenHoldScoreForCompile,
+  stripCsOptionsHandledByCli,
 } from '../../shared/csd-offline-prepare'
 
 export { needsHoldScoreShortening, shortenHoldScoreForCompile } from '../../shared/csd-offline-prepare'
 
 export function compileCheckPath(csdPath: string, tempDir: string): string {
   const raw = readFileSync(csdPath, 'utf-8')
+  let prepared = stripCsOptionsHandledByCli(raw)
+  if (needsHoldScoreShortening(prepared)) {
+    prepared = shortenHoldScoreForCompile(prepared)
+  }
   const checkPath = join(tempDir, 'compile-check.csd')
-  writeFileSync(checkPath, shortenHoldScoreForCompile(raw), 'utf-8')
+  writeFileSync(checkPath, prepared, 'utf-8')
   return checkPath
 }
 

@@ -218,7 +218,8 @@ function buildPlayerCsd(
   const globalBlock = extraGlobals ? `${extraGlobals}\n${globals}`.trim() : globals
   return `<CsoundSynthesizer>
 <CsOptions>
--odac -d
+-o dac
+-d
 </CsOptions>
 <CsInstruments>
 sr = 44100

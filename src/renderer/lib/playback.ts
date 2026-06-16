@@ -46,9 +46,8 @@ export async function playArtifact(
   if (!window.api?.csound) return
   const store = usePlaybackStore.getState()
   store.set({ artifactId: artifact.id, status: 'compiling', message: 'Rendering with Csound…' })
-  if (useCsoundConsoleStore.getState().enabled) {
-    useCsoundConsoleStore.getState().setExpanded(true)
-  }
+  useCsoundConsoleStore.getState().setEnabled(true)
+  useCsoundConsoleStore.getState().setExpanded(true)
 
   try {
     const { path } = await window.api.csound.writeCsd(prepareCsdForWavRender(primaryContent(artifact)))

@@ -57,6 +57,8 @@ const api = {
       ipcRenderer.on('csound:output', handler)
       return () => ipcRenderer.removeListener('csound:output', handler)
     },
+    saveConsoleLog: (text: string) =>
+      ipcRenderer.invoke('csound:saveConsoleLog', text),
   },
 
   retrieval: {

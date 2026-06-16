@@ -1,7 +1,8 @@
+import { isProPlus } from '../util/tier'
 import { IpcMain, dialog, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import { Provider } from '../provider/provider'
-import { loadConfig, setConfigValue, getConfigValue } from '../util/config'
+import { loadConfig, saveConfig, setConfigValue, getConfigValue, type DrcConfig } from '../util/config'
 import { detectCabbagePath } from '../util/cabbage-path'
 import { detectCsoundQtPath } from '../util/csoundqt-path'
 import { listAudioDevices } from '../util/audio-devices'
@@ -18,9 +19,24 @@ import {
 // plain setting and must NOT leak into the API-keys view.
 const PROVIDER_KEYS = ['google', 'groq', 'anthropic', 'openai'] as const
 
+/** Workshop default: Groq-only Agent — drop saved Gemini keys and preferOllama when Groq is present. */
+function migrateProviderKeys(config: DrcConfig): DrcConfig {
+  const next = { ...config }
+  let changed = false
+  if (next.google && !isProPlus()) {
+    delete next.google
+    changed = true
+  }
+  if (next.groq && next.preferOllama === '1') {
+    delete next.preferOllama
+    changed = true
+  }
+  return changed ? saveConfig(next) : config
+}
+
 function applyProviderConfig(config: Record<string, string | undefined>): void {
   Provider.configure({
-    googleKey: config.google,
+    googleKey: isProPlus() ? config.google : undefined,
     groqKey: config.groq,
     anthropicKey: config.anthropic,
     openaiKey: config.openai,
@@ -34,7 +50,7 @@ function applyProviderConfig(config: Record<string, string | undefined>): void {
 export function handleConfigIPC(ipcMain: IpcMain): void {
   // Load saved keys on startup
   try {
-    const saved = loadConfig()
+    const saved = migrateProviderKeys(loadConfig())
     if (Object.keys(saved).length > 0) {
       applyProviderConfig(saved)
     }
@@ -42,6 +58,13 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
   } catch {}
 
   ipcMain.handle('config:setApiKey', async (_event, provider: string, key: string) => {
+    if (provider === 'google' && !isProPlus()) {
+      return {
+        success: false,
+        error: 'Free Gemini is disabled for workshops. Use Groq (below) or Web Apps (no key).',
+        available: Provider.availableProviders(),
+      }
+    }
     const config = setConfigValue(provider, key)
 
     applyProviderConfig(config)
@@ -85,7 +108,7 @@ export function handleConfigIPC(ipcMain: IpcMain): void {
         masked[k] = '***'
       }
     }
-    return { keys: masked, available: Provider.availableProviders() }
+    return { keys: masked, available: Provider.availableProviders(), proPlus: isProPlus() }
   })
 
   ipcMain.handle('config:getOllama', async () => {

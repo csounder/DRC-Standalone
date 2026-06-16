@@ -37,17 +37,16 @@ export default function QuotaCooldown({ until, providerLabel, onExpired, compact
       {!compact && (
         <>
           <span style={styles.hint}>
-            Dr.C tries Groq automatically when Gemini is limited (and vice versa) if both keys are saved in Settings.
-            When both are throttled, wait for the timer, then use Try again.
+            Wait for the timer, then use Try again. Enable Ollama in Settings for a local fallback with no rate limits.
           </span>
           <Link to="/settings" style={styles.link}>
-            Add Gemini + Groq keys in Settings →
+            Open Settings →
           </Link>
         </>
       )}
       {compact && (
         <span style={styles.hintCompact}>
-          {' '}— save both keys in Settings for automatic fallback
+          {' '}— wait, then try again
         </span>
       )}
     </div>

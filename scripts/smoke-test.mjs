@@ -257,7 +257,10 @@ else bad('parseChannels missing')
 // the correct names (we verify by regex; running the renderer module directly
 // would require a TS compile step we don't want in a smoke test).
 const samplePlayerCsd = `<CsoundSynthesizer>
-<CsOptions>-odac -d</CsOptions>
+<CsOptions>
+-o dac
+-d
+</CsOptions>
 <CsInstruments>
 sr = 44100
 ksmps = 32
@@ -452,12 +455,12 @@ section('settings page')
 
 const settingsSrc = readFileSync(join(REPO, 'src/renderer/pages/SettingsPage.tsx'), 'utf-8')
 
-if (settingsSrc.includes('href="https://aistudio.google.com/apikey"') &&
+if (settingsSrc.includes('href="https://console.groq.com/keys"') &&
     settingsSrc.includes('target="_blank"') &&
     settingsSrc.includes('rel="noopener noreferrer"')) {
-  ok('Gemini link is a real anchor with target=_blank + rel=noopener')
+  ok('Groq link is a real anchor with target=_blank + rel=noopener')
 } else {
-  bad('Gemini link is not a clickable <a target=_blank> — setWindowOpenHandler cannot route a span')
+  bad('Groq link is not a clickable <a target=_blank> — setWindowOpenHandler cannot route a span')
 }
 
 if (!settingsSrc.includes('Connected:')) {
@@ -470,6 +473,13 @@ if (settingsSrc.includes('Saved in DRC:') && settingsSrc.includes('detected via 
   ok('status banner distinguishes saved-in-DRC from env-var-only providers')
 } else {
   bad('status banner does not distinguish saved keys from env-var keys')
+}
+
+const providerSrc = readFileSync(join(REPO, 'src/main/provider/provider.ts'), 'utf-8')
+if (providerSrc.includes('if (hasGroq())') && providerSrc.includes("return { providerID: 'groq'")) {
+  ok('defaultProvider prefers Groq whenever a Groq key is configured')
+} else {
+  bad('provider.ts must use Groq before Gemini when Groq key is saved')
 }
 
 // ───────────────────────────────────────────────────────────────────────
@@ -772,6 +782,21 @@ function shortenHoldScoreForCompile(csd) {
   })
 }
 
+function stripCsOptionsHandledByCli(csd) {
+  if (!/<CsOptions>/i.test(csd)) return csd
+  const cliHandled = [
+    /^-n\b/, /^-o\s+\S+/, /^-odac/, /^-iadc/, /^-d\b/, /^-m\d+/, /^-W\b/,
+    /^-\+\s*rtaudio/, /^-\+\s*rtmidi/, /^-M\d+/,
+  ]
+  let s = csd.replace(/<CsOptions>([\s\S]*?)<\/CsOptions>/i, (_, body) => {
+    const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+      .filter((l) => !cliHandled.some((re) => re.test(l)))
+    if (lines.length === 0) return ''
+    return `<CsOptions>\n${lines.join('\n')}\n</CsOptions>`
+  })
+  return s.replace(/<CsOptions>\s*<\/CsOptions>\s*/gi, '')
+}
+
 function compileStarter(filename, opts = {}) {
   const path = join(REPO, 'resources/workshop-starters', filename)
   if (!existsSync(path)) return { ok: false, reason: 'missing file' }
@@ -780,7 +805,7 @@ function compileStarter(filename, opts = {}) {
   if (opts.renderScore) {
     csd = csd.replace(/<CsScore>[\s\S]*?<\/CsScore>/i, opts.renderScore)
   }
-  csd = normalizeCsOptions(csd)
+  csd = stripCsOptionsHandledByCli(normalizeCsOptions(csd))
   const checkPath = join(TMP, `ws-${filename}`)
   writeFileSync(checkPath, csd, 'utf-8')
   const r = spawnSync('csound', ['-n', '-d', '-m0', checkPath], {
@@ -797,6 +822,11 @@ function compileStarter(filename, opts = {}) {
 const compileCheckSrc = readFileSync(join(REPO, 'src/main/csound/compile-check.ts'), 'utf-8')
 if (compileCheckSrc.includes('shortenHoldScoreForCompile') && compileCheckSrc.includes('runCsoundCompileCheck')) {
   ok('compile-check shortens player hold scores before dry-run')
+  if (compileCheckSrc.includes('stripCsOptionsHandledByCli')) {
+    ok('compile-check strips CsOptions flags before dry-run')
+  } else {
+    bad('compile-check.ts must strip duplicate CsOptions')
+  }
 } else {
   bad('compile-check.ts missing hold-score shortening')
 }
@@ -809,6 +839,25 @@ if (offlinePrepareSrc.includes('prepareCsdForOfflineRender') && offlinePrepareSr
 } else {
   bad('src/shared/csd-offline-prepare.ts missing')
 }
+if (offlinePrepareSrc.includes('stripCsOptionsHandledByCli')) {
+  ok('stripCsOptionsHandledByCli removes CLI-duplicated CsOptions flags')
+} else {
+  bad('csd-offline-prepare.ts missing stripCsOptionsHandledByCli')
+}
+
+const audioFlagsSrc = readFileSync(join(REPO, 'src/main/csound/audio-flags.ts'), 'utf-8')
+if (audioFlagsSrc.includes('resolveDacOutputArg') && audioFlagsSrc.includes("flags.push('-o',")) {
+  ok('realtime play maps device index → dac id (-o dac1 not dac0)')
+} else {
+  bad('audio-flags.ts must map csound device index to dac id for -o dacN')
+}
+
+const realtimeOptsSrc = readFileSync(join(REPO, 'src/shared/csd-realtime-options.ts'), 'utf-8')
+if (realtimeOptsSrc.includes('prepareCsdForCsoundQt') && realtimeOptsSrc.includes('-o dac')) {
+  ok('CsoundQt export rewrites CsOptions to -o dac')
+} else {
+  bad('csd-realtime-options.ts missing prepareCsdForCsoundQt')
+}
 
 const csoundIpcSrc = readFileSync(join(REPO, 'src/main/ipc/csound.ipc.ts'), 'utf-8')
 if (csoundIpcSrc.includes('prepareCsdForOfflineRender') && csoundIpcSrc.includes('renderOutputWasSilent')) {
@@ -820,6 +869,11 @@ if (csoundIpcSrc.includes('prepareCsdForOfflineRender') && csoundIpcSrc.includes
 const playbackSrc = readFileSync(join(REPO, 'src/main/csound/csd-playback.ts'), 'utf-8')
 if (playbackSrc.includes('prepareCsdForRealtimePlay') && playbackSrc.includes('csoundOutputIndicatesRealtimeReady')) {
   ok('csd-playback strips offline -o and demo scores for Player realtime')
+  if (playbackSrc.includes('stripCsOptionsHandledByCli')) {
+    ok('prepareCsdForRealtimePlay strips CsOptions flags handled on CLI')
+  } else {
+    bad('prepareCsdForRealtimePlay must strip duplicate CsOptions before spawn')
+  }
   const agentLike = `<CsoundSynthesizer>
 <CsOptions>-n -d -m0 -o /tmp/drc.wav</CsOptions>
 <CsInstruments>
@@ -863,6 +917,18 @@ if (existsSync(join(REPO, 'resources/workshop-starters/player_fm_bell.csd'))) {
 } else {
   bad('player_fm_bell.csd missing')
 }
+if (existsSync(join(REPO, 'resources/workshop-starters/fm_piano_reverb_starter.csd'))) {
+  ok('fm_piano_reverb_starter.csd bundled (FM piano + ga reverb)')
+} else {
+  bad('fm_piano_reverb_starter.csd missing')
+}
+
+const consoleSrc = readFileSync(join(REPO, 'src/renderer/components/CsoundConsole.tsx'), 'utf-8')
+if (consoleSrc.includes('Copy all') && consoleSrc.includes('Save log')) {
+  ok('Csound console supports Copy all + Save log')
+} else {
+  bad('CsoundConsole missing copy/save controls')
+}
 
 const mechSrc = existsSync(join(REPO, 'src/renderer/lib/mechanicalPlayerAdapt.ts'))
   ? readFileSync(join(REPO, 'src/renderer/lib/mechanicalPlayerAdapt.ts'), 'utf-8')
@@ -896,6 +962,7 @@ for (const [file, opts] of [
   ['fm_bell_starter.csd', {}],
   ['pluck_bass_starter.csd', {}],
   ['fm_starter.csd', {}],
+  ['fm_piano_reverb_starter.csd', {}],
   ['pad_starter.csd', {}],
   ['player_fm_bell.csd', { shortenScore: true }],
   ['player_pluck_bass.csd', { shortenScore: true }],

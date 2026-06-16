@@ -161,10 +161,16 @@ Open **Settings** in Dr.C:
 
 | Provider | Cost | Get a key |
 |----------|------|-----------|
-| Gemini | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| Groq (backup) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
+## Groq (recommended)
 
-Use an **AI Studio** Gemini key (not Vertex). Click **Test** after pasting.
+| Provider | Cost | Get a key |
+|----------|------|-----------|
+| Groq (default) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
+| Ollama (local) | Free | [ollama.com/download](https://ollama.com/download) |
+
+Free Gemini is not used for workshop Agent turns. Paste a **Groq** key in Settings and click **Test**.
+
+**Attendee launchers (macOS/Linux/Windows):** use `launch-workshop-attendee.sh` or `.ps1` — sets Groq-first, one LLM call per turn.
 
 ---
 
@@ -257,7 +263,7 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 |---------|-----|
 | `csound not found` | Re-run OS install steps; restart terminal; use workshop launcher (sets PATH) |
 | Blank screen after Send | Close app; launcher kills stale port 5173 |
-| Gemini empty / rate limit | Add Groq key; wait for countdown; use offline demos |
+| Gemini empty / rate limit | Use Groq key; wait for countdown; use offline demos |
 | macOS "damaged" app | Right-click → Open, or `xattr -cr DrC.app` |
 | Windows script blocked | Use `.bat` launchers in `launchers/` |
 | Linux `npm install` fails | Use Node 22; `npx electron-builder install-app-deps` |

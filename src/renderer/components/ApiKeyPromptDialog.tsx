@@ -10,7 +10,6 @@ interface Props {
 /** Shown when the user tries to generate before configuring an API key. */
 export default function ApiKeyPromptDialog({ onClose }: Props) {
   const navigate = useNavigate()
-  const gemini = PROVIDER_OPTIONS.find((p) => p.id === 'google')!
   const groq = PROVIDER_OPTIONS.find((p) => p.id === 'groq')!
 
   const goSettings = () => {
@@ -24,13 +23,10 @@ export default function ApiKeyPromptDialog({ onClose }: Props) {
         <h2 style={styles.title}>Add an API key first</h2>
         <p style={styles.body}>
           The Agent needs a personal or free LLM key before it can compose sound.
-          Paste one in <strong>Settings</strong> — free Gemini or Groq keys work well.
+          Paste one in <strong>Settings</strong> — a free <strong>Groq</strong> key is recommended.
           Or skip keys: <strong>Web Apps</strong> and <strong>Player → Workshop demo</strong> need no key.
         </p>
         <div style={styles.links}>
-          <a href={gemini.signupUrl} target="_blank" rel="noopener noreferrer" style={styles.extLink}>
-            Get free {gemini.label} key →
-          </a>
           <a href={groq.signupUrl} target="_blank" rel="noopener noreferrer" style={styles.extLink}>
             Get free {groq.label} key →
           </a>

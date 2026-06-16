@@ -10,6 +10,17 @@ export interface CsoundOutputLine {
   ts: number
 }
 
+const ERROR_LINE =
+  /error|cannot|unexpected|failed|syntax|undefined|INIT ERROR|PERF ERROR|too many arguments/i
+
+export function isCsoundErrorLine(text: string): boolean {
+  return ERROR_LINE.test(text)
+}
+
+export function formatCsoundConsoleLines(lines: CsoundOutputLine[]): string {
+  return lines.map((l) => l.text).join('\n')
+}
+
 function loadEnabled(): boolean {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
@@ -49,12 +60,18 @@ export const useCsoundConsoleStore = create<CsoundConsoleState>((set, get) => ({
   append: (chunk) => {
     const text = chunk.text.trimEnd()
     if (!text) return
-    set((s) => ({
-      lines: [
+    const hasError = isCsoundErrorLine(text)
+    set((s) => {
+      const nextLines = [
         ...s.lines,
         { stream: chunk.stream, text, ts: Date.now() },
-      ].slice(-500),
-    }))
+      ].slice(-800)
+      if (!hasError) return { lines: nextLines }
+      try {
+        localStorage.setItem(STORAGE_KEY, '1')
+      } catch { /* ignore */ }
+      return { lines: nextLines, enabled: true, expanded: true }
+    })
   },
   clear: () => set({ lines: [] }),
 }))

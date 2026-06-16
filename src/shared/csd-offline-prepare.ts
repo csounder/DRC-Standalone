@@ -50,7 +50,21 @@ i 1 6.00 2.00 67 0.14
 i 1 6.00 2.00 72 0.12
 </CsScore>`
 
-function stripRealtimeCsOptions(csd: string): string {
+/** Flags the app passes on the csound CLI — duplicates in <CsOptions> make Csound 7 bail with "too many arguments". */
+const CLI_HANDLED_CSOPTIONS = [
+  /^-n\b/,
+  /^-o\s+\S+/,
+  /^-odac/,
+  /^-iadc/,
+  /^-d\b/,
+  /^-m\d+/,
+  /^-W\b/,
+  /^-\+\s*rtaudio/,
+  /^-\+\s*rtmidi/,
+  /^-M\d+/,
+]
+
+export function stripCsOptionsHandledByCli(csd: string): string {
   let s = csd
   if (!/<CsOptions>/i.test(s)) return s
   s = s.replace(/<CsOptions>([\s\S]*?)<\/CsOptions>/i, (_, body: string) => {
@@ -58,11 +72,7 @@ function stripRealtimeCsOptions(csd: string): string {
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean)
-      .filter((l) => !/^-n\b/.test(l))
-      .filter((l) => !/^-o\s+\S+/.test(l))
-      .filter((l) => !/^-odac/.test(l))
-      .filter((l) => !/^-iadc/.test(l))
-      .filter((l) => !/^-\+\s*rtmidi/.test(l))
+      .filter((l) => !CLI_HANDLED_CSOPTIONS.some((re) => re.test(l)))
     if (lines.length === 0) return ''
     return `<CsOptions>\n${lines.join('\n')}\n</CsOptions>`
   })
@@ -76,7 +86,7 @@ function orchestraNeedsEchoBus(csd: string): boolean {
 
 /** Prepare Agent CSD for offline WAV preview (afplay / file render). */
 export function prepareCsdForOfflineRender(csd: string): string {
-  let s = stripRealtimeCsOptions(csd.trim())
+  let s = stripCsOptionsHandledByCli(csd.trim())
   const hasVoice = /\binstr\s+1\b/.test(s)
   const hasDemo = csdHasScheduledDemoScore(s)
 

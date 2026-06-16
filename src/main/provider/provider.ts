@@ -4,7 +4,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { generateText, type LanguageModelV1 } from 'ai'
 import { Log } from '../util/log'
 import { defaultOllamaModel, probeOllama } from './ollama'
-import { isProPlus, isWorkshopLite } from '../util/tier'
+import { isProPlus } from '../util/tier'
 
 interface ProviderConfig {
   anthropicKey?: string
@@ -119,8 +119,8 @@ export namespace Provider {
   export function availableProviders(): string[] {
     const available: string[] = []
     if (ollamaAvailable()) available.push('ollama')
-    if (config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) available.push('google')
-    if (config.groqKey || process.env.GROQ_API_KEY) available.push('groq')
+    if (hasGroq()) available.push('groq')
+    if (agentGoogleEnabled()) available.push('google')
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) available.push('anthropic')
     if (config.openaiKey || process.env.OPENAI_API_KEY) available.push('openai')
     return available
@@ -131,15 +131,16 @@ export namespace Provider {
   }
 
   function hasGoogle(): boolean {
-    return Boolean(config.googleKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY)
+    return agentGoogleEnabled()
   }
 
   function hasGroq(): boolean {
     return Boolean(config.groqKey || process.env.GROQ_API_KEY)
   }
 
-  function workshopLite(): boolean {
-    return isWorkshopLite()
+  /** Free Gemini is disabled for Agent — Pro+ may opt in with a saved key only (not env). */
+  function agentGoogleEnabled(): boolean {
+    return isProPlus() && Boolean(config.googleKey)
   }
 
   export function tierLabel(): string {
@@ -208,9 +209,8 @@ export namespace Provider {
 
     add(primary.providerID, primary.modelID)
 
-    // Alternate free-tier keys — Groq ↔ Gemini automatic fallback.
     if (hasGroq() && primary.providerID !== 'groq') add('groq')
-    if (hasGoogle() && primary.providerID !== 'google') add('google')
+    if (agentGoogleEnabled() && primary.providerID !== 'google') add('google')
     if (ollamaAvailable() && primary.providerID !== 'ollama') add('ollama')
     if ((config.anthropicKey || process.env.ANTHROPIC_API_KEY) && primary.providerID !== 'anthropic') {
       add('anthropic')
@@ -223,24 +223,14 @@ export namespace Provider {
   }
 
   export function defaultProvider(): { providerID: string; modelID: string } {
-    if (config.preferOllama && ollamaAvailable()) {
-      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
-    }
-    // Both free keys: Groq first — faster and more reliable when Gemini throttles.
-    if (hasGroq() && hasGoogle()) {
-      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
-    }
-    if (workshopLite() && hasGroq()) {
-      return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
-    }
-    if (isProPlus() && hasGoogle()) {
-      return { providerID: 'google', modelID: 'gemini-2.5-pro' }
-    }
     if (hasGroq()) {
       return { providerID: 'groq', modelID: 'llama-3.3-70b-versatile' }
     }
-    if (hasGoogle()) {
-      return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    if (config.preferOllama && ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
+    if (agentGoogleEnabled()) {
+      return { providerID: 'google', modelID: 'gemini-2.5-pro' }
     }
     if (ollamaAvailable()) {
       return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
@@ -251,27 +241,20 @@ export namespace Provider {
     if (config.openaiKey || process.env.OPENAI_API_KEY) {
       return { providerID: 'openai', modelID: 'gpt-4.1' }
     }
-    return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    throw new Error(
+      'No Agent provider configured. Add a free Groq key in Settings (console.groq.com/keys), or enable Ollama.',
+    )
   }
 
   // Small/fast model for narration, summaries, sine mode.
   export function smallModel(): { providerID: string; modelID: string } {
-    if (config.preferOllama && ollamaAvailable()) {
-      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
-    }
-    if (hasGroq() && hasGoogle()) {
-      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
-    }
-    if (workshopLite() && hasGroq()) {
-      return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
-    }
     if (hasGroq()) {
       return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
     }
-    if (isProPlus() && hasGoogle()) {
-      return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    if (config.preferOllama && ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
     }
-    if (hasGoogle()) {
+    if (agentGoogleEnabled()) {
       return { providerID: 'google', modelID: 'gemini-2.5-flash' }
     }
     if (config.anthropicKey || process.env.ANTHROPIC_API_KEY) {
@@ -280,7 +263,10 @@ export namespace Provider {
     if (config.openaiKey || process.env.OPENAI_API_KEY) {
       return { providerID: 'openai', modelID: 'gpt-4.1-mini' }
     }
-    return { providerID: 'google', modelID: 'gemini-2.5-flash' }
+    if (ollamaAvailable()) {
+      return { providerID: 'ollama', modelID: config.ollamaModel || ollamaModels[0] || 'qwen2.5-coder:7b' }
+    }
+    return { providerID: 'groq', modelID: 'llama-3.1-8b-instant' }
   }
 
   // The whole app runs on AI SDK 4, which only drives spec-version "v1" models.
@@ -302,15 +288,13 @@ export namespace Provider {
   export function emptyStreamMessage(providerID: string): string {
     if (providerID === 'google') {
       return (
-        'Gemini returned no output. On the free tier this usually means the rate limit was hit ' +
-        '(about 20 requests per minute). Wait for the countdown and try again, or add a free Groq key ' +
-        'in Settings as a backup. Web Apps need no key. Check usage at aistudio.google.com.'
+        'Gemini returned no output. Wait and retry, or use Groq in Settings for workshop Agent turns.'
       )
     }
     if (providerID === 'groq') {
       return (
         'Groq returned no output. The free tier has rate limits (~30 requests per minute). ' +
-        'Wait for the countdown and try again, or add a Gemini key in Settings as a backup.'
+        'Wait for the countdown and try again, or enable Ollama in Settings.'
       )
     }
     if (providerID === 'ollama') {
@@ -346,7 +330,7 @@ export namespace Provider {
         return 'Permission denied. The key may be a Vertex AI credential — the free tier needs a key from aistudio.google.com/apikey.'
       }
       if (lower.includes('resource_exhausted') || lower.includes('quota')) {
-        return 'Gemini free-tier rate limit reached. Dr.C will try Groq automatically if that key is saved in Settings.'
+        return 'Gemini rate limit reached. Wait for the countdown and try again.'
       }
     }
 
@@ -355,7 +339,7 @@ export namespace Provider {
         return 'Invalid Groq API key. Get a free one at console.groq.com/keys.'
       }
       if (lower.includes('rate limit') || lower.includes('429') || lower.includes('quota')) {
-        return 'Groq free-tier rate limit reached. Dr.C will try Gemini automatically if that key is saved in Settings.'
+        return 'Groq free-tier rate limit reached. Wait for the countdown and try again, or enable Ollama in Settings.'
       }
     }
 

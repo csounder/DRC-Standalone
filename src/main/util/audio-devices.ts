@@ -98,6 +98,41 @@ export async function listAudioDevices(): Promise<DeviceList> {
   return { outputs, inputs, midiInputs }
 }
 
+/** Map Settings list index → csound `-o` token (e.g. index 0 → `dac1`, not `dac0`). */
+export function resolveDacOutputArg(indexStr: string, outputs: AudioDevice[]): string {
+  const dev = outputs.find((d) => String(d.index) === indexStr)
+  if (dev?.id && /^dac/i.test(dev.id)) return dev.id
+  const n = parseInt(indexStr, 10)
+  return Number.isFinite(n) ? `dac${n + 1}` : 'dac'
+}
+
+/** Map Settings list index → csound input flag (e.g. index 0 → `-iadc1`). */
+export function resolveAdcInputFlag(indexStr: string, inputs: AudioDevice[]): string {
+  const dev = inputs.find((d) => String(d.index) === indexStr)
+  if (dev?.id && /^adc/i.test(dev.id)) return `-i${dev.id}`
+  const n = parseInt(indexStr, 10)
+  return Number.isFinite(n) ? `-iadc${n + 1}` : '-iadc'
+}
+
+/**
+ * When Settings output is "system default", csound's bare `-o dac` often ignores
+ * macOS routing (AirPods vs built-in). Prefer the first enumerated dac (usually
+ * the active Core Audio default — AirPods when worn).
+ */
+export function resolveDefaultDacOutputArg(outputs: AudioDevice[]): string {
+  const first = outputs.find((d) => /^dac/i.test(d.id) && d.name.trim())
+  if (first) return first.id
+  const airpods = outputs.find((d) => /airpod|beats|powerbeats/i.test(d.name))
+  if (airpods) return airpods.id
+  return 'dac'
+}
+
+export function outputLabelForIndex(indexStr: string, outputs: AudioDevice[]): string {
+  if (!indexStr) return 'system default'
+  const dev = outputs.find((d) => String(d.index) === indexStr)
+  return dev ? `${dev.name} (${dev.id})` : `index ${indexStr}`
+}
+
 /** Best-effort Mac speakers index for workshop playback. */
 export function findMacSpeakersIndex(outputs: AudioDevice[]): number | null {
   const mac = outputs.find((d) => /macbook.*speaker|built-?in.*speaker/i.test(d.name))

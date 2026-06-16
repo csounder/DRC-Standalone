@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [openaiKey, setOpenaiKey] = useState('')
   const [savedKeys, setSavedKeys] = useState<Record<string, string>>({})
   const [available, setAvailable] = useState<string[]>([])
+  const [proPlus, setProPlus] = useState(false)
   const [saving, setSaving] = useState('')
   const [testing, setTesting] = useState('')
   const [removing, setRemoving] = useState('')
@@ -161,6 +162,7 @@ export default function SettingsPage() {
     window.api?.config?.getApiKeys().then((result: any) => {
       setSavedKeys(result.keys || {})
       setAvailable(result.available || [])
+      setProPlus(!!result.proPlus)
     }).catch(() => {})
     window.api?.config?.getCabbagePath?.().then((result: any) => {
       setCabbagePath(result?.path || '')
@@ -412,7 +414,7 @@ export default function SettingsPage() {
             </a>
             , then pull a coding model, e.g.{' '}
             <code style={styles.codeInline}>ollama pull qwen2.5-coder:7b</code>.
-            Slower than Gemini on first reply, but always available.
+            Slower than cloud on first reply, but always available.
           </p>
         </div>
         <div style={styles.row}>
@@ -436,7 +438,7 @@ export default function SettingsPage() {
         <div style={styles.row}>
           <div>
             <span style={styles.label}>Prefer local over cloud keys</span>
-            <span style={styles.hint}>When on, Agent uses Ollama first even if Gemini/Groq keys are set</span>
+            <span style={styles.hint}>When on, Agent uses Ollama first even if a Groq key is saved</span>
           </div>
           <button
             style={{ ...styles.toggle, ...(preferOllama ? styles.toggleOn : {}) }}
@@ -482,11 +484,10 @@ export default function SettingsPage() {
           <div style={styles.freeTierCallout}>
             <span style={styles.freeTierCalloutTitle}>Using a free API tier</span>
             <p style={styles.freeTierCalloutBody}>
-              Free Gemini and Groq keys work well for workshops, but both have rate limits
-              (roughly 20–30 requests per minute). The workshop launcher uses <strong>Groq first</strong>{' '}
-              when both keys are saved; Dr.C also switches providers automatically if one returns no output.
-              If Dr.C pauses with no output, use <strong>Try again</strong> on your prompt after the timer clears.
-              The <strong>Web Apps</strong> tab needs no key.
+              Groq&apos;s free tier works well for workshops (~30 requests per minute). Dr.C uses{' '}
+              <strong>Groq first</strong> whenever a Groq key is saved. If Dr.C pauses with no output,
+              wait for the countdown and use <strong>Try again</strong>. The <strong>Web Apps</strong> tab
+              needs no key.
             </p>
             <div style={styles.freeProviderLinks}>
               {PROVIDER_OPTIONS.filter((p) => p.free).map((p) => (
@@ -523,15 +524,65 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Google / Gemini */}
+        {/* Groq — primary free option */}
         <div style={styles.keyRow}>
           <div style={styles.keyInfo}>
             <span style={styles.label}>
-              Google AI (Gemini) <span style={styles.freeBadge}>Free tier</span>
+              Groq <span style={styles.freeBadge}>Recommended</span>
             </span>
             <span style={styles.hint}>
-              Default — Gemini 2.5 Flash is <strong>free</strong>. Use an AI Studio key (Gemini Developer API,
-              not Vertex AI) from{' '}
+              Primary Agent provider for workshops. Free, no credit card. Key from{' '}
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={styles.extLink}>
+                console.groq.com/keys
+              </a>
+              . Dr.C uses Llama 3.3 70B on Groq.
+            </span>
+            {savedKeys.groq && (
+              <div style={styles.savedRow}>
+                <span style={styles.savedKey}>Saved: {savedKeys.groq}</span>
+                <button onClick={() => handleTestKey('groq')} disabled={testing === 'groq'} style={styles.testButton}>
+                  {testing === 'groq' ? 'Testing…' : 'Test'}
+                </button>
+                <button onClick={() => handleRemoveKey('groq')} disabled={removing === 'groq'} style={styles.removeButton}>
+                  {removing === 'groq' ? 'Removing…' : 'Remove'}
+                </button>
+                {testResults.groq && (
+                  <span style={testResults.groq.ok ? styles.testOk : styles.testErr}>
+                    {testResults.groq.ok ? '✓ ' : '✗ '}{testResults.groq.message}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={styles.keyInput}>
+            <input
+              type="password"
+              value={groqKey}
+              onChange={(e) => setGroqKey(e.target.value)}
+              placeholder="gsk_..."
+              style={styles.input}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveKey('groq', groqKey)}
+            />
+            <button
+              onClick={() => handleSaveKey('groq', groqKey)}
+              disabled={!groqKey.trim() || saving === 'groq'}
+              style={{ ...styles.saveButton, opacity: !groqKey.trim() ? 0.3 : 1 }}
+            >
+              {saving === 'groq' ? '...' : 'Save'}
+            </button>
+          </div>
+        </div>
+
+        {/* Google / Gemini — Pro+ optional only */}
+        {proPlus ? (
+        <div style={styles.keyRow}>
+          <div style={styles.keyInfo}>
+            <span style={styles.label}>
+              Google AI (Gemini) <span style={styles.freeBadge}>Pro+ optional</span>
+            </span>
+            <span style={styles.hint}>
+              Optional for Pro+ narration and specialist consults — not used for workshop Agent turns when Groq is set.
+              Key from{' '}
               <a
                 href="https://aistudio.google.com/apikey"
                 target="_blank"
@@ -587,55 +638,16 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-
-        {/* Groq — second free option */}
+        ) : (
         <div style={styles.keyRow}>
           <div style={styles.keyInfo}>
-            <span style={styles.label}>
-              Groq <span style={styles.freeBadge}>Free tier</span>
-            </span>
+            <span style={styles.label}>Google AI (Gemini)</span>
             <span style={styles.hint}>
-              Optional backup when Gemini is throttled. Free, no credit card. Key from{' '}
-              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={styles.extLink}>
-                console.groq.com/keys
-              </a>
-              . Dr.C uses Llama 3.3 70B on Groq.
+              Free Gemini is disabled — it was unreliable for sound design in workshops. Use Groq above, or Web Apps with no key.
             </span>
-            {savedKeys.groq && (
-              <div style={styles.savedRow}>
-                <span style={styles.savedKey}>Saved: {savedKeys.groq}</span>
-                <button onClick={() => handleTestKey('groq')} disabled={testing === 'groq'} style={styles.testButton}>
-                  {testing === 'groq' ? 'Testing…' : 'Test'}
-                </button>
-                <button onClick={() => handleRemoveKey('groq')} disabled={removing === 'groq'} style={styles.removeButton}>
-                  {removing === 'groq' ? 'Removing…' : 'Remove'}
-                </button>
-                {testResults.groq && (
-                  <span style={testResults.groq.ok ? styles.testOk : styles.testErr}>
-                    {testResults.groq.ok ? '✓ ' : '✗ '}{testResults.groq.message}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-          <div style={styles.keyInput}>
-            <input
-              type="password"
-              value={groqKey}
-              onChange={(e) => setGroqKey(e.target.value)}
-              placeholder="gsk_..."
-              style={styles.input}
-              onKeyDown={(e) => e.key === 'Enter' && handleSaveKey('groq', groqKey)}
-            />
-            <button
-              onClick={() => handleSaveKey('groq', groqKey)}
-              disabled={!groqKey.trim() || saving === 'groq'}
-              style={{ ...styles.saveButton, opacity: !groqKey.trim() ? 0.3 : 1 }}
-            >
-              {saving === 'groq' ? '...' : 'Save'}
-            </button>
           </div>
         </div>
+        )}
 
         {/* Anthropic */}
         <div style={styles.keyRow}>
@@ -749,9 +761,9 @@ export default function SettingsPage() {
           <div style={styles.keyInfo}>
             <span style={styles.label}>Output device</span>
             <span style={styles.hint}>
-              Speakers or headphones for playback. &quot;System default&quot; uses macOS output
-              (same as most apps). Pick a specific device to force routing — overrides a CSD&apos;s
-              built-in <code style={{ fontFamily: 'var(--font-mono)' }}>-odac</code>.
+              Player realtime uses csound <code style={{ fontFamily: 'var(--font-mono)' }}>-o dacN</code>.
+              If you hear nothing on AirPods, pick <strong>AirPods</strong> here (not System default).
+              Agent preview uses <code style={{ fontFamily: 'var(--font-mono)' }}>afplay</code> and follows macOS output.
             </span>
             <span style={styles.deviceStatus}>Active: {resolveOutputLabel(audioCfg.output)}</span>
           </div>
@@ -763,7 +775,7 @@ export default function SettingsPage() {
             >
               <option value="">System default</option>
               {audioDevices.outputs.map((d) => (
-                <option key={d.index} value={String(d.index)}>{d.name}</option>
+                <option key={d.index} value={String(d.index)}>{d.name} ({d.id})</option>
               ))}
             </select>
           </div>
@@ -828,8 +840,9 @@ export default function SettingsPage() {
           <div style={styles.keyInfo}>
             <span style={styles.label}>Show Csound console</span>
             <span style={styles.hint}>
-              Off by default. Toggle here or from the sidebar (<code style={{ fontFamily: 'var(--font-mono)' }}>&gt;_</code>{' '}
-              above Settings) when you need compile/playback diagnostics.
+              Opens automatically during compile/play. Use <strong>Copy all</strong> or <strong>Save log</strong>{' '}
+              in the panel footer to share diagnostics. Toggle here or from the sidebar (
+              <code style={{ fontFamily: 'var(--font-mono)' }}>&gt;_</code> above Settings).
             </span>
           </div>
           <button

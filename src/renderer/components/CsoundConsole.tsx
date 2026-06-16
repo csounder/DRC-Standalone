@@ -1,12 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
+import {
+  formatCsoundConsoleLines,
+  isCsoundErrorLine,
+  useCsoundConsoleStore,
+} from '../stores/csoundConsoleStore'
 
 const PANEL_HEIGHT = 200
-
-function isErrorLine(text: string): boolean {
-  return /error|cannot|unexpected|failed|syntax|undefined|INIT ERROR|PERF ERROR|too many arguments/i.test(text)
-}
 
 export default function CsoundConsole() {
   const enabled = useCsoundConsoleStore((s) => s.enabled)
@@ -16,6 +16,35 @@ export default function CsoundConsole() {
   const clear = useCsoundConsoleStore((s) => s.clear)
   const setExpanded = useCsoundConsoleStore((s) => s.setExpanded)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [copyHint, setCopyHint] = useState<string | null>(null)
+  const [saveHint, setSaveHint] = useState<string | null>(null)
+
+  const plainText = formatCsoundConsoleLines(lines)
+
+  const copyAll = useCallback(async () => {
+    if (!plainText) return
+    try {
+      await navigator.clipboard.writeText(plainText)
+      setCopyHint('Copied!')
+      setTimeout(() => setCopyHint(null), 2000)
+    } catch {
+      setCopyHint('Copy failed — use Save log')
+      setTimeout(() => setCopyHint(null), 3000)
+    }
+  }, [plainText])
+
+  const saveLog = useCallback(async () => {
+    if (!plainText || !window.api?.csound?.saveConsoleLog) return
+    try {
+      const { path } = await window.api.csound.saveConsoleLog(plainText)
+      setSaveHint('Saved')
+      setTimeout(() => setSaveHint(null), 2500)
+      await window.api.export?.revealFile?.(path)
+    } catch {
+      setSaveHint('Save failed')
+      setTimeout(() => setSaveHint(null), 2500)
+    }
+  }, [plainText])
 
   useEffect(() => {
     const unsub = window.api?.csound?.onOutput?.((chunk) => {
@@ -40,6 +69,24 @@ export default function CsoundConsole() {
           {lines.length === 0 ? 'Compile and play messages appear here' : `${lines.length} lines`}
         </span>
         <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          onClick={() => void copyAll()}
+          disabled={lines.length === 0}
+          style={styles.headerBtn}
+          title="Copy all lines to clipboard (paste into chat or email)"
+        >
+          {copyHint ?? 'Copy all'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void saveLog()}
+          disabled={lines.length === 0}
+          style={styles.headerBtn}
+          title="Save log to Desktop and reveal in Finder"
+        >
+          {saveHint ?? 'Save log'}
+        </button>
         <button type="button" onClick={clear} style={styles.headerBtn} title="Clear console">
           Clear
         </button>
@@ -56,8 +103,8 @@ export default function CsoundConsole() {
         <div ref={scrollRef} style={styles.body}>
           {lines.length === 0 ? (
             <div style={styles.placeholder}>
-              Turn this on before playing. If sound works in CsoundQt but not in Dr.C, look for
-              &quot;Audio: using &lt;CsOptions&gt; from CSD&quot; vs a Settings device override.
+              Compile and play output appears here. On errors the panel opens automatically — use{' '}
+              <strong>Copy all</strong> or <strong>Save log</strong>, or drag to select text.
             </div>
           ) : (
             lines.map((line, i) => (
@@ -66,7 +113,7 @@ export default function CsoundConsole() {
                 style={{
                   ...styles.line,
                   ...(line.stream === 'info' ? styles.lineInfo : {}),
-                  ...(isErrorLine(line.text) ? styles.lineError : {}),
+                  ...(isCsoundErrorLine(line.text) ? styles.lineError : {}),
                 }}
               >
                 {line.text}
@@ -127,6 +174,9 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: 'var(--font-mono), SF Mono, Menlo, monospace',
     fontSize: 11,
     lineHeight: 1.45,
+    userSelect: 'text',
+    WebkitUserSelect: 'text',
+    cursor: 'text',
   },
   placeholder: {
     color: 'var(--text-muted)',

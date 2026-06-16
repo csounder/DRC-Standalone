@@ -65,7 +65,30 @@ i 1 2.50 1.50 67 0.14
 
 For FM bells: copy the FM bell instr 1 from demo-score rules. `foscili` takes six args `(xamp, kcps, xcar, xmod, kndx, ifn)` — never two separate foscili lines.
 
-For reverb send: use `ga` accumulators cleared in instr 99 — never `inch` for inter-instrument routing.
+For reverb send: use `gaRvbL` / `gaRvbR` accumulators cleared in instr 99 — NEVER `chnmix`/`chnget`/`inch` for inter-instrument routing (that is Player-only).
+
+Global reverb pattern (copy for FM piano + reverb requests):
+
+```
+gaRvbL init 0
+gaRvbR init 0
+
+instr 1
+  ; voice …
+  gaRvbL += aSig * 0.4
+  gaRvbR += aSig * 0.4
+  out(aSig, aSig)
+endin
+
+instr 99
+  aWetL, aWetR reverbsc gaRvbL, gaRvbR, 0.88, 9000
+  out(aWetL * 0.35, aWetR * 0.35)
+  gaRvbL = 0
+  gaRvbR = 0
+endin
+```
+
+Score MUST include `i 99 0 <duration>` before note events.
 
 # CSD structure
 

@@ -51,6 +51,12 @@ export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
     description: 'Simple 2-op FM demo score',
   },
   {
+    id: 'fm_piano_reverb',
+    title: 'FM Piano + Reverb',
+    filename: 'fm_piano_reverb_starter.csd',
+    description: 'FM piano tone with global ga-bus reverb (workshop default for “FM piano with reverb”)',
+  },
+  {
     id: 'pad',
     title: 'Warm Pad',
     filename: 'pad_starter.csd',

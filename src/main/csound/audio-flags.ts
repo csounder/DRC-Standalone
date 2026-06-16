@@ -1,13 +1,23 @@
-import { readFileSync } from 'fs'
 import { getConfigValue } from '../util/config'
 import { AUDIO_INPUT_OFF } from '../ipc/config-keys'
-import { csdHasRealtimeOutputOptions } from './csd-playback'
-import { realtimeAudioFlag } from '../util/audio-devices'
+import {
+  type AudioDevice,
+  realtimeAudioFlag,
+  resolveAdcInputFlag,
+  resolveDacOutputArg,
+  resolveDefaultDacOutputArg,
+  outputLabelForIndex,
+} from '../util/audio-devices'
 
 export interface AudioIoConfig {
   output: string
   input: string
   midiInput: string
+}
+
+export interface AudioDeviceContext {
+  outputs: AudioDevice[]
+  inputs: AudioDevice[]
 }
 
 export function readAudioIoConfig(): AudioIoConfig {
@@ -18,27 +28,24 @@ export function readAudioIoConfig(): AudioIoConfig {
   }
 }
 
-/** Build csound CLI I/O flags from Settings + optional CSD on disk. */
-export function buildRealtimeIoFlags(csdPath: string, cfg = readAudioIoConfig()): string[] {
-  let csdHasOdac = false
-  try {
-    csdHasOdac = csdHasRealtimeOutputOptions(readFileSync(csdPath, 'utf-8'))
-  } catch { /* no CSD yet */ }
-
+/** Build csound CLI I/O flags. Pass device lists from `csound --devices` for correct `-o dacN`. */
+export function buildRealtimeIoFlags(
+  _csdPath: string,
+  cfg = readAudioIoConfig(),
+  devices: AudioDeviceContext = { outputs: [], inputs: [] },
+): string[] {
   const flags: string[] = [realtimeAudioFlag()]
 
-  // Output: explicit device → -odacN; system default → -odac unless CSD already has -odac.
   if (/^\d+$/.test(cfg.output)) {
-    flags.push(`-odac${cfg.output}`)
-  } else if (!csdHasOdac) {
-    flags.push('-odac')
+    flags.push('-o', resolveDacOutputArg(cfg.output, devices.outputs))
+  } else {
+    flags.push('-o', resolveDefaultDacOutputArg(devices.outputs))
   }
 
-  // Input: none/off/empty → skip (Player synth does not need a mic; -iadc can block macOS audio).
   if (!cfg.input || cfg.input === AUDIO_INPUT_OFF) {
     // no input
   } else if (/^\d+$/.test(cfg.input)) {
-    flags.push(`-iadc${cfg.input}`)
+    flags.push(resolveAdcInputFlag(cfg.input, devices.inputs))
   } else {
     flags.push('-iadc')
   }
@@ -55,16 +62,24 @@ export function usesExplicitOutputDevice(cfg = readAudioIoConfig()): boolean {
   return /^\d+$/.test(cfg.output)
 }
 
-export function describeAudioRouting(csdPath: string, cfg = readAudioIoConfig()): string {
-  const flags = buildRealtimeIoFlags(csdPath, cfg)
-  if (flags.length === 0) {
-    return 'Audio: using <CsOptions> from CSD (system output via file)'
-  }
+export function describeAudioRouting(
+  _csdPath: string,
+  cfg = readAudioIoConfig(),
+  devices: AudioDeviceContext = { outputs: [], inputs: [] },
+): string {
+  const flags = buildRealtimeIoFlags(_csdPath, cfg, devices)
   const parts: string[] = []
-  if (/^\d+$/.test(cfg.output)) parts.push(`output dac${cfg.output}`)
-  else parts.push('output: system default')
+  if (/^\d+$/.test(cfg.output)) {
+    parts.push(`output: ${outputLabelForIndex(cfg.output, devices.outputs)}`)
+  } else {
+    const dac = resolveDefaultDacOutputArg(devices.outputs)
+    const dev = devices.outputs.find((d) => d.id === dac)
+    parts.push(dev ? `output: ${dev.name} (${dev.id}, system default)` : 'output: system default (-o dac)')
+  }
   if (!cfg.input || cfg.input === AUDIO_INPUT_OFF) parts.push('input: none')
-  else if (/^\d+$/.test(cfg.input)) parts.push(`input adc${cfg.input}`)
-  else parts.push('input: system default')
+  else if (/^\d+$/.test(cfg.input)) {
+    const dev = devices.inputs.find((d) => String(d.index) === cfg.input)
+    parts.push(dev ? `input: ${dev.name}` : `input adc${cfg.input}`)
+  } else parts.push('input: system default')
   return `Audio: ${parts.join(', ')} → ${flags.join(' ')}`
 }

@@ -4,6 +4,7 @@ import { join } from 'path'
 import { getConfigValue } from '../util/config'
 import { detectCabbagePath } from '../util/cabbage-path'
 import { detectCsoundQtPath } from '../util/csoundqt-path'
+import { prepareCsdForCsoundQt } from '../../shared/csd-realtime-options'
 import { launchExternalOnFile, LAUNCH_HINTS, MAC_FALLBACK } from '../util/launch-external'
 
 // Saves a Cabbage-ified CSD to a stable path and tries to launch the Cabbage
@@ -79,7 +80,7 @@ export function handleExportIPC(ipcMain: IpcMain): void {
     }
     try {
       const path = join(csoundQtDir(), safeFileName(title))
-      writeFileSync(path, csd, 'utf-8')
+      writeFileSync(path, prepareCsdForCsoundQt(csd), 'utf-8')
       const result = await launchCsoundQt(path)
       if (!result.ok) {
         return { success: false, error: `${result.error} Saved to ${path}`, path }

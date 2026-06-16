@@ -14,7 +14,6 @@ const ORDER: Step[] = ['welcome', 'tour', 'key', 'done']
 
 export default function OnboardingModal({ onClose }: Props) {
   const [step, setStep] = useState<Step>('welcome')
-  const [googleKey, setGoogleKey] = useState('')
   const [groqKey, setGroqKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [savingProvider, setSavingProvider] = useState<'google' | 'groq' | null>(null)
@@ -51,7 +50,7 @@ export default function OnboardingModal({ onClose }: Props) {
     try {
       const result = await window.api?.config?.setApiKey(provider, key.trim())
       if (!result?.success) {
-        setKeyError('Could not save that key. Check the format and try again.')
+        setKeyError(result?.error || 'Could not save that key. Check the format and try again.')
         setSaving(false)
         setSavingProvider(null)
         return
@@ -64,7 +63,6 @@ export default function OnboardingModal({ onClose }: Props) {
         setSavingProvider(null)
         return
       }
-      if (provider === 'google') setGoogleKey('')
       if (provider === 'groq') setGroqKey('')
       setStep('done')
     } catch (e) {
@@ -94,9 +92,7 @@ export default function OnboardingModal({ onClose }: Props) {
           {step === 'tour' && <Tour onJump={(path) => { navigate(path); onClose(); }} />}
           {step === 'key' && (
             <KeyStep
-              googleKey={googleKey}
               groqKey={groqKey}
-              setGoogleKey={setGoogleKey}
               setGroqKey={setGroqKey}
               onSave={handleSaveKey}
               saving={saving}
@@ -179,11 +175,9 @@ function Tour({ onJump }: { onJump: (path: string) => void }) {
 }
 
 function KeyStep({
-  googleKey, groqKey, setGoogleKey, setGroqKey, onSave, saving, savingProvider, error, alreadyHas,
+  groqKey, setGroqKey, onSave, saving, savingProvider, error, alreadyHas,
 }: {
-  googleKey: string
   groqKey: string
-  setGoogleKey: (v: string) => void
   setGroqKey: (v: string) => void
   onSave: (provider: 'google' | 'groq', key: string) => void
   saving: boolean
@@ -191,17 +185,15 @@ function KeyStep({
   error: string
   alreadyHas: boolean
 }) {
-  const gemini = PROVIDER_OPTIONS.find((p) => p.id === 'google')!
   const groq = PROVIDER_OPTIONS.find((p) => p.id === 'groq')!
 
   return (
     <div style={styles.stepBody}>
       <div style={styles.eyebrow}>One thing to set up</div>
-      <h2 style={styles.h2}>Add a free API key.</h2>
+      <h2 style={styles.h2}>Add a free Groq key.</h2>
       <p style={styles.body}>
-        The Agent needs an LLM key. Two free options work well: <strong>Gemini</strong> (default)
-        or <strong>Groq</strong> as a backup. Both have rate limits, so if Dr.C pauses, wait for
-        the countdown and try again. <strong>Web Apps</strong> need no key.
+        The Agent needs an LLM key. <strong>Groq</strong> is free and works best for workshops.
+        If Dr.C pauses, wait for the countdown and try again. <strong>Web Apps</strong> need no key.
       </p>
 
       {alreadyHas ? (
@@ -211,31 +203,8 @@ function KeyStep({
       ) : (
         <>
           <div style={styles.providerBlock}>
-            <div style={styles.providerLabel}>{gemini.label} <span style={styles.freeTag}>Free</span></div>
-            <p style={styles.hintLine}>Key from {gemini.signupLabel}</p>
-            <div style={styles.keyRow}>
-              <input
-                type="password"
-                value={googleKey}
-                onChange={(e) => setGoogleKey(e.target.value)}
-                placeholder={gemini.keyPlaceholder}
-                style={styles.input}
-                onKeyDown={(e) => e.key === 'Enter' && onSave('google', googleKey)}
-                autoFocus
-              />
-              <button
-                onClick={() => onSave('google', googleKey)}
-                disabled={!googleKey.trim() || saving}
-                style={{ ...styles.primaryButton, opacity: !googleKey.trim() ? 0.4 : 1 }}
-              >
-                {savingProvider === 'google' ? 'Checking…' : 'Save'}
-              </button>
-            </div>
-          </div>
-
-          <div style={styles.providerBlock}>
-            <div style={styles.providerLabel}>{groq.label} <span style={styles.freeTag}>Free backup</span></div>
-            <p style={styles.hintLine}>Optional. Key from {groq.signupLabel}</p>
+            <div style={styles.providerLabel}>{groq.label} <span style={styles.freeTag}>Free</span></div>
+            <p style={styles.hintLine}>Key from {groq.signupLabel}</p>
             <div style={styles.keyRow}>
               <input
                 type="password"
@@ -244,6 +213,7 @@ function KeyStep({
                 placeholder={groq.keyPlaceholder}
                 style={styles.input}
                 onKeyDown={(e) => e.key === 'Enter' && onSave('groq', groqKey)}
+                autoFocus
               />
               <button
                 onClick={() => onSave('groq', groqKey)}

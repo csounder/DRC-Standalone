@@ -13,25 +13,24 @@ This branch targets **Csound 7** for native CLI compile/render and **@csound/bro
 - **Workshop-lite mode** (`DRC_WORKSHOP_LITE=1`): skips narration so each turn uses **one** cheap model call — useful for free-tier workshops only
 - **Pro+ mode** (default in `scripts/launch-drc.sh` via `DRC_PRO_PLUS=1`): Gemini Pro, narration, specialist consults, full book RAG
 
-## Gemini free tier
+## Groq (recommended for workshops)
 
-Each Agent turn uses one API call (workshop-lite mode). On the free tier you can hit Google's rate limit (~20 requests/minute); when that happens the API may return **empty output with no error**.
+Each Agent turn uses one API call (workshop-lite mode). **Groq is the default** when a Groq key is saved — free Gemini is disabled for Agent.
 
-- **Workshop launcher prefers Groq** when both Groq and Gemini keys are saved — Groq is faster and more reliable on free tier
-- If the primary provider fails, Dr.C **automatically tries the other** (Groq ↔ Gemini)
-- Wait for the **countdown** on the Agent screen, then use **Try again** on your prompt *(free tier only)*
-- Add a **Groq** key in Settings as a free backup (console.groq.com/keys)
-- Use `./scripts/launch-drc.sh` (Pro+ defaults for Dr. B; set `DRC_WORKSHOP_LITE=1` for attendee free-tier builds)
+- Get a free key at [console.groq.com/keys](https://console.groq.com/keys)
+- Free tier rate limits (~30 requests/minute) may pause Dr.C — wait for the **countdown**, then **Try again**
+- **Ollama** (local) is an optional fallback with no rate limits
+- Use `./scripts/launch-drc.sh` (Pro+ defaults for Dr. B; set `DRC_WORKSHOP_LITE=1` for attendee builds)
 - **Web Apps** need no API key
 
 ## Free provider options
 
 | Provider | Cost | Get a key |
 |----------|------|-----------|
-| Gemini (default) | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| Groq (backup) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
+| Groq (default) | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
+| Ollama (local) | Free | [ollama.com](https://ollama.com/download) |
 
-Dr.C prefers Gemini when both are saved. If Gemini is throttled, remove it temporarily or wait; Groq is used when Gemini is not configured.
+Free Gemini is not used for workshop Agent turns. Pro+ builds may optionally add Gemini for narration/consults only.
 
 ## Quick start
 

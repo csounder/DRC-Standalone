@@ -460,6 +460,15 @@ export namespace Retrieval {
 
     if (/\b(fm\s*bass|bass|pluck|ping-?pong|ostinato\s*bass)\b/i.test(q)) {
       pushGoldenStarter('pluck_bass_starter.csd', 'Dr.B ping-pong bass starter (verified Csound 7)')
+    } else if (
+      /\b(piano|epiano|electric\s*piano)\b/i.test(q) &&
+      /\b(reverb|rev|wet)\b/i.test(q)
+    ) {
+      pushGoldenStarter('fm_piano_reverb_starter.csd', 'Dr.B FM piano + global reverb (ga bus, verified Csound 7)')
+    } else if (/\b(global\s*reverb|reverb\s*bus|reverbsc)\b/i.test(q) && /\b(fm|piano|synth)\b/i.test(q)) {
+      pushGoldenStarter('fm_piano_reverb_starter.csd', 'Dr.B FM + global reverb pattern (verified Csound 7)')
+    } else if (/\b(reverb|wet)\b/i.test(q) && !/\b(delay|echo|ping-?pong)\b/i.test(q)) {
+      pushGoldenStarter('pad_starter.csd', 'Dr.B pad with ga-bus reverb (verified Csound 7)')
     }
 
     if (/\b(shimmer|bell|chime)\b/i.test(q) && !/\b(simple|plain|2-?\s*operator)\b/i.test(q)) {
@@ -469,7 +478,7 @@ export namespace Retrieval {
       /\b(fm|synth|foscil)\b/i.test(q)
     ) {
       pushGoldenStarter('fm_starter.csd', 'Dr.B simple 2-op FM starter (verified Csound 7)')
-    } else if (/\b(fm|foscil)\b/i.test(q)) {
+    } else if (/\b(fm|foscil)\b/i.test(q) && !/\b(piano|reverb|wet)\b/i.test(q)) {
       pushGoldenStarter('fm_starter.csd', 'Dr.B FM starter (verified Csound 7)')
     }
 

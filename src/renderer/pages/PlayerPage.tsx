@@ -18,6 +18,7 @@ import UsageBar from '../components/chat/UsageBar'
 import QuotaCooldown from '../components/QuotaCooldown'
 import { isQuotaError } from '../lib/providerGuide'
 import { applyQuotaCooldownFromMessage, isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
+import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
 import { mechanicalPlayerAdapt } from '../lib/mechanicalPlayerAdapt'
 import { loadWorkshopPlayerDemo, WORKSHOP_PLAYER_PLUCK_ID, WORKSHOP_PLAYER_FM_ID } from '../lib/workshopDemos'
 import type { UsageRecord } from '../lib/usageFormat'
@@ -220,6 +221,8 @@ export default function PlayerPage() {
 
     // Stop Agent preview / prior Player csound so compile and realtime play don't fight.
     await window.api.csound.stop().catch(() => {})
+    useCsoundConsoleStore.getState().setEnabled(true)
+    useCsoundConsoleStore.getState().setExpanded(true)
 
     let csd = raw.trim()
     if (needsPlayerAdapt(csd)) {
@@ -232,7 +235,7 @@ export default function PlayerPage() {
         if (!hasKey) {
           setAdaptStatus({
             kind: 'error',
-            message: 'This CSD needs adapting, but no API key is saved. Click Workshop demo (no key) below, or add a free Gemini/Groq key in Settings.',
+            message: 'This CSD needs adapting, but no API key is saved. Click Workshop demo (no key) below, or add a free Groq key in Settings.',
           })
           return
         }

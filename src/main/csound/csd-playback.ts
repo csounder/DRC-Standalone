@@ -1,8 +1,9 @@
-/** True when <CsOptions> already requests realtime audio — same path CsoundQt uses. */
+import { stripCsOptionsHandledByCli } from '../../shared/csd-offline-prepare'
+import { csdHasRealtimeDacOptions } from '../../shared/csd-realtime-options'
+
+/** @deprecated Use csdHasRealtimeDacOptions */
 export function csdHasRealtimeOutputOptions(csd: string): boolean {
-  const m = csd.match(/<CsOptions>([\s\S]*?)<\/CsOptions>/i)
-  if (!m) return false
-  return /(?:^|\s)-odac\d*(?:\s|$)/m.test(m[1])
+  return csdHasRealtimeDacOptions(csd)
 }
 
 /** True when the score schedules timed note events (not keyboard-driven hold). */
@@ -38,17 +39,14 @@ f 0 36000
  * of opening dac, and the 12 s startup timer fires with no keyboard audio.
  */
 export function prepareCsdForRealtimePlay(csd: string): string {
-  let s = csd
+  // Realtime dac via CLI (`-o dac -d -m0 -Lstdin`); strip duplicates from <CsOptions>.
+  let s = stripCsOptionsHandledByCli(csd)
 
   const hasReverbBus = /\binstr\s+99\b/.test(s)
   const hasChannelWriter = /\binstr\s+100\b/.test(s)
   const hasKeyboardVoice =
     /\binstr\s+1\b[\s\S]*?\bp4\b/.test(s) ||
     /\binstr\s+1\b[\s\S]*?cpsmidinn/i.test(s)
-
-  if (csdHasOfflineRenderOptions(s) || !csdHasRealtimeOutputOptions(s)) {
-    s = s.replace(/<CsOptions>[\s\S]*?<\/CsOptions>/i, '<CsOptions>\n-odac -d\n</CsOptions>')
-  }
 
   const needsHoldScore =
     csdHasScheduledDemoScore(s) ||

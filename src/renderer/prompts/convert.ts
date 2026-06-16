@@ -5,7 +5,9 @@ const WEBAPP_TEMPLATE = `Convert the Csound project below into a web-ready orche
 OUTPUT FORMAT (strict):
 - Emit exactly ONE complete CSD: \`<CsoundSynthesizer>…</CsoundSynthesizer>\`.
 - No <Cabbage>, no HTML, no JavaScript, no code fences, no prose.
-- <CsOptions> is exactly: -odac -d
+- <CsOptions> is exactly:
+-o dac
+-d
 
 HOW THE WEB HOST USES YOUR CSD (so you emit the right thing):
 - It compiles ONLY your <CsInstruments> body (via compileOrc) and DISCARDS <CsScore>. So every function table MUST be created with \`ftgen\` at orchestra scope — NEVER as a score \`f\` statement (score f-statements will not run).
@@ -93,7 +95,7 @@ ADAPTATION RULES — follow precisely:
 
 8. **Score**: <CsScore> is ignored by the web host, so emit just a keep-alive: \`f 0 3600\`.
 
-9. **Quality bar**: compiles with stock Csound 6/7, renders stereo to -odac, and is audible with default control values — a held key for shape A, or immediately after Start for shape B.
+9. **Quality bar**: compiles with stock Csound 6/7, renders stereo to \`-o dac\`, and is audible with default control values — a held key for shape A, or immediately after Start for shape B.
 
 SOURCE CSD:
 <<<SOURCE>>>
@@ -152,7 +154,7 @@ const CSD_TEMPLATE = `Extract the <CsoundSynthesizer>...</CsoundSynthesizer> fro
 
 OUTPUT FORMAT (strict):
 - Emit ONLY the <CsoundSynthesizer>...</CsoundSynthesizer> block. No <Cabbage>. No HTML. No code fences. No prose.
-- Keep <CsOptions> as \`-odac\` only (remove MIDI or renderer flags).
+- Keep <CsOptions> as \`-o dac\` only (remove MIDI or renderer flags).
 - Keep all instruments and score events unchanged.
 
 SOURCE:
@@ -182,7 +184,9 @@ The host writes knob values via score events: \`i 100 0 0 "<channelName>" <value
 OUTPUT FORMAT (strict):
 - Emit exactly ONE complete CSD: \`<CsoundSynthesizer>…</CsoundSynthesizer>\`.
 - No <Cabbage>, no HTML, no code fences, no prose.
-- <CsOptions> is exactly: -odac -d
+- <CsOptions> is exactly:
+-o dac
+-d
 
 ADAPTATION RULES — follow precisely:
 
@@ -283,7 +287,7 @@ ADAPTATION RULES — follow precisely:
 
 9. **Drop anything the Player can't drive**: MIDI opcodes, OSC listeners, \`gk<Name> init …\` knob globals (those become \`chn_k\` + \`chnget\` instead), hard-coded score melodies. Keep ftables, wavetables, and init-time setup.
 
-10. **Quality bar**: the output must compile with stock Csound 6/7, render stereo to \`-odac\`, and produce audible output when the user holds a keyboard key with default knob values. The note must sustain while held and release cleanly when released.
+10. **Quality bar**: the output must compile with stock Csound 6/7, render stereo to \`-o dac\`, and produce audible output when the user holds a keyboard key with default knob values. The note must sustain while held and release cleanly when released.
 
 SUGGESTED WELL-KNOWN CHANNEL NAMES (use these names when they fit so users get familiar bindings):
 

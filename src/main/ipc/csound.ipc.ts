@@ -8,7 +8,7 @@ import { normalizeNamedInstruments } from '../csound/normalize'
 import { Log } from '../util/log'
 import { withCsoundPath } from '../util/csound-path'
 import { getCsoundEnvironment, refreshCsoundEnvironment } from '../util/csound-version'
-import { buildRealtimeIoFlags, describeAudioRouting } from '../csound/audio-flags'
+import { buildRealtimeIoFlags, describeAudioRouting, readAudioIoConfig } from '../csound/audio-flags'
 import { getConfigValue, setConfigValue } from '../util/config'
 import { AUDIO_OUTPUT_KEY, AUDIO_INPUT_KEY, MIDI_INPUT_KEY } from './config-keys'
 import { listAudioDevices } from '../util/audio-devices'
@@ -34,7 +34,7 @@ let playKilledBySignal = false
 let playReady = false
 
 /** Drop saved dac/adc indices that no longer match csound --devices (wrong backend = silent output). */
-async function ensureAudioDevicesValid(): Promise<void> {
+async function ensureAudioDevicesValid(): Promise<Awaited<ReturnType<typeof listAudioDevices>>> {
   const devs = await listAudioDevices().catch(() => ({ outputs: [], inputs: [], midiInputs: [] }))
   const out = getConfigValue(AUDIO_OUTPUT_KEY) ?? ''
   const inp = getConfigValue(AUDIO_INPUT_KEY) ?? ''
@@ -49,6 +49,7 @@ async function ensureAudioDevicesValid(): Promise<void> {
   if (/^\d+$/.test(midi) && !devs.midiInputs.some((d) => String(d.index) === midi)) {
     setConfigValue(MIDI_INPUT_KEY, '')
   }
+  return devs
 }
 
 function stripAnsi(s: string): string {
@@ -90,11 +91,11 @@ function playWavViaAfplay(
   try {
     const raw = readFileSync(csdPath, 'utf-8')
     const prepared = prepareCsdForOfflineRender(raw)
+    renderPath = join(getTempDir(), 'offline-render.csd')
+    writeFileSync(renderPath, prepared, 'utf-8')
+    cleanupRender = true
     if (prepared !== raw) {
-      renderPath = join(getTempDir(), 'offline-render.csd')
-      writeFileSync(renderPath, prepared, 'utf-8')
-      cleanupRender = true
-      emitCsoundOutput(sender, 'info', 'Preview: injected demo score for offline render (Player hold scores are silent)')
+      emitCsoundOutput(sender, 'info', 'Preview: sanitized CsOptions + demo score for offline render')
     }
   } catch {
     /* use original path */
@@ -170,7 +171,7 @@ function playWavViaAfplay(
 }
 
 /** Live csound with MIDI/knob stdin — used by the Player page. */
-function playRealtimeCsound(
+async function playRealtimeCsound(
   sender: WebContents,
   csdPath: string,
 ): Promise<{ success: boolean; output?: string; error?: string }> {
@@ -179,19 +180,22 @@ function playRealtimeCsound(
   try {
     const raw = readFileSync(csdPath, 'utf-8')
     const prepared = prepareCsdForRealtimePlay(raw)
+    playPath = join(getTempDir(), 'realtime-play.csd')
+    writeFileSync(playPath, prepared, 'utf-8')
+    cleanupPlay = true
     if (prepared !== raw) {
-      playPath = join(getTempDir(), 'realtime-play.csd')
-      writeFileSync(playPath, prepared, 'utf-8')
-      cleanupPlay = true
-      emitCsoundOutput(sender, 'info', 'Play: using realtime hold score + -odac (keyboard-driven)')
+      emitCsoundOutput(sender, 'info', 'Play: sanitized CsOptions + realtime hold score (keyboard-driven)')
     }
   } catch {
     /* use original path */
   }
 
-  const ioFlags = buildRealtimeIoFlags(playPath)
+  const devs = await listAudioDevices().catch(() => ({ outputs: [], inputs: [], midiInputs: [] }))
+  const deviceCtx = { outputs: devs.outputs, inputs: devs.inputs }
+  const cfg = readAudioIoConfig()
+  const ioFlags = buildRealtimeIoFlags(playPath, cfg, deviceCtx)
   const playArgs = [...ioFlags, '-d', '-m0', '-Lstdin', playPath]
-  emitCsoundOutput(sender, 'info', describeAudioRouting(playPath))
+  emitCsoundOutput(sender, 'info', describeAudioRouting(playPath, cfg, deviceCtx))
   emitCsoundOutput(sender, 'info', `▶ csound ${playArgs.join(' ')}`)
 
   return new Promise((resolve) => {
@@ -446,9 +450,9 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
     let cleanupCheck = false
     try {
       const raw = readFileSync(csdPath, 'utf-8')
+      checkPath = compileCheckPath(csdPath, getTempDir())
+      cleanupCheck = true
       if (needsHoldScoreShortening(raw)) {
-        checkPath = compileCheckPath(csdPath, getTempDir())
-        cleanupCheck = true
         emitCsoundOutput(event.sender, 'info', 'Compile: using 1s hold score (Player realtime CSD)')
       }
     } catch {
@@ -465,7 +469,7 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
         const msg = extractCsoundError(combined) || `${perfErr[1]} performance error(s)`
         return { success: false, error: msg }
       }
-      if (/INIT ERROR|Parsing failed|syntax error/i.test(combined)) {
+      if (/INIT ERROR|Parsing failed|syntax error|too many arguments/i.test(combined)) {
         const msg = extractCsoundError(combined) || 'Csound performance check failed'
         return { success: false, error: msg }
       }
@@ -589,6 +593,13 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
       return { success: true }
     }
     return { success: true }
+  })
+
+  ipcMain.handle('csound:saveConsoleLog', async (_event, text: string) => {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const path = join(app.getPath('desktop'), `drc-csound-${stamp}.log`)
+    writeFileSync(path, text.endsWith('\n') ? text : `${text}\n`, 'utf-8')
+    return { path }
   })
 
 }

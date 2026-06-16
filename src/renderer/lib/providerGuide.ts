@@ -16,20 +16,6 @@ export interface ProviderOption {
 
 export const PROVIDER_OPTIONS: ProviderOption[] = [
   {
-    id: 'google',
-    label: 'Google AI (Gemini)',
-    tier: 'Free tier',
-    free: true,
-    signupUrl: 'https://aistudio.google.com/apikey',
-    signupLabel: 'aistudio.google.com/apikey',
-    keyPlaceholder: 'AIza...',
-    hint: 'Default. Gemini 2.5 Flash is free on the Gemini Developer API (not Vertex AI).',
-    soloWarning:
-      'With only a free Gemini key, Dr.C may pause when you hit Google\'s rate limit (~20 requests/minute). ' +
-      'Wait for the countdown on the Agent tab. Add a Groq key in Settings as a backup — Dr.C switches automatically when Gemini is throttled. ' +
-      'Web Apps work with no key at all.',
-  },
-  {
     id: 'groq',
     label: 'Groq',
     tier: 'Free tier',
@@ -37,9 +23,20 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     signupUrl: 'https://console.groq.com/keys',
     signupLabel: 'console.groq.com/keys',
     keyPlaceholder: 'gsk_...',
-    hint: 'Optional backup. Free, no credit card. OpenAI-compatible; Dr.C tries Groq first when both keys are saved.',
+    hint: 'Recommended for workshops. Free, no credit card. Dr.C uses Llama 3.3 70B on Groq.',
     soloWarning:
-      'Groq\'s free tier also has rate limits (~30 requests/minute). If Dr.C pauses, wait for the countdown or add a Gemini key — Dr.C switches between them automatically.',
+      'Groq\'s free tier has rate limits (~30 requests/minute). If Dr.C pauses, wait for the countdown on the Agent tab, then use Try again. Web Apps work with no key at all.',
+  },
+  {
+    id: 'google',
+    label: 'Google AI (Gemini)',
+    tier: 'Pro+ only',
+    free: false,
+    signupUrl: 'https://aistudio.google.com/apikey',
+    signupLabel: 'aistudio.google.com/apikey',
+    keyPlaceholder: 'AIza...',
+    hint: 'Pro+ only — optional for narration and specialist consults. Free Gemini is disabled for Agent.',
+    soloWarning: '',
   },
   {
     id: 'anthropic',
