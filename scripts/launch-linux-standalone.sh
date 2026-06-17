@@ -38,7 +38,7 @@ echo "For on-stage GUI demos use Dr.C Mac Standalone on the host."
 echo ""
 
 echo "Preflight (DRC_DRY_RUN=1)…"
-drc_vm_bash_lc "${DRC_VM_PATH_EXPORT}; ${DRC_VM_LD_EXPORT}; cd ~/DRC-Standalone && DRC_DRY_RUN=1 ./scripts/launch-drc.sh"
+drc_vm_bash_lc "${DRC_VM_PATH_EXPORT}; ${DRC_VM_LD_EXPORT}; cd ~/Dr.C-Standalone && DRC_DRY_RUN=1 ./scripts/launch-drc.sh"
 echo ""
 
 if [[ "${DRC_DRY_RUN:-}" == "1" ]]; then
@@ -46,11 +46,11 @@ if [[ "${DRC_DRY_RUN:-}" == "1" ]]; then
 fi
 
 if [[ "${DO_SHELL}" -eq 1 ]]; then
-  echo "Entering VM shell — run: cd ~/DRC-Standalone && ./scripts/launch-drc.sh"
+  echo "Entering VM shell — run: cd ~/Dr.C-Standalone && ./scripts/launch-drc.sh"
   echo ""
   exec multipass shell "${VM_NAME}"
 fi
 
 echo "Launching Standalone inside VM (requires DISPLAY in VM)…"
 echo ""
-exec multipass exec "${VM_NAME}" -- bash -lc "${DRC_VM_PATH_EXPORT}; ${DRC_VM_LD_EXPORT}; cd ~/DRC-Standalone && exec ./scripts/launch-drc.sh"
+exec multipass exec "${VM_NAME}" -- bash -lc "${DRC_VM_PATH_EXPORT}; ${DRC_VM_LD_EXPORT}; cd ~/Dr.C-Standalone && exec ./scripts/launch-drc.sh"

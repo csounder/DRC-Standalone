@@ -79,13 +79,13 @@
 
 | Project | Path | Branch |
 |---------|------|--------|
-| **Dr.C Standalone** | `~/DRC-Standalone` | `lac-2026-csound7` |
+| **Dr.C Standalone** | `~/Dr.C-Standalone` | `lac-2026-csound7` |
 | **Dr.C Terminal (CLI)** | `~/Dr.C/opencode` | `main` (knowledge sync local; commit separately if needed) |
 
 **Launch Standalone:**
 
 ```bash
-cd ~/DRC-Standalone && ./scripts/launch-drc.sh
+cd ~/Dr.C-Standalone && ./scripts/launch-drc.sh
 ```
 
 **Launch Terminal:**
@@ -128,7 +128,7 @@ cd ~/DRC-Standalone && ./scripts/launch-drc.sh
 ### D. Linux laptop
 
 ```bash
-cd ~/DRC-Standalone && npm test
+cd ~/Dr.C-Standalone && npm test
 cd ~/Dr.C/opencode && node scripts/workshop-test.mjs
 ```
 

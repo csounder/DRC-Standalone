@@ -30,11 +30,11 @@ export const WORKSHOP_LINK_GROUPS: WorkshopLinkGroup[] = [
   {
     title: 'Repos & downloads',
     links: [
-      { label: 'Dr.C Standalone (lac-2026-csound7)', url: 'https://github.com/mateolarreaferro/DRC-Standalone/tree/lac-2026-csound7' },
-      { label: 'Dr.C Standalone releases', url: 'https://github.com/mateolarreaferro/DRC-Standalone/releases' },
+      { label: 'Dr.C Standalone (lac-2026-csound7)', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/tree/lac-2026-csound7' },
+      { label: 'Dr.C Standalone releases', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/releases' },
       { label: 'Dr.C Terminal', url: 'https://github.com/mateolarreaferro/Dr.C' },
-      { label: 'Participant guide (PARTICIPANTS.md)', url: 'https://github.com/mateolarreaferro/DRC-Standalone/blob/lac-2026-csound7/PARTICIPANTS.md' },
-      { label: 'Local LLM guide (LOCAL-LLM.md)', url: 'https://github.com/mateolarreaferro/DRC-Standalone/blob/lac-2026-csound7/LOCAL-LLM.md' },
+      { label: 'Participant guide (PARTICIPANTS.md)', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/blob/lac-2026-csound7/PARTICIPANTS.md' },
+      { label: 'Local LLM guide (LOCAL-LLM.md)', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/blob/lac-2026-csound7/LOCAL-LLM.md' },
     ],
   },
   {

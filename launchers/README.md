@@ -11,11 +11,11 @@ Presenter Desktop shortcuts (symlink to these files):
 | **Dr.C Linux Terminal.command** | `Dr.C Linux Terminal.command` |
 
 ```bash
-ln -sf "$HOME/DRC-Standalone/launchers/Dr.C Mac Standalone.command" ~/Desktop/
+ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Mac Standalone.command" ~/Desktop/
 ln -sf "$HOME/Dr.C/opencode/launchers/Dr.C Mac Terminal.command" ~/Desktop/
-ln -sf "$HOME/DRC-Standalone/launchers/Dr.C Linux VM Shell.command" ~/Desktop/
-ln -sf "$HOME/DRC-Standalone/launchers/Dr.C Linux Standalone.command" ~/Desktop/
-ln -sf "$HOME/DRC-Standalone/launchers/Dr.C Linux Terminal.command" ~/Desktop/
+ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux VM Shell.command" ~/Desktop/
+ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux Standalone.command" ~/Desktop/
+ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux Terminal.command" ~/Desktop/
 ```
 
 | OS | Instructor (Pro+) | Attendee (free tier) |

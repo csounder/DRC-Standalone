@@ -84,7 +84,7 @@ export namespace Provider {
           apiKey,
           baseURL: OPENROUTER_BASE_URL,
           headers: {
-            'HTTP-Referer': 'https://github.com/mateolarreaferro/DRC-Standalone',
+            'HTTP-Referer': 'https://github.com/mateolarreaferro/Dr.C-Standalone',
             'X-Title': 'Dr.C',
           },
         })

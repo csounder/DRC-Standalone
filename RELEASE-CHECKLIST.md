@@ -10,7 +10,7 @@ Steps to publish a **tested, proven** workshop build for **macOS and Linux** (LA
 
 ```bash
 export PATH="$HOME/bin:$HOME/Applications/Csound:$PATH"
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 npm test                                    # must pass
 git status                                  # review diff
 git log -5 --oneline                        # commit message style
@@ -38,14 +38,14 @@ mechanical Player adapt, attendee launcher, and npm test workshop gate.
 ```
 
 ```bash
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 git add -A   # review carefully — no .env
 git commit -m "..."
 git push -u origin lac-2026-csound7
 ```
 
 - [ ] Push succeeds
-- [ ] Update or merge [PR #1](https://github.com/mateolarreaferro/DRC-Standalone/pull/1)
+- [ ] Update or merge [PR #1](https://github.com/mateolarreaferro/Dr.C-Standalone/pull/1)
 - [ ] CI green (if configured)
 
 ---
@@ -71,7 +71,7 @@ git push origin main
 On each platform (or CI matrix):
 
 ```bash
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 npm install
 npm run build
 npm run dist:mac      # macOS → release/DrC-*.dmg / .zip
@@ -134,7 +134,7 @@ npm test
 Copy to USB or shared folder:
 
 ```
-lac-workshop-demo/
+Dr.C-Workshop-Demo/
   README.md
   Dr.C-Standalone.command
   Dr.C-Terminal.command
@@ -169,8 +169,8 @@ Install docs (PDF or markdown):
 
 | Task | Command |
 |------|---------|
-| Full Standalone test | `cd ~/DRC-Standalone && npm test` |
+| Full Standalone test | `cd ~/Dr.C-Standalone && npm test` |
 | CLI workshop test | `cd ~/Dr.C/opencode && npm run test:workshop` |
-| Attendee launch | `~/DRC-Standalone/scripts/launch-workshop-attendee.sh` |
-| Pro+ launch | `~/DRC-Standalone/scripts/launch-drc.sh` |
+| Attendee launch | `~/Dr.C-Standalone/scripts/launch-workshop-attendee.sh` |
+| Pro+ launch | `~/Dr.C-Standalone/scripts/launch-drc.sh` |
 | Build macOS | `npm run dist:mac` |

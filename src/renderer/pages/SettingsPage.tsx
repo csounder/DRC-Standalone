@@ -508,7 +508,7 @@ export default function SettingsPage() {
             <p style={{ ...styles.freeTierCalloutBody, marginTop: 10 }}>
               <strong>Fix:</strong> quit Dr.C, then in Terminal run:
             </p>
-            <pre style={styles.memoryCmd}>cd ~/DRC-Standalone{'\n'}npx electron-builder install-app-deps</pre>
+            <pre style={styles.memoryCmd}>cd ~/Dr.C-Standalone{'\n'}npx electron-builder install-app-deps</pre>
             <p style={styles.freeTierCalloutBody}>
               Restart Dr.C — the launcher script rebuilds this automatically when needed.
             </p>

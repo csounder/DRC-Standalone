@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify DRC-Standalone and Dr.C CLI knowledge bundles match.
+ * Verify Dr.C-Standalone and Dr.C CLI knowledge bundles match.
  *   node scripts/test-knowledge-parity.mjs
  */
 

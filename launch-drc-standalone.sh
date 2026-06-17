@@ -9,5 +9,5 @@ if [[ -x "${DRC_STANDALONE_ROOT}/scripts/launch-workshop-attendee.sh" ]]; then
   exec "${DRC_STANDALONE_ROOT}/scripts/launch-workshop-attendee.sh"
 fi
 
-echo "Run from DRC-Standalone repo root, or set DRC_STANDALONE_ROOT"
+echo "Run from Dr.C-Standalone repo root, or set DRC_STANDALONE_ROOT"
 exit 1

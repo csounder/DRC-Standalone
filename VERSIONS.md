@@ -19,7 +19,7 @@ One page describing **what each Dr.C product is**, **which version to ship**, an
 
 | Component | Version / tag | Repo / path | Branch |
 |-----------|-------------|-------------|--------|
-| Dr.C Standalone | **1.3.1** (`lac-2026-csound7`) | [DRC-Standalone](https://github.com/mateolarreaferro/DRC-Standalone) | `lac-2026-csound7` |
+| Dr.C Standalone | **1.3.1** (`lac-2026-csound7`) | [Dr.C-Standalone](https://github.com/mateolarreaferro/Dr.C-Standalone) | `lac-2026-csound7` |
 | Dr.C Terminal | **1.2.5** (opencode package) | [Dr.C](https://github.com/mateolarreaferro/Dr.C) | `main` (+ local TUI fixes) |
 | Csound CLI | **7.0** (beta) | User install `~/Applications/Csound` or distro package | — |
 | Csound WASM (web exports) | **@csound/browser@7.0.0-beta31** | CDN in converted web apps | — |
@@ -91,8 +91,8 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 
 | Audience | Document |
 |----------|----------|
-| Standalone install (all OS) | `INSTALLATION.md`, `~/dB-Studio/DRC-URLS.C/INSTALL-STANDALONE.md` |
-| Terminal install | `~/dB-Studio/DRC-URLS.C/INSTALL-TERMINAL.md` |
+| Standalone install (all OS) | `INSTALLATION.md`, `~/DRC-URLS.C/INSTALL-STANDALONE.md` |
+| Terminal install | `~/DRC-URLS.C/INSTALL-TERMINAL.md` |
 | Workshop teaching notes | `WORKSHOP.md` |
 | Your return checklist | `TESTING.md` |
 | GitHub release steps | `RELEASE-CHECKLIST.md` |
@@ -100,12 +100,12 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 
 ---
 
-## Desktop / USB launchers (`~/lac-workshop-demo`)
+## Desktop / USB launchers (`~/Dr.C-Workshop-Demo`)
 
 | File | Runs |
 |------|------|
 | `Dr.C-Standalone.command` | Standalone from source (Pro+ via `launch-drc.sh`) |
-| `Dr.C-Terminal.command` | Terminal TUI in `~/lac-workshop-demo` |
+| `Dr.C-Terminal.command` | Terminal TUI in `~/Dr.C-Workshop-Demo` |
 | `Csound7-WASM-Smoke-Test.command` | Browser WASM sanity check |
 
 For **attendee USB sticks**, copy `launch-workshop-attendee.sh` wrapper or set env in a `.command` that exports `DRC_PRO_PLUS=0 DRC_WORKSHOP_LITE=1`.

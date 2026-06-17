@@ -39,11 +39,11 @@ if [[ "${DO_SYNC}" -eq 1 ]]; then
   multipass exec "${VM_NAME}" -- bash -lc '
     set -euo pipefail
     synced=0
-    if [ -d /mnt/DRC-Standalone ]; then
+    if [ -d /mnt/Dr.C-Standalone ]; then
       rsync -a --delete \
         --exclude node_modules --exclude out --exclude release --exclude dist \
-        /mnt/DRC-Standalone/ ~/DRC-Standalone/
-      echo "  synced /mnt/DRC-Standalone → ~/DRC-Standalone"
+        /mnt/Dr.C-Standalone/ ~/Dr.C-Standalone/
+      echo "  synced /mnt/Dr.C-Standalone → ~/Dr.C-Standalone"
       synced=1
     fi
     if [ -d /mnt/Dr.C ]; then
@@ -57,7 +57,7 @@ if [[ "${DO_SYNC}" -eq 1 ]]; then
       synced=1
     fi
     if [ "$synced" -eq 0 ]; then
-      echo "  no /mnt mounts — repos should already be in ~/DRC-Standalone and ~/Dr.C"
+      echo "  no /mnt mounts — repos should already be in ~/Dr.C-Standalone and ~/Dr.C"
     fi
   '
   echo ""
@@ -82,7 +82,7 @@ Quick commands (inside VM):
 
   export PATH="$HOME/bin:$HOME/Applications/Csound/bin:$HOME/.bun/bin:$PATH"
   export LD_LIBRARY_PATH="$HOME/Applications/Csound/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-  cd ~/DRC-Standalone
+  cd ~/Dr.C-Standalone
   csound --version
   npm test
   ./scripts/launch-drc.sh

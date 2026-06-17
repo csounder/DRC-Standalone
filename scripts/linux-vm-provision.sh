@@ -119,10 +119,10 @@ if [ "${INSTALL_OPTIONAL_TOOLS:-1}" = "1" ]; then
 fi
 
 log "sync repos from host mount (if present)"
-if [ -d /mnt/DRC-Standalone ]; then
+if [ -d /mnt/Dr.C-Standalone ]; then
   rsync -a --delete \
     --exclude node_modules --exclude out --exclude release --exclude dist \
-    /mnt/DRC-Standalone/ ~/DRC-Standalone/
+    /mnt/Dr.C-Standalone/ ~/Dr.C-Standalone/
 fi
 if [ -d /mnt/Dr.C ]; then
   rsync -a --delete \
@@ -137,7 +137,7 @@ fi
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
 
 log "npm install Standalone"
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 npm install
 
 log "bun install Terminal"
@@ -149,7 +149,7 @@ git config --global user.email "workshop@local" 2>/dev/null || true
 git config --global user.name "Workshop" 2>/dev/null || true
 
 log "workshop demo folder"
-mkdir -p ~/lac-workshop-demo
+mkdir -p ~/Dr.C-Workshop-Demo
 
 
 

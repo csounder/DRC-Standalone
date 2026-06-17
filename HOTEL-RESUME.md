@@ -11,7 +11,7 @@ Do not paste the old transcript — use these docs instead.
 ## What to do first when you wake up
 
 ```bash
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 git pull
 export PATH="$HOME/bin:$HOME/Applications/Csound:$PATH"
 npm run build && npm test

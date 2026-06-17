@@ -58,8 +58,8 @@ See workshop install docs (`INSTALL-STANDALONE.md` §2.5) for CsoundQt 7 downloa
 ## 2. Clone and install dependencies
 
 ```bash
-git clone https://github.com/mateolarreaferro/DRC-Standalone.git
-cd DRC-Standalone
+git clone https://github.com/mateolarreaferro/Dr.C-Standalone.git
+cd Dr.C-Standalone
 npm install
 ```
 

@@ -7,7 +7,7 @@ AI-powered Csound creative tool. Electron app.
 ## Install (no terminal needed)
 
 1. Grab the latest installer from the
-   [Releases page](https://github.com/mateolarreaferro/DRC-Standalone/releases):
+   [Releases page](https://github.com/mateolarreaferro/Dr.C-Standalone/releases):
    - **macOS** — `DrC-<version>-arm64.dmg` (Apple Silicon) or
      `DrC-<version>-x64.dmg` (Intel). Open the DMG, drag **DrC** to Applications.
    - **Windows** — `DrC Setup <version>.exe`. Run it.
@@ -42,8 +42,8 @@ AI-powered Csound creative tool. Electron app.
 ### Clone and install
 
 ```bash
-git clone https://github.com/mateolarreaferro/DRC-Standalone.git
-cd DRC-Standalone
+git clone https://github.com/mateolarreaferro/Dr.C-Standalone.git
+cd Dr.C-Standalone
 npm install
 ```
 

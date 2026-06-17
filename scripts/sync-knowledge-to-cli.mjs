@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Sync all knowledge bundles + catalogs from DRC-Standalone → Dr.C CLI.
+ * Sync all knowledge bundles + catalogs from Dr.C-Standalone → Dr.C CLI.
  *   node scripts/sync-knowledge-to-cli.mjs
  */
 

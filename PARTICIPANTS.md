@@ -75,7 +75,7 @@ User-local install path (optional): `~/Applications/Csound/csound` on `PATH` via
 
 ### Option A — Download installer (easiest)
 
-[GitHub Releases](https://github.com/mateolarreaferro/DRC-Standalone/releases) on branch **`lac-2026-csound7`**:
+[GitHub Releases](https://github.com/mateolarreaferro/Dr.C-Standalone/releases) on branch **`lac-2026-csound7`**:
 
 | OS | File |
 |----|------|
@@ -91,8 +91,8 @@ xattr -cr /Applications/DrC.app
 ### Option B — Run from source (developers)
 
 ```bash
-git clone -b lac-2026-csound7 https://github.com/mateolarreaferro/DRC-Standalone.git
-cd DRC-Standalone
+git clone -b lac-2026-csound7 https://github.com/mateolarreaferro/Dr.C-Standalone.git
+cd Dr.C-Standalone
 npm install
 cp .env.example .env    # optional — or use Settings UI
 ```
@@ -113,7 +113,7 @@ cp .env.example .env    # optional — or use Settings UI
 Or in Terminal:
 
 ```bash
-cd DRC-Standalone
+cd Dr.C-Standalone
 ./scripts/launch-workshop-attendee.sh   # attendees
 ./scripts/launch-drc.sh                 # instructor
 ```
@@ -121,7 +121,7 @@ cd DRC-Standalone
 ### Linux
 
 ```bash
-cd DRC-Standalone
+cd Dr.C-Standalone
 chmod +x launchers/*.sh scripts/*.sh
 ./launchers/Dr.C-Workshop-Attendee.sh     # attendees
 ./launchers/Dr.C-Standalone.sh            # instructor
@@ -219,7 +219,7 @@ Golden reference CSDs: `resources/workshop-starters/`
 
 ```bash
 export PATH="$HOME/bin:$HOME/Applications/Csound:$HOME/.local/bin:$PATH"
-cd DRC-Standalone
+cd Dr.C-Standalone
 npm test
 ```
 
@@ -252,7 +252,7 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 
 ## Optional companion tools (recommended)
 
-These are **optional but recommended** for the workshop — listening to WAV exports, light editing, and DAW workflows alongside Dr.C. Install **Csound 7 first** (§1). Full steps: `DRC-URLS.C/INSTALL-STANDALONE.md` §2.5–2.8.
+These are **optional but recommended** for the workshop — listening to WAV exports, light editing, and DAW workflows alongside Dr.C. Install **Csound 7 first** (§1). Full steps: `~/DRC-URLS.C/INSTALL-STANDALONE.md` §2.5–2.8.
 
 **Linux workshop VM (aarch64):** Google Chrome has no official arm64 `.deb`; `scripts/linux-vm-provision.sh` installs **Chromium** (`/usr/bin/chromium-browser`) for **Open in Browser**. Desktop Chrome: [google.com/chrome](https://www.google.com/chrome/).
 
@@ -295,7 +295,7 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | Resource | URL |
 |----------|-----|
 | **One-slide handout (PDF)** | `resources/workshop/LAC-2026-one-slide.pdf` — or **Settings → Copy workshop links** / **Open one-slide PDF** in the app |
-| Dr.C Standalone repo | https://github.com/mateolarreaferro/DRC-Standalone |
+| Dr.C Standalone repo | https://github.com/mateolarreaferro/Dr.C-Standalone |
 | Dr.C Terminal repo | https://github.com/mateolarreaferro/Dr.C |
 | Csound 7 releases | https://github.com/csound/csound/releases |
 | Csound download | https://csound.com/download.html |

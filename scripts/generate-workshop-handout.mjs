@@ -17,8 +17,8 @@ const OUT_FILE = join(OUT_DIR, INSTALL_SLIDE ? 'LAC-2026-Install-Slide.pdf' : 'L
 
 const LINKS = [
   ['Repos', [
-    ['Standalone', 'github.com/mateolarreaferro/DRC-Standalone'],
-    ['Releases', 'github.com/mateolarreaferro/DRC-Standalone/releases'],
+    ['Standalone', 'github.com/mateolarreaferro/Dr.C-Standalone'],
+    ['Releases', 'github.com/mateolarreaferro/Dr.C-Standalone/releases'],
     ['Terminal', 'github.com/mateolarreaferro/Dr.C'],
   ]],
   ['Csound', [
@@ -43,7 +43,7 @@ const LINKS = [
 const INSTALL_LINKS = [
   ['Csound 7', 'github.com/csound/csound/releases'],
   ['Node.js 22', 'nodejs.org'],
-  ['Standalone releases', 'github.com/mateolarreaferro/DRC-Standalone/releases'],
+  ['Standalone releases', 'github.com/mateolarreaferro/Dr.C-Standalone/releases'],
   ['Dr.C Terminal', 'github.com/mateolarreaferro/Dr.C'],
   ['CsoundQt 7', 'github.com/CsoundQt/CsoundQt/releases'],
   ['Cabbage', 'cabbageaudio.com/download'],
@@ -152,7 +152,7 @@ function drawInstallSlide(doc) {
     '2. Node.js 22 (+ Bun for Dr.C Terminal)',
     '3. Get Dr.C — GitHub Releases (DMG / AppImage) or git clone',
     '4. Launch — Workshop-Attendee (free) or Standalone (instructor)',
-    '5. Verify — cd DRC-Standalone && npm test',
+    '5. Verify — cd Dr.C-Standalone && npm test',
     '6. Agent (optional) — Ollama local OR API key in Settings',
   ]
   for (const s of steps) {

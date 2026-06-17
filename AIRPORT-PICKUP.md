@@ -23,7 +23,7 @@
 ```bash
 ~/Desktop/Dr.C-Standalone.command
 # or
-cd ~/DRC-Standalone && ./scripts/launch-drc.sh
+cd ~/Dr.C-Standalone && ./scripts/launch-drc.sh
 ```
 
 Launcher prepends **Csound 7** (`~/bin/csound`). Dock-only may pick up **Csound 6.18** from `/usr/local/bin`.
@@ -62,7 +62,7 @@ csound --version   # must show version 7
 ### 1. Rebuild with local fixes
 
 ```bash
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 npm run build
 ```
 
@@ -112,7 +112,7 @@ Watch playback bar + console for compile error vs silent render vs afplay.
 ```bash
 export PATH="$HOME/bin:$PATH"
 csound -n -d -m0 -o /tmp/bass-test.wav \
-  ~/DRC-Standalone/resources/workshop-starters/pluck_bass_starter.csd
+  ~/Dr.C-Standalone/resources/workshop-starters/pluck_bass_starter.csd
 afplay /tmp/bass-test.wav
 ```
 
@@ -195,7 +195,7 @@ If this **plays** but Dr.C does not, problem is in Electron app path (see uncomm
 ## Commit when stable
 
 ```bash
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 git add -A
 git status   # review — no secrets
 git commit -m "$(cat <<'EOF'
