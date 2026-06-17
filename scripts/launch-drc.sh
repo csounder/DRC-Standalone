@@ -22,6 +22,32 @@ echo "Dr.C Standalone (Csound 7) — tier: ${DRC_PRO_PLUS} Pro+ | OS: $(uname -s
 echo "Csound: $(csound --version 2>&1 | head -1)"
 echo ""
 
+
+if [[ "$(uname -s)" == "Linux" ]]; then
+  case "$ROOT" in
+    /mnt/*)
+      echo "Do not run Dr.C from a Multipass mount ($ROOT)."
+      echo "Work in ~/Dr.C-Standalone (sync from /mnt without node_modules, then npm install on the VM)."
+      echo "See ~/Dr.C-Workshop-Demo/LINUX-DESKTOP.md"
+      exit 1
+      ;;
+  esac
+  rollup_native=""
+  case "$(uname -m)" in
+    aarch64|arm64) rollup_native="node_modules/@rollup/rollup-linux-arm64-gnu" ;;
+    x86_64|amd64) rollup_native="node_modules/@rollup/rollup-linux-x64-gnu" ;;
+  esac
+  if [[ -n "$rollup_native" && ! -d "$rollup_native" ]]; then
+    echo "Linux-native npm dependencies are missing ($rollup_native)."
+    if [[ -d node_modules/@rollup/rollup-darwin-arm64 ]] || [[ -d node_modules/@rollup/rollup-darwin-x64 ]]; then
+      echo "node_modules appears to be from macOS (Multipass mount or copied Mac install)."
+    fi
+    echo "On this VM: cd ~/Dr.C-Standalone && rm -rf node_modules && npm install"
+    echo "See ~/Dr.C-Workshop-Demo/LINUX-DESKTOP.md"
+    exit 1
+  fi
+fi
+
 if [[ ! -d node_modules ]]; then
   echo "Run: npm install"
   exit 1

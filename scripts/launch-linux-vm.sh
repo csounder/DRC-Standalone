@@ -7,21 +7,24 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROVISION_SCRIPT="${SCRIPT_DIR}/linux-vm-provision.sh"
 START_SCRIPT="${SCRIPT_DIR}/start-linux-vm.sh"
+# shellcheck source=linux-vm-host.sh
+source "${SCRIPT_DIR}/linux-vm-host.sh"
 
 DO_PROVISION=0
-DO_SYNC=0
+DO_SYNC=1
 for arg in "$@"; do
   case "$arg" in
     --provision) DO_PROVISION=1 ;;
     --sync) DO_SYNC=1 ;;
+    --no-sync) DO_SYNC=0 ;;
     -h|--help)
       cat <<EOF
-Usage: $(basename "$0") [--provision] [--sync]
+Usage: $(basename "$0") [--provision] [--no-sync]
 
-  Default: start VM if needed, show status, enter interactive shell.
+  Default: start VM, rsync from /mnt (excluding node_modules), enter shell.
 
   --provision  Re-run linux-vm-provision.sh inside the VM
-  --sync       Rsync repos from /mnt mounts (if present in VM)
+  --no-sync    Skip rsync from /mnt mounts
 
 VM name: ${VM_NAME} (override with DRC_LINUX_VM)
 
@@ -35,32 +38,7 @@ done
 "${START_SCRIPT}"
 
 if [[ "${DO_SYNC}" -eq 1 ]]; then
-  echo "Syncing repos from VM mounts (if present)…"
-  multipass exec "${VM_NAME}" -- bash -lc '
-    set -euo pipefail
-    synced=0
-    if [ -d /mnt/Dr.C-Standalone ]; then
-      rsync -a --delete \
-        --exclude node_modules --exclude out --exclude release --exclude dist \
-        /mnt/Dr.C-Standalone/ ~/Dr.C-Standalone/
-      echo "  synced /mnt/Dr.C-Standalone → ~/Dr.C-Standalone"
-      synced=1
-    fi
-    if [ -d /mnt/Dr.C ]; then
-      rsync -a --delete \
-        --exclude node_modules --exclude .turbo --exclude dist \
-        --exclude "sdks/vscode/images/icon.png" \
-        --exclude "sdks/vscode/images/button-dark.svg" \
-        --exclude "sdks/vscode/images/button-light.svg" \
-        /mnt/Dr.C/ ~/Dr.C/ || true
-      echo "  synced /mnt/Dr.C → ~/Dr.C"
-      synced=1
-    fi
-    if [ "$synced" -eq 0 ]; then
-      echo "  no /mnt mounts — repos should already be in ~/Dr.C-Standalone and ~/Dr.C"
-    fi
-  '
-  echo ""
+  drc_vm_sync_from_mount
 fi
 
 if [[ "${DO_PROVISION}" -eq 1 ]]; then

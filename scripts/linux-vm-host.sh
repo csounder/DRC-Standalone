@@ -48,3 +48,33 @@ drc_vm_exec() {
 drc_vm_bash_lc() {
   drc_vm_exec bash -lc "$1"
 }
+
+# Copy host-mounted repos into ~ (never sync node_modules — run npm install on the VM).
+drc_vm_sync_from_mount() {
+  echo "Syncing repos from VM mounts (if present)…"
+  drc_vm_bash_lc '
+    set -euo pipefail
+    synced=0
+    if [ -d /mnt/Dr.C-Standalone ]; then
+      rsync -a --delete \
+        --exclude node_modules --exclude out --exclude release --exclude dist \
+        /mnt/Dr.C-Standalone/ ~/Dr.C-Standalone/
+      echo "  synced /mnt/Dr.C-Standalone → ~/Dr.C-Standalone (node_modules excluded)"
+      synced=1
+    fi
+    if [ -d /mnt/Dr.C ]; then
+      rsync -a --delete \
+        --exclude node_modules --exclude .turbo --exclude dist \
+        --exclude "sdks/vscode/images/icon.png" \
+        --exclude "sdks/vscode/images/button-dark.svg" \
+        --exclude "sdks/vscode/images/button-light.svg" \
+        /mnt/Dr.C/ ~/Dr.C/ || true
+      echo "  synced /mnt/Dr.C → ~/Dr.C (node_modules excluded)"
+      synced=1
+    fi
+    if [ "$synced" -eq 0 ]; then
+      echo "  no /mnt mounts — using ~/Dr.C-Standalone and ~/Dr.C as-is"
+    fi
+  '
+  echo ""
+}

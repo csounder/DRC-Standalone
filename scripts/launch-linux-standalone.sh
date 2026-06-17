@@ -28,6 +28,8 @@ done
 
 drc_ensure_vm_running
 
+drc_vm_sync_from_mount
+
 echo ""
 echo "━━━ Dr.C Linux Standalone (${VM_NAME}) ━━━"
 echo "  IPv4: $(drc_vm_ip || echo '?')"
