@@ -261,7 +261,7 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | OS | Install |
 |----|---------|
 | macOS | Download `CsoundQt-*-MacOS.dmg` from the v7 release → **Applications**. Dr.C: **Settings → CsoundQt**. |
-| Linux | v7 **AppImage** from GitHub (recommended), or `sudo apt install csoundqt` if your distro ships 7.x |
+| Linux | v7 **AppImage** from GitHub (recommended), or `sudo apt install csoundqt` if your distro ships 7.x. **ARM64:** official v7 AppImage is **x86_64 only** — use macOS or build CsoundQt from source. |
 
 ### Cabbage — live plugin UI
 
@@ -270,7 +270,7 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | OS | Install |
 |----|---------|
 | macOS | DMG → drag **Cabbage** to **Applications**. Dr.C: **Settings → Cabbage**. |
-| Linux | AppImage or package from cabbageaudio.com — check release notes for **aarch64** vs x86_64 |
+| Linux | [rorywalsh/cabbage](https://github.com/rorywalsh/cabbage/releases) `CabbageLinux-*.zip` (VST3 + rack). **ARM64:** Linux zip is **x86_64**; full **Cabbage** GUI is on **macOS** for this workshop. |
 
 ### Audacity — listen and edit exports
 
