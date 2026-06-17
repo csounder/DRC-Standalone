@@ -15,6 +15,26 @@ sudo apt-get install -y -qq \
   libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2 libgbm1 \
   rsync lsb-release python3-numpy
 
+log "Web browser (Open in Browser / web app testing)"
+ARCH="$(dpkg --print-architecture)"
+case "$ARCH" in
+  arm64) CHROME_DEB_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_arm64.deb" ;;
+  amd64) CHROME_DEB_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" ;;
+  *) CHROME_DEB_URL="" ;;
+esac
+CHROME_DEB="/tmp/google-chrome-stable_${ARCH}.deb"
+if [ -n "$CHROME_DEB_URL" ] && curl -fsSL -o "$CHROME_DEB" "$CHROME_DEB_URL" && [ -s "$CHROME_DEB" ]; then
+  sudo apt-get install -y -qq "$CHROME_DEB" || { sudo dpkg -i "$CHROME_DEB" && sudo apt-get install -f -y -qq; }
+  rm -f "$CHROME_DEB"
+  google-chrome-stable --version 2>/dev/null | head -1 || google-chrome --version 2>/dev/null | head -1 || true
+else
+  rm -f "$CHROME_DEB"
+  log "No Google Chrome .deb for ${ARCH:-unknown} — installing Chromium (Ubuntu snap via apt)"
+  sudo apt-get install -y -qq chromium-browser
+  chromium-browser --version 2>/dev/null | head -1 || true
+  log "Manual Chrome download: https://www.google.com/chrome/"
+fi
+
 log "Node.js 22"
 if ! node -v 2>/dev/null | grep -q '^v22\.'; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -

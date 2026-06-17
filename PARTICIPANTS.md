@@ -254,6 +254,8 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 
 These are **optional but recommended** for the workshop — listening to WAV exports, light editing, and DAW workflows alongside Dr.C. Install **Csound 7 first** (§1). Full steps: `DRC-URLS.C/INSTALL-STANDALONE.md` §2.5–2.8.
 
+**Linux workshop VM (aarch64):** Google Chrome has no official arm64 `.deb`; `scripts/linux-vm-provision.sh` installs **Chromium** (`/usr/bin/chromium-browser`) for **Open in Browser**. Desktop Chrome: [google.com/chrome](https://www.google.com/chrome/).
+
 ### CsoundQt 7 — Csound IDE
 
 **Releases:** [github.com/CsoundQt/CsoundQt/releases](https://github.com/CsoundQt/CsoundQt/releases) (v7 AppImage / beta)
