@@ -61,7 +61,7 @@ csound --version   # should show version 7.x
 
 ### Linux (Ubuntu/Debian)
 
-Build from source or use a Csound 7 package when available for your distro. Workshop docs in `~/DRC-URLS.C` cover full Linux setup.
+Build from source or use a Csound 7 package when available for your distro. Workshop docs in `~/Dr.C-URLS` cover full Linux setup.
 
 ```bash
 sudo apt install build-essential cmake libjack-jackd2-dev
@@ -117,4 +117,4 @@ For deeper editing and manual lookup, use **Open in CsoundQt** on any plain CSD 
 
 ## Optional companion tools (recommended)
 
-Attendees may also install **Cabbage**, **Audacity**, and **Reaper** — all optional but recommended for listening to exports, editing WAVs, and DAW/VST workflows. See **[PARTICIPANTS.md](./PARTICIPANTS.md)** § Optional companion tools and `~/DRC-URLS.C/INSTALL-STANDALONE.md` §2.5–2.8.
+Attendees may also install **Cabbage**, **Audacity**, and **Reaper** — all optional but recommended for listening to exports, editing WAVs, and DAW/VST workflows. See **[PARTICIPANTS.md](./PARTICIPANTS.md)** § Optional companion tools and `~/Dr.C-URLS/INSTALL-STANDALONE.md` §2.5–2.8.

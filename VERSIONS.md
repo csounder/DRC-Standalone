@@ -91,8 +91,8 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 
 | Audience | Document |
 |----------|----------|
-| Standalone install (all OS) | `INSTALLATION.md`, `~/DRC-URLS.C/INSTALL-STANDALONE.md` |
-| Terminal install | `~/DRC-URLS.C/INSTALL-TERMINAL.md` |
+| Standalone install (all OS) | `INSTALLATION.md`, `~/Dr.C-URLS/INSTALL-STANDALONE.md` |
+| Terminal install | `~/Dr.C-URLS/INSTALL-TERMINAL.md` |
 | Workshop teaching notes | `WORKSHOP.md` |
 | Your return checklist | `TESTING.md` |
 | GitHub release steps | `RELEASE-CHECKLIST.md` |
