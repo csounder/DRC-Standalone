@@ -10,7 +10,7 @@ From repo root, with Csound 7 on PATH:
 
 ```bash
 export PATH="$HOME/bin:$HOME/Applications/Csound:$PATH"
-cd ~/DRC-Standalone
+cd ~/Dr.C-Standalone
 npm test
 ```
 
@@ -74,7 +74,7 @@ Linux: `csound`/`bun` runtime checks skip gracefully if not installed on the CI/
 ## Automated — CsoundLive Web
 
 ```bash
-cd ~/dB-Studio/DRC-WebApps+/_CsoundLive/web
+cd ~/Dr.C-WebApps/_CsoundLive/web
 ./scripts/compile-check.sh
 ```
 
@@ -91,7 +91,7 @@ Do this once after `npm test` passes. Restart Dr.C between main-process changes.
 Launch attendee mode:
 
 ```bash
-~/DRC-Standalone/scripts/launch-workshop-attendee.sh
+~/Dr.C-Standalone/scripts/launch-workshop-attendee.sh
 ```
 
 | # | Step | Pass? |
@@ -108,7 +108,7 @@ Launch attendee mode:
 Launch Pro+ or attendee with keys in Settings:
 
 ```bash
-~/DRC-Standalone/scripts/launch-drc.sh
+~/Dr.C-Standalone/scripts/launch-drc.sh
 # or attendee script + keys saved
 ```
 
@@ -126,12 +126,12 @@ Launch Pro+ or attendee with keys in Settings:
 Double-click **`Dr.C-Terminal.command`** or:
 
 ```bash
-cd ~/Dr.C/opencode && bun run dev -- ~/lac-workshop-demo
+cd ~/Dr.C/opencode && bun run dev -- ~/Dr.C-Workshop-Demo
 ```
 
 | # | Step | Pass? |
 |---|------|-------|
-| C1 | TUI opens, project is `lac-workshop-demo` | |
+| C1 | TUI opens, project is `Dr.C-Workshop-Demo` | |
 | C2 | Generate plain FM CSD with workshop prompt | |
 | C3 | Compile / smoke from CSD panel | |
 | C4 | **Open in Cabbage** (if Cabbage installed) | |
