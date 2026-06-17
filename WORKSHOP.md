@@ -114,3 +114,7 @@ For live MIDI instruments, convert to Cabbage after the plain CSD works. Most Ca
 ## CsoundQt
 
 For deeper editing and manual lookup, use **Open in CsoundQt** on any plain CSD (artifact panel or Terminal CSD toolbar). Install **CsoundQt v7.x** after Csound 7 — see `INSTALL-STANDALONE.md` §2.5.
+
+## Optional companion tools (recommended)
+
+Attendees may also install **Cabbage**, **Audacity**, and **Reaper** — all optional but recommended for listening to exports, editing WAVs, and DAW/VST workflows. See **[PARTICIPANTS.md](./PARTICIPANTS.md)** § Optional companion tools and `DRC-URLS.C/INSTALL-STANDALONE.md` §2.5–2.8.

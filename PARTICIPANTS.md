@@ -250,6 +250,44 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 
 ---
 
+## Optional companion tools (recommended)
+
+These are **optional but recommended** for the workshop — listening to WAV exports, light editing, and DAW workflows alongside Dr.C. Install **Csound 7 first** (§1). Full steps: `DRC-URLS.C/INSTALL-STANDALONE.md` §2.5–2.8.
+
+### CsoundQt 7 — Csound IDE
+
+**Releases:** [github.com/CsoundQt/CsoundQt/releases](https://github.com/CsoundQt/CsoundQt/releases) (v7 AppImage / beta)
+
+| OS | Install |
+|----|---------|
+| macOS | Download `CsoundQt-*-MacOS.dmg` from the v7 release → **Applications**. Dr.C: **Settings → CsoundQt**. |
+| Linux | v7 **AppImage** from GitHub (recommended), or `sudo apt install csoundqt` if your distro ships 7.x |
+
+### Cabbage — live plugin UI
+
+**Downloads:** [cabbageaudio.com/download](https://cabbageaudio.com/download/) · [GitHub releases](https://github.com/cabbageaudio/Cabbage/releases)
+
+| OS | Install |
+|----|---------|
+| macOS | DMG → drag **Cabbage** to **Applications**. Dr.C: **Settings → Cabbage**. |
+| Linux | AppImage or package from cabbageaudio.com — check release notes for **aarch64** vs x86_64 |
+
+### Audacity — listen and edit exports
+
+| OS | Install |
+|----|---------|
+| macOS | `brew install --cask audacity` or [audacityteam.org/download](https://www.audacityteam.org/download/) |
+| Linux | `sudo apt install audacity` (Ubuntu 22.04) or [Flatpak](https://flathub.org/apps/org.audacityteam.Audacity) |
+
+### Reaper — lightweight DAW host
+
+| OS | Install |
+|----|---------|
+| macOS | [reaper.fm/download.php](https://www.reaper.fm/download.php) (ARM64) or `brew install --cask reaper` |
+| Linux | [reaper.fm/download.php](https://www.reaper.fm/download.php) — eval license; **aarch64** and **x86_64** builds available |
+
+---
+
 ## Reference links
 
 | Resource | URL |
@@ -262,6 +300,9 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 | FLOSS Manual | https://flossmanual.csound.com/ |
 | Opcode index | https://csound.com/manual/opcodesIndex/ |
 | CsoundQt 7 | https://github.com/CsoundQt/CsoundQt/releases |
+| Cabbage | https://cabbageaudio.com/download/ |
+| Audacity | https://www.audacityteam.org/download/ |
+| Reaper | https://www.reaper.fm/download.php |
 
 ---
 

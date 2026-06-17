@@ -59,6 +59,45 @@ else
   log "ctcsound import failed (need python3-numpy and LD_LIBRARY_PATH)"
 fi
 
+# Optional workshop companion tools — install AFTER Csound 7.
+# Docs: PARTICIPANTS.md, INSTALL-STANDALONE.md §2.5–2.8
+# Set INSTALL_OPTIONAL_TOOLS=0 to skip.
+if [ "${INSTALL_OPTIONAL_TOOLS:-1}" = "1" ]; then
+  log "optional companion tools (CsoundQt, Cabbage, Audacity, Reaper)"
+
+  if ! command -v audacity >/dev/null 2>&1; then
+    sudo apt-get install -y -qq audacity \
+      || log "audacity apt failed — try: flatpak install flathub org.audacityteam.Audacity"
+  fi
+
+  ARCH="$(uname -m)"
+
+  # CsoundQt 7 — https://github.com/CsoundQt/CsoundQt/releases (v7 AppImage)
+  if ! ls ~/Applications/CsoundQt*.AppImage >/dev/null 2>&1 && ! command -v csoundqt >/dev/null 2>&1; then
+    if [ "$ARCH" = "aarch64" ]; then
+      log "CsoundQt: check GitHub releases for aarch64 AppImage — https://github.com/CsoundQt/CsoundQt/releases"
+    else
+      CSOUNDQT_URL="https://github.com/CsoundQt/CsoundQt/releases/download/v7.0.0-beta3/CsoundQt-7.0.0-beta3-x86_64.AppImage"
+      if curl -fsSL -o ~/Applications/CsoundQt.AppImage "$CSOUNDQT_URL" 2>/dev/null; then
+        chmod +x ~/Applications/CsoundQt.AppImage
+        ln -sf ~/Applications/CsoundQt.AppImage ~/bin/csoundqt 2>/dev/null || true
+      else
+        log "CsoundQt download failed — manual: https://github.com/CsoundQt/CsoundQt/releases"
+      fi
+    fi
+  fi
+
+  # Cabbage — https://cabbageaudio.com/download/ or GitHub releases
+  if ! command -v cabbage >/dev/null 2>&1; then
+    log "Cabbage: manual install from https://cabbageaudio.com/download/ (aarch64 builds may lag x86_64)"
+  fi
+
+  # Reaper — https://www.reaper.fm/download.php (eval license; aarch64 + x86_64)
+  if [ ! -d ~/opt/REAPER ] && [ ! -x ~/Applications/Reaper/reaper ]; then
+    log "Reaper: manual download from https://www.reaper.fm/download.php — eval license, install to ~/opt/REAPER"
+  fi
+fi
+
 log "sync repos from host mount (if present)"
 if [ -d /mnt/DRC-Standalone ]; then
   rsync -a --delete \
