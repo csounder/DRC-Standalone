@@ -1,6 +1,7 @@
 <CsoundSynthesizer>
 <CsOptions>
 -n -d -m0 -o /tmp/lac-fm-piano.wav
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 sr = 44100

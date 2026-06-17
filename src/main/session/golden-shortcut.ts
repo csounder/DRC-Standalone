@@ -1,4 +1,5 @@
 import { readWorkshopStarter } from '../util/workshop-starters'
+import { matchWorkshopModelRoute } from '../../shared/workshop-model-routes'
 
 export interface GoldenShortcut {
   intro: string
@@ -25,13 +26,13 @@ const RULES: Rule[] = [
     test: (q) =>
       /\b(simple|plain|basic)\b/.test(q) &&
       /\b(fm|foscil|2-?\s*op)\b/.test(q) &&
-      !/\b(bell|chime|shimmer|piano|bass|pad|reverb|wood)\b/.test(q),
+      !/\b(bell|chime|shimmer|piano|bass|pad|reverb|wood|brass|horn|clarinet|trumpet)\b/.test(q),
     filename: 'fm_starter.csd',
     starterId: 'fm',
     intro: 'Simple 2-operator FM from the verified Dr.C golden starter.',
   },
   {
-    test: (q) => /\b(shimmer|bell|chime)\b/.test(q) && /\b(fm|bell)\b/.test(q),
+    test: (q) => /\b(shimmer|bell|chime)\b/.test(q) && /\b(fm|bell)\b/.test(q) && !/\b(brass|trumpet|horn)\b/.test(q),
     filename: 'fm_bell_starter.csd',
     starterId: 'fm_bell',
     intro: 'Shimmer FM bell from the verified Dr.C golden starter.',
@@ -51,6 +52,15 @@ export function matchGoldenShortcut(userText: string): GoldenShortcut | null {
   if (/\b(change|modify|add|remove|fix|convert|adapt|make it|more|less)\b/.test(q) && q.length > 40) {
     return null
   }
+
+  const modelRoute = matchWorkshopModelRoute(userText)
+  if (modelRoute) {
+    const csd = readWorkshopStarter(modelRoute.filename)
+    if (csd?.trim()) {
+      return { intro: modelRoute.intro, csd: csd.trim(), starterId: modelRoute.starterId }
+    }
+  }
+
   for (const rule of RULES) {
     if (!rule.test(q)) continue
     const csd = readWorkshopStarter(rule.filename)

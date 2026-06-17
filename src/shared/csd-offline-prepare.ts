@@ -64,6 +64,7 @@ const CLI_HANDLED_CSOPTIONS = [
   /^-\+\s*rtaudio/,
   /^-\+\s*rtmidi/,
   /^-M\d+/,
+  /^--limiter(?:=\S+)?$/,
 ]
 
 export function stripCsOptionsHandledByCli(csd: string): string {

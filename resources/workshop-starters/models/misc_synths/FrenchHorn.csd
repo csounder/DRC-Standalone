@@ -1,4 +1,7 @@
 <CsoundSynthesizer>
+<CsOptions>
+--limiter=0.9
+</CsOptions>
 <CsInstruments>
 ; horn.orc
 ; instr 25 - French horn

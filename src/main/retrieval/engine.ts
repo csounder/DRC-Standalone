@@ -5,6 +5,7 @@ import { isProPlus } from '../util/tier'
 import { searchPassages } from './passages'
 import { initKnowledgeSources, searchKnowledgeSources } from './knowledge-sources'
 import { initCsoundQtExamples, searchCsoundQtExamples } from './csoundqt-examples'
+import { matchWorkshopModelRoute } from '../../shared/workshop-model-routes'
 
 export interface RetrievalChunk {
   id: string
@@ -360,7 +361,7 @@ export namespace Retrieval {
 
     // Granular synthesis — foundational models (high user interest)
     const granularGolden: [RegExp, string, string][] = [
-      [/\b(truax|giordani|timout.*grain|reinit.*grain)\b/i, 'granular-giordani-truax', 'Giordani Truax granular'],
+      [/\b(truax|timout.*grain|reinit.*grain)\b/i, 'granular-brandtsegg-partikkel-starter-kit', 'Partikkel granular (Truax-style timout)'],
       [/\b(partikkel|brandtsegg|hadron|live\s*input\s*granular)\b/i, 'granular-brandtsegg-partikkel-starter-kit', 'Partikkel starter kit (live FX)'],
       [/\b(sndwarp|time\s*stretch|sound\s*warp)\b/i, 'granular-boulanger-sndwarpmidi', 'SndWarpMIDI'],
       [/\b(grainmidi|grain\s+density|classic\s*grain)\b/i, 'granular-boulanger-grainmidi', 'GrainMIDI (Dr.B)'],
@@ -502,7 +503,13 @@ export namespace Retrieval {
       pushGoldenStarter('pad_starter.csd', 'Dr.B pad with ga-bus reverb (verified Csound 7)')
     }
 
-    if (/\b(shimmer|bell|chime)\b/i.test(q) && !/\b(simple|plain|2-?\s*operator)\b/i.test(q)) {
+    if (/\b(trumpet|brass|flugel|cornet|trombone|bugle|fanfare)\b/i.test(q) && !/\b(bell|shimmer|chime|glock|clarinet|pad)\b/i.test(q)) {
+      pushGoldenStarter('models/misc_synths/WaveshapeBrass.csd', 'Dr.B WaveshapeBrass — Rajmil Fischman beating-source brass')
+    } else if (/\b(french\s*horn|horn\s*solo)\b/i.test(q) || (/\bhorn\b/i.test(q) && !/\b(alto|tenor|sax|english)\b/i.test(q))) {
+      pushGoldenStarter('models/misc_synths/FrenchHorn.csd', 'Dr.B FrenchHorn — wavetable horn instr 25')
+    } else if (/\b(clarinet|bass\s*clarinet)\b/i.test(q) && !/\b(brass|bell|pad|waveshape)\b/i.test(q)) {
+      pushGoldenStarter('models/chowning/chowning_fm_clarinet.csd', 'Chowning FM clarinet — 9:8 ratio @ A440')
+    } else if (/\b(shimmer|bell|chime)\b/i.test(q) && !/\b(simple|plain|2-?\s*operator|trumpet|brass)\b/i.test(q)) {
       pushGoldenStarter('fm_bell_starter.csd', 'Dr.B shimmer FM bell starter (verified Csound 7)')
     } else if (/\b(wood\s*block|woodblock|temple\s*block|clave)\b/i.test(q) && /\b(fm|percussion|perc|midi)\b/i.test(q)) {
       pushGoldenStarter('fm_woodblock_midi_starter.csd', 'Dr.B FM woodblock MIDI — fmpercfl kc1/kc2 (verified Csound 7)')

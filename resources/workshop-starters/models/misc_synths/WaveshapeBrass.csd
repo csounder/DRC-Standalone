@@ -1,4 +1,7 @@
 <CsoundSynthesizer>
+<CsOptions>
+--limiter=0.9
+</CsOptions>
 <CsInstruments>
 ; TSCST12.ORC
 ;             (c) Rajmil Fischman, 1997

@@ -33,21 +33,65 @@ function loadPlayerModelDemos(): WorkshopStarterMeta[] {
   return []
 }
 
+function loadChowningPlayerDemos(): WorkshopStarterMeta[] {
+  const candidates = [
+    join(__dirname, '../../resources/workshop-starters/chowning-player-demos.json'),
+    join(__dirname, '../../../resources/workshop-starters/chowning-player-demos.json'),
+    join(process.cwd(), 'resources/workshop-starters/chowning-player-demos.json'),
+  ]
+  for (const p of candidates) {
+    if (!existsSync(p)) continue
+    try {
+      const raw = JSON.parse(readFileSync(p, 'utf-8')) as WorkshopStarterMeta[]
+      return Array.isArray(raw) ? raw : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 const MIDI_MODEL_DEMOS: WorkshopStarterMeta[] = [
-  { id: 'model_fm_pan', title: 'FM Pan', filename: 'models/FMpanV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 110, description: '2-op FM with pan — MIDI CC knobs mapped to Player channels' },
   { id: 'model_moog', title: 'Moog Synth', filename: 'models/MoogSynth1V2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 111, description: 'Dual VCO2 + moogvcf2 — from Models MIDI Synths collection' },
   { id: 'model_vco_moog', title: 'VCO + Moog Filter', filename: 'models/VCO+MoogFilterV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 112, description: 'VCO through moogvcf with filter envelope' },
-  { id: 'model_oscil_delay', title: 'Oscil + Delay', filename: 'models/Oscil+DelayV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 113, description: 'Sine oscillator into comb delay loop' },
-  { id: 'model_fm_rand_pan', title: 'FM Rand Pan + Verb', filename: 'models/FM+RandPan+Verb-Shradha_GaneshV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 114, description: 'FM with random pan and reverb send' },
+  { id: 'model_fm_rand_pan', title: 'FM Lazer Gun', filename: 'models/FM+RandPan+Verb-Shradha_GaneshV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 114, description: 'FM laser-gun timbre with random pan and reverb send' },
   { id: 'model_random_timbre', title: 'Random Timbre + Pan', filename: 'models/RandomTimbre+Pan+VerbV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 115, description: 'Random timbre layers with stereo pan' },
-  { id: 'model_risset', title: 'Risset Arpeggio', filename: 'models/RissetArpeggio+Pan+VerbV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 116, description: 'Risset harmonic arpeggio with pan and reverb' },
-  { id: 'model_voice_verb', title: 'Voice + Verb', filename: 'models/Voice+VerbV2.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 117, description: 'FOF vowel voice with reverb' },
-  { id: 'model_henon_v1', title: 'Henon Marimba V1', filename: 'models/ffitch-HenonV1a.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 118, description: 'ffitch Henon marimba model — MIDI version 1' },
-  { id: 'model_henon_v2', title: 'Henon Marimba V2', filename: 'models/ffitch-HenonV2a.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 119, description: 'ffitch Henon marimba model — MIDI version 2' },
-  { id: 'model_henon_v3', title: 'Henon Marimba V3', filename: 'models/ffitch-HenonV3a.csd', playerDemo: true, demoGroup: 'MIDI Synths', demoOrder: 120, description: 'ffitch Henon marimba model — MIDI version 3' },
+  { id: 'model_henon_v1', title: 'ffitch Henon Marimba V1', filename: 'models/ffitch-HenonV1a.csd', playerDemo: true, demoGroup: 'ffitch Henon', demoOrder: 118, description: 'ffitch Henon marimba model — MIDI version 1' },
+  { id: 'model_henon_v2', title: 'ffitch Henon Marimba V2', filename: 'models/ffitch-HenonV2a.csd', playerDemo: true, demoGroup: 'ffitch Henon', demoOrder: 119, description: 'ffitch Henon marimba model — MIDI version 2' },
+  { id: 'model_henon_v3', title: 'ffitch Henon Marimba V3', filename: 'models/ffitch-HenonV3a.csd', playerDemo: true, demoGroup: 'ffitch Henon', demoOrder: 120, description: 'ffitch Henon marimba model — MIDI version 3' },
 ]
 
 export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
+  {
+    id: 'dr_c_thick_analog_bass',
+    title: 'Thick Analog Bass',
+    filename: 'models/dr_c/thick_analog_bass.csd',
+    playerReady: true,
+    playerDemo: true,
+    demoGroup: 'Dr.C Models',
+    demoOrder: 6,
+    description: 'Dual saw + moogladder squelch bass — Dr.C workshop export',
+  },
+  {
+    id: 'dr_c_fm_bell_reverb',
+    title: 'FM Stick + Reverb',
+    filename: 'models/dr_c/fm_bell_reverb.csd',
+    playerReady: true,
+    playerDemo: true,
+    demoGroup: 'Dr.C Models',
+    demoOrder: 7,
+    description: 'Stereo FM stick/mallet with global reverb bus — Dr.C workshop export',
+  },
+  {
+    id: 'player_fm_trumpet',
+    title: 'FM Trombone',
+    filename: 'player_fm_trumpet.csd',
+    playerReady: true,
+    playerDemo: true,
+    demoGroup: 'Csound Models',
+    demoOrder: 11,
+    description: 'Chowning harmonic FM trombone — keyboard + knobs, no API key',
+  },
   {
     id: 'player_fm_bell',
     title: 'FM-Bell',
@@ -69,16 +113,6 @@ export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
     description: 'Gbuzz timbre from Trapped in Convert (1979)',
   },
   {
-    id: 'player_trapped_black',
-    title: 'Trapped Black',
-    filename: 'player_trapped_black.csd',
-    playerReady: true,
-    playerDemo: true,
-    demoGroup: 'Trapped in Convert',
-    demoOrder: 21,
-    description: 'Filtered noise + partials from Trapped in Convert',
-  },
-  {
     id: 'player_trapped_sand',
     title: 'Trapped Sand',
     filename: 'player_trapped_sand.csd',
@@ -89,6 +123,7 @@ export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
     description: 'Layered wavetable voice from Trapped in Convert',
   },
   ...MIDI_MODEL_DEMOS,
+  ...loadChowningPlayerDemos(),
   ...loadPlayerModelDemos(),
   {
     id: 'player_pluck_bass',
@@ -103,6 +138,12 @@ export const WORKSHOP_STARTERS: WorkshopStarterMeta[] = [
     filename: 'player_fm_starter.csd',
     playerReady: true,
     description: 'Workshop B2 golden model — 2-operator foscili FM, keyboard + knobs, no API key',
+  },
+  {
+    id: 'fm_trumpet',
+    title: 'FM Trumpet (Agent score)',
+    filename: 'fm_trumpet_starter.csd',
+    description: 'Chowning-style FM trumpet / brass — Agent golden starter',
   },
   {
     id: 'fm_bell',

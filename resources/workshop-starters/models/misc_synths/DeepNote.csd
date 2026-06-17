@@ -1,4 +1,7 @@
 <CsoundSynthesizer>
+<CsOptions>
+--limiter=0.9
+</CsOptions>
 <CsInstruments>
 sr=44100
 kr=441

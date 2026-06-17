@@ -19,10 +19,19 @@ import { isQuotaError } from '../lib/providerGuide'
 import { applyQuotaCooldownFromMessage, isRateLimited, useRateLimitStore } from '../stores/rateLimitStore'
 import { useCsoundConsoleStore } from '../stores/csoundConsoleStore'
 import { mechanicalPlayerAdapt } from '../lib/mechanicalPlayerAdapt'
+import {
+  allDemoArpeggioReleaseNotes,
+  arpeggioTag,
+  demoPhraseFor,
+  phraseMidiNotes,
+  playDemoPhrase,
+} from '../lib/playerDemoArpeggio'
 import { loadWorkshopPlayerDemo } from '../lib/workshopDemos'
 import PlayerDemosMenu from '../components/player/PlayerDemosMenu'
 import PlayerAudioScope from '../components/player/PlayerAudioScope'
 import PlayerCsdPanel from '../components/player/PlayerCsdPanel'
+import StudyFlowButton from '../components/study/StudyFlowButton'
+import type { SignalFlowStudyInput } from '../lib/signalFlowStudy'
 import type { UsageRecord } from '../lib/usageFormat'
 
 type AdaptStatus =
@@ -51,36 +60,12 @@ async function waitForCsoundEvents(maxMs = 10000): Promise<boolean> {
   return false
 }
 
-const DEMO_ARPEGGIO_NOTES = [60, 64, 67, 72]
-
-function arpeggioTag(midi: number): string {
-  return `1.${midi.toString().padStart(3, '0')}`
-}
-
-async function releaseDemoArpeggioNotes(): Promise<void> {
+async function releaseDemoArpeggioNotes(notes?: readonly number[]): Promise<void> {
   const api = window.api?.csound
   if (!api?.event) return
-  for (const midi of DEMO_ARPEGGIO_NOTES) {
+  const toRelease = notes ?? allDemoArpeggioReleaseNotes()
+  for (const midi of toRelease) {
     await api.event(`i -${arpeggioTag(midi)} 0 0`).catch(() => {})
-  }
-}
-
-async function playDemoArpeggio(isActive: () => boolean): Promise<void> {
-  if (!window.api?.csound?.event) return
-  for (const midi of DEMO_ARPEGGIO_NOTES) {
-    if (!isActive()) return
-    const hz = 440 * 2 ** ((midi - 69) / 12)
-    const tag = arpeggioTag(midi)
-    let ok = false
-    for (let attempt = 0; attempt < 6 && !ok; attempt++) {
-      if (!isActive()) return
-      // Short finite notes — indefinite p3=-1 notes survived engine switches and layered FM-Bell.
-      const r = await window.api.csound.event(`i ${tag} 0 0.28 ${hz.toFixed(3)} 0.55`)
-      ok = Boolean(r?.success)
-      if (!ok) await sleep(80)
-    }
-    if (!ok || !isActive()) return
-    await sleep(200)
   }
 }
 
@@ -102,13 +87,12 @@ export default function PlayerPage() {
   const activeNotesRef = useRef<Set<number>>(new Set())
   /** Block note events while the engine is stopping or between loads. */
   const notesEnabledRef = useRef(false)
-
-  useEffect(() => {
-    notesEnabledRef.current = isPlaying
-  }, [isPlaying])
+  /** Keyboard + USB MIDI accept input when the realtime engine is live (not transport UI). */
+  const [inputLive, setInputLive] = useState(false)
   const workshopAutoLoadRef = useRef(false)
   const demosSectionRef = useRef<HTMLDivElement>(null)
   const playSessionRef = useRef(0)
+  const lastArpeggioNotesRef = useRef<number[]>([])
   const [lastGoodCsd, setLastGoodCsd] = useState('')
   const [searchParams] = useSearchParams()
   // The CSD declares its own knobs via `chn_k`; we re-parse on every CSD change
@@ -150,6 +134,14 @@ export default function PlayerPage() {
     return () => setEditorHidesConsole(false)
   }, [showCsd, setEditorHidesConsole])
 
+  // USB MIDI routes through Web MIDI → stdin (native PortMIDI is disabled on Player).
+  // Enable on mount so a controller works as soon as an instrument is live.
+  useEffect(() => {
+    if (!useMidiStore.getState().enabled) {
+      useMidiStore.getState().setEnabled(true)
+    }
+  }, [])
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
@@ -173,11 +165,20 @@ export default function PlayerPage() {
 
   const stopPlayerEngine = useCallback(async () => {
     notesEnabledRef.current = false
+    setInputLive(false)
     setPlaying(false)
     await releaseAllHeldNotes()
-    await releaseDemoArpeggioNotes()
+    await releaseDemoArpeggioNotes(lastArpeggioNotesRef.current)
+    lastArpeggioNotesRef.current = []
     await window.api?.csound?.stop?.().catch(() => {})
   }, [releaseAllHeldNotes, setPlaying])
+
+  // Kill realtime csound when leaving Player — otherwise a prior instrument keeps running.
+  useEffect(() => {
+    return () => {
+      void stopPlayerEngine()
+    }
+  }, [stopPlayerEngine])
 
   const handleNoteOn = useCallback((midi: number, velocity = 0.8) => {
     if (!notesEnabledRef.current) return
@@ -266,6 +267,7 @@ export default function PlayerPage() {
   useMidi(
     { onNoteOn: handleNoteOn, onNoteOff: handleNoteOff, onCC: handleHardwareCC },
     handleCCBinding,
+    inputLive,
   )
 
   const ccLabelFor = (channel: string): string | null => {
@@ -281,7 +283,10 @@ export default function PlayerPage() {
   // Load a raw CSD string: adapt via the LLM if it doesn't already follow the
   // Player convention, then compile + play. Returns once playback has kicked off
   // (or an error is surfaced in adaptStatus).
-  const loadAndPlayCsd = useCallback(async (raw: string) => {
+  const loadAndPlayCsd = useCallback(async (
+    raw: string,
+    opts?: { demoId?: string; demoTitle?: string; demoGroup?: string; filename?: string },
+  ) => {
     if (!window.api?.csound) {
       setAdaptStatus({ kind: 'error', message: 'Csound bridge unavailable' })
       return
@@ -381,14 +386,28 @@ export default function PlayerPage() {
       setLastGoodCsd(csd)
       setAdaptStatus({ kind: 'ready', hint: 'Playing demo…' })
       setPlaying(true)
-      await playDemoArpeggio(isActive)
+      notesEnabledRef.current = true
+      setInputLive(true)
+      if (!useMidiStore.getState().enabled) {
+        useMidiStore.getState().setEnabled(true)
+      }
+      const phrase = demoPhraseFor({
+        id: opts?.demoId ?? currentDemoId,
+        title: opts?.demoTitle ?? currentDemoTitle,
+        demoGroup: opts?.demoGroup,
+        filename: opts?.filename,
+        csd,
+      })
+      lastArpeggioNotesRef.current = phraseMidiNotes(phrase)
+      const emit = (line: string) => window.api!.csound!.event(line)
+      await playDemoPhrase(phrase, isActive, emit)
       if (!isActive()) return
       setAdaptStatus({ kind: 'ready', hint: 'Live — click the keyboard below or use MIDI' })
     } catch (err: any) {
       if (!isActive()) return
       setAdaptStatus({ kind: 'error', message: err?.message ?? 'Unexpected error' })
     }
-  }, [setCsdContent, setPlaying, stopPlayerEngine])
+  }, [setCsdContent, setPlaying, stopPlayerEngine, currentDemoId, currentDemoTitle])
 
   const handleFile = useCallback(async (file: File) => {
     setAdaptStatus({ kind: 'reading' })
@@ -459,6 +478,12 @@ export default function PlayerPage() {
   const showRateLimit = rateLimitUntil != null && rateLimitUntil > Date.now()
   const loadDisabled = loadBusy
 
+  const studyInput = useMemo<SignalFlowStudyInput>(() => ({
+    title: currentDemoTitle ?? 'Player instrument',
+    source: csdContent,
+    channels: channelSpecs,
+  }), [csdContent, channelSpecs, currentDemoTitle])
+
   const handleWorkshopDemo = useCallback(async (id: string) => {
     setAdaptStatus({ kind: 'reading' })
     const demo = await loadWorkshopPlayerDemo(id)
@@ -469,7 +494,12 @@ export default function PlayerPage() {
     setCurrentDemoId(id)
     const meta = (await window.api?.workshop?.read?.(id))?.meta
     setCurrentDemoTitle(meta?.title)
-    await loadAndPlayCsd(demo)
+    await loadAndPlayCsd(demo, {
+      demoId: id,
+      demoTitle: meta?.title,
+      demoGroup: meta?.demoGroup,
+      filename: meta?.filename,
+    })
   }, [loadAndPlayCsd])
 
   useEffect(() => {
@@ -552,7 +582,14 @@ export default function PlayerPage() {
 
       {/* Header */}
       <div style={styles.header}>
-        <h1 style={styles.title}>Player</h1>
+        <div style={styles.headerTitleRow}>
+          <h1 style={styles.title}>Player</h1>
+          <StudyFlowButton
+            studyInput={studyInput}
+            disabled={!csdContent.trim()}
+            title="Block diagram of the loaded Player instrument"
+          />
+        </div>
         <div style={styles.headerActions}>
           <PlayerDemosMenu
             refreshKey={demoMenuVersion}
@@ -658,8 +695,13 @@ export default function PlayerPage() {
       <div style={{ ...styles.transport, ...(showCsd ? styles.transportCompact : {}) }}>
         <button
           onClick={() => {
-            setPlaying(!isPlaying)
             if (audioEnabled) audioFeedback.click()
+            if (isPlaying) {
+              void stopPlayerEngine()
+              return
+            }
+            const csd = lastGoodCsd || csdContent
+            if (csd.trim()) void loadAndPlayCsd(csd)
           }}
           style={{
             ...styles.playButton,
@@ -741,7 +783,7 @@ export default function PlayerPage() {
               activeNotes={activeNotes}
               onNoteOn={handleNoteOn}
               onNoteOff={handleNoteOff}
-              keyboardEnabled={isPlaying}
+              keyboardEnabled={inputLive}
             />
           </div>
         </div>
@@ -761,7 +803,7 @@ export default function PlayerPage() {
               activeNotes={activeNotes}
               onNoteOn={handleNoteOn}
               onNoteOff={handleNoteOff}
-              keyboardEnabled={isPlaying}
+              keyboardEnabled={inputLive}
             />
           </div>
         </div>
@@ -815,7 +857,8 @@ const styles: Record<string, CSSProperties> = {
     width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     flexShrink: 0,
   },
-  title: { fontSize: 28, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '0.04em' },
+  headerTitleRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  title: { fontSize: 28, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '0.04em', margin: 0 },
   headerActions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   waveformArea: {
     width: '100%', borderRadius: 16, overflow: 'hidden',

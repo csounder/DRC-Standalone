@@ -6,6 +6,8 @@ import FileTabs from './FileTabs'
 import FileEditor from './FileEditor'
 import ConvertMenu from './ConvertMenu'
 import WebAppPreview from './WebAppArtifact'
+import StudyFlowButton from '../study/StudyFlowButton'
+import type { SignalFlowStudyInput } from '../../lib/signalFlowStudy'
 
 const TYPE_LABELS: Record<ArtifactType, string> = { csd: 'Csound', webapp: 'Web App', vst: 'Cabbage Plugin' }
 const TYPE_ICONS: Record<ArtifactType, string> = { csd: '♪', webapp: '◫', vst: '⬡' }
@@ -155,6 +157,10 @@ export default function ArtifactPanel({ onConvert }: Props) {
   const activeTab = tabs[tabIndex] ?? tabs[0]
   const versions = getVersions(active.id)
   const canPlay = active.type !== 'webapp'
+  const studyInput: SignalFlowStudyInput = {
+    title: active.title,
+    source: primaryContent(active),
+  }
 
   return (
     <div style={styles.panel}>
@@ -246,9 +252,10 @@ export default function ArtifactPanel({ onConvert }: Props) {
           </button>
         )}
         <button onClick={handleSave} style={styles.secondary}>↓ Save</button>
+        <StudyFlowButton studyInput={studyInput} variant="compact" label="Study flow" />
         {active.type === 'webapp' && (
-          <button onClick={handleOpenInBrowser} style={styles.secondary}>
-            🌐 Open in Browser
+          <button onClick={handleOpenInBrowser} style={styles.secondary} title="Save HTML and open in your default browser">
+            🌐 Export to Browser
           </button>
         )}
         {active.type !== 'webapp' && (

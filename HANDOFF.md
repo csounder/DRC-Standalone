@@ -118,3 +118,20 @@ Format:
   - **Variant retry** bumps temperature ~+0.18 and appends inline hint with random Csound `seed N` (not persisted to DB).
   - **Richard's machine:** CsoundQt 7 beta4.1 at `/Applications/CsoundQt-d-html-cs7.app`; Gemini + Groq configured; workshop-lite on via `launch-drc.sh`.
   - **Next:** sine-tone smoke test on free keys → add full API keys → commit both repos if green.
+
+## [2026-06-16] Cursor agent — Player demo curation, Chowning split, limiter, MIDI, levels, LAC handoff
+- branch: `lac-2026-csound7` (committed + pushed)
+- tests (macOS): Standalone `npm test` → **139** smoke + platform + memory + build ✅; CLI `node scripts/workshop-test.mjs` → **16/16** ✅; `npm run test:parity` ✅ after `sync-knowledge-to-cli.mjs`. Linux native smoke **not run** (no Docker; run on Ubuntu laptop).
+- files (high level):
+  - Player: `PlayerPage.tsx`, `useMidi.ts`, `midiStore.ts`, `playerDemoArpeggio.ts`, adapt libs (`scoreModelPlayerAdapt`, `legacyDrBModelAdapt`, `midiModelPlayerWrap`, `mechanicalPlayerAdapt`, `trappedPlayerAdapt`)
+  - Audio: `csd-realtime-options.ts`, `audio-flags.ts`, `csound.ipc.ts`, `csd-offline-prepare.ts`, `csd-playback.ts`
+  - Demos: `chowning-player-demos.json`, `player-model-demos.json`, `models/chowning/*`, deleted trapped/vowgen/legacy CSDs, `ensure-limiter-on-csds.mjs`, `build-chowning-player-models.mjs`, ingest script excludes
+  - Docs: `HOTEL-RESUME.md`, `LAC-2026-SESSION-HANDOFF.md` (rewritten for June 16)
+  - Web/study: `webHarness.ts`, `signalFlowStudy.ts`, `convert.ts` (limiter in prompts)
+- notes:
+  - **Demo menu curated:** Chowning → 6 renamed demos (FM Nasty Lead 1/2, FM Pad 1/2, FM Keys 1, FM Lead 1); French Horn → **FM Lead 3**; removed Trapped block (~37), Vowgen, several Chowning variants; Granular 1 renamed.
+  - **`--limiter=0.9` on every path:** CLI realtime flags, offline render, `writeCsd`, all 87 workshop CSDs on disk, adapt templates, Agent prompts.
+  - **USB MIDI:** Web MIDI only on Player (`webMidiOnly`); re-bind inputs when `inputLive`; default `enabled: true`.
+  - **Levels:** Chowning giMaster/tanh; horn legacy 32768→0dbfs rescale + louder FM Lead 3; granular softer (`giGrainGain`); wave sequencing +23% env gain in adapt.
+  - **Not tested:** Export to **Cabbage**, Export to **Chrome/Browser** — top of next session.
+  - **Resume:** `HOTEL-RESUME.md` + this handoff; do not paste transcript.

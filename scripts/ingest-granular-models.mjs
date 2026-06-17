@@ -67,6 +67,7 @@ function wrapOrcSco(orcPath, scoPath, title) {
   return sanitizeCsd(`<CsoundSynthesizer>
 <CsOptions>
 -n -d -m0
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 ${orc}
@@ -81,6 +82,7 @@ function wrapInstrumentsOnly(body, title, comment = '') {
   return sanitizeCsd(`<CsoundSynthesizer>
 <CsOptions>
 -n -d -m0
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 ; ${title}
@@ -160,12 +162,9 @@ function buildCatalog() {
     '- **Hadron partikkel_instr** — full parameter surface from Hadron',
     '- **ImproSculpt** — performance granular suite (reference; large patch)',
     '',
-    '### Giordani — Truax granular model',
-    'Four-voice `timout`/`reinit` grain generators with `oscil1` control functions (Barry Truax-inspired); trapezoid `linseg` grains via `oscili`.',
-    '',
     '## Priority rule',
     '',
-    'For granular prompts: prefer `granular-brandtsegg-partikkel-starter-kit` for live-input FX, `granular-boulanger-grainmidi` for classic `grain` opcode, `granular-giordani-truax` for Truax-style timout grains, `granular-fm-grain-rate-and-pitch` for FM grains.',
+    'For granular prompts: prefer `granular-brandtsegg-partikkel-starter-kit` for live-input FX, `granular-boulanger-grainmidi` for classic `grain` opcode, `granular-fm-grain-rate-and-pitch` for FM grains.',
     '',
     '## Models',
     '',
@@ -295,25 +294,6 @@ const partikkelRoot = join(MODELS, 'GRANULAR - Partikkel+ - Oeyvind Brandtsegg')
   })
   contents[id] = csd
   console.log(' ', id, `(${(csd.length / 1024).toFixed(0)} KB)`)
-}
-
-// Giordani — Truax granular synthesis (4 voices, timout/reinit)
-{
-  const path = join(MODELS, 'SYNTH - Granular - Eugenio Giordani', 'SYNTH - Granular - Eugenio Giordani.csd')
-  if (existsSync(path)) {
-    let raw = readFileSync(path, 'utf-8')
-    raw = raw.replace(/<CsOptions>[\s\S]*?<\/CsOptions>/i, '<CsOptions>\n-n -d -m0\n</CsOptions>')
-    const csd = sanitizeCsd(raw)
-    const id = 'granular-giordani-truax'
-    addEntry(id, 'giordani/granular-truax.csd', 'Giordani', 'Eugenio Giordani', 'Granular Synth v2.1 (Truax model)', csd, {
-      description: 'Barry Truax-inspired granular: 4 timout/reinit voices, oscil1 control functions',
-      techniques: ['truax', 'timout', 'granular', 'oscili'],
-      qualityScore: 0.93,
-      workshopReady: true,
-    })
-    contents[id] = csd
-    console.log(' ', id)
-  }
 }
 
 const bundle = {

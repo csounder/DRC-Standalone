@@ -1,5 +1,8 @@
 import { needsPlayerAdapt } from '../prompts/convert'
 import { REALTIME_CSOPTIONS } from '../../shared/csd-realtime-options'
+import { legacyDrBModelAdapt } from './legacyDrBModelAdapt'
+import { scoreModelPlayerAdapt } from './scoreModelPlayerAdapt'
+import { trappedPlayerAdapt } from './trappedPlayerAdapt'
 import { wrapMidiModelForPlayer } from './midiModelPlayerWrap'
 
 const PLAYER_SCORE = `<CsScore>
@@ -43,6 +46,43 @@ aEchoL = gaEcho*0.6 + (aDelL + aFbL)*0.6
 aEchoR = gaEcho*0.6 + (aDelR + aFbR)*0.6
 outs aEchoL, aEchoR
 clear gaEcho
+endin`
+
+const PLAYER_CHN_BRASS = `
+chn_k "amplitude", 3, 2, 0.55, 0, 1, 0, 0, 0, 0, "unit= label=Amplitude"
+chn_k "attack", 3, 3, 0.008, 0.001, 0.05, 0, 0, 0, 0, "unit=s label=Attack"
+chn_k "release", 3, 3, 0.14, 0.03, 0.8, 0, 0, 0, 0, "unit=s label=Release"
+chn_k "peakIndex", 3, 2, 7, 1, 14, 0, 0, 0, 0, "unit= label=FM_Brightness"
+chn_k "modRatio", 3, 2, 1, 0.5, 2, 0, 0, 0, 0, "unit= label=Mod_Ratio"
+chn_k "reverbMix", 3, 2, 0.22, 0, 1, 0, 0, 0, 0, "unit= label=Reverb_Mix"
+chn_k "reverbSize", 3, 2, 0.75, 0.5, 1, 0, 0, 0, 0, "unit= label=Reverb_Size"
+
+chnset 0.55, "amplitude"
+chnset 0.008, "attack"
+chnset 0.14, "release"
+chnset 7, "peakIndex"
+chnset 1, "modRatio"
+chnset 0.22, "reverbMix"
+chnset 0.75, "reverbSize"
+`
+
+const BRASS_VOICE = `
+instr 1
+  iAtt     chnget "attack"
+  iRel     chnget "release"
+  iPeak    chnget "peakIndex"
+  iIdxDrop = min(0.065, max(0.035, iAtt * 2.5))
+  kAmp     chnget "amplitude"
+  kRatio   chnget "modRatio"
+  kAmp     port kAmp, 0.02
+  kRatio   port kRatio, 0.02
+  kEnv     linsegr 0, iAtt, 1, iAtt + 0.015, 0.92, iRel, 0
+  iVel     = p5
+  kIdx     linsegr 0, 0.006, iPeak, iIdxDrop, iPeak * 0.34, max(p3 - iIdxDrop - 0.006, 0.01), iPeak * 0.34
+  aSig     foscili kEnv * kAmp * iVel, p4, 1, kRatio, kIdx, giSine
+  chnmix aSig, "revL"
+  chnmix aSig, "revR"
+  outs aSig, aSig
 endin`
 
 const PLAYER_CHN_FM = `
@@ -196,6 +236,14 @@ function isShimmerBellVoice(body: string): boolean {
   )
 }
 
+function isChowningBrassVoice(body: string): boolean {
+  return (
+    /\bfoscili\b/i.test(body) &&
+    /\b1,\s*1,\s*kIdx\b/.test(body) &&
+    !/\bkMod1Idx\b/.test(body)
+  )
+}
+
 function isPluckPingPongBass(body: string, instrBlock: string): boolean {
   return /\bgaEcho\b/.test(body) && /\bfoscili\b/i.test(body) && /\bvdelay3\b/i.test(instrBlock)
 }
@@ -247,6 +295,15 @@ export function mechanicalPlayerAdapt(source: string): string | null {
     if (midi) return midi
   }
 
+  const drB = legacyDrBModelAdapt(raw)
+  if (drB) return drB
+
+  const trapped = trappedPlayerAdapt(raw)
+  if (trapped) return trapped
+
+  const scoreModel = scoreModelPlayerAdapt(raw)
+  if (scoreModel) return scoreModel
+
   const synth = raw.match(/<CsoundSynthesizer[\s\S]*?<\/CsoundSynthesizer>/i)?.[0]
   if (!synth) return null
 
@@ -271,6 +328,10 @@ export function mechanicalPlayerAdapt(source: string): string | null {
 
   if (isShimmerBellVoice(voiceBody)) {
     return buildPlayerCsd(cleanGlobals(globals), PLAYER_CHN_SHIMMER, SHIMMER_VOICE, PLAYER_INSTR_99, PLAYER_SCORE)
+  }
+
+  if (isChowningBrassVoice(voiceBody)) {
+    return buildPlayerCsd(cleanGlobals(globals), PLAYER_CHN_BRASS, BRASS_VOICE, PLAYER_INSTR_99, PLAYER_SCORE)
   }
 
   if (isPluckPingPongBass(voiceBody, instrBlock)) {

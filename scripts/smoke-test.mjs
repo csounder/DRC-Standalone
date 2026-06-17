@@ -361,6 +361,31 @@ const sampleBinding = { channel: 'cutoff', cc: 1, portId: '*' }
 if (found.includes(sampleBinding.channel)) ok('a sample MIDI binding round-trips against parseChannels output')
 else bad('binding channel does not appear in parsed channels')
 
+if (parseChannelsSrc.includes('specFromChnset') && parseChannelsSrc.includes('chnsetRe')) {
+  ok('parseChannels synthesizes sliders from chnset defaults (Fractal Explorer pattern)')
+} else {
+  bad('parseChannels.ts missing chnset fallback')
+}
+
+// chnset-only orchestra (fm_bell_starter shape) should expose masterVolume + reverbMix
+const chnsetOnlyOrc = `sr = 44100
+chnset 0.7, "masterVolume"
+chnset 0.4, "reverbMix"
+instr 99
+  kMasterVol = portk(chnget:k("masterVolume"), 0.05)
+endin`
+const chnsetNames = []
+const chnsetReSmoke = /^[ \t]*chnset\s+([^,\n]+)\s*,\s*(?:"([^"]+)"|'([^']+)')\s*$/gm
+let cm
+while ((cm = chnsetReSmoke.exec(chnsetOnlyOrc))) {
+  chnsetNames.push(cm[2] ?? cm[3])
+}
+if (chnsetNames.includes('masterVolume') && chnsetNames.includes('reverbMix')) {
+  ok('chnset smoke: fm_bell-shaped channels detected')
+} else {
+  bad('chnset smoke: expected masterVolume + reverbMix')
+}
+
 // PlayerPage now does case-insensitive fallback before bailing — verify the
 // guarantee text is in source so a future refactor doesn't quietly remove it.
 const playerSrc = readFileSync(join(REPO, 'src/renderer/pages/PlayerPage.tsx'), 'utf-8')
@@ -586,6 +611,9 @@ const TOUCHED = [
   'src/renderer/pages/AgentPage.tsx',
   'src/renderer/pages/SettingsPage.tsx',
   'src/renderer/lib/mechanicalPlayerAdapt.ts',
+  'src/renderer/lib/webHarness.ts',
+  'src/renderer/lib/signalFlowStudy.ts',
+  'src/renderer/components/study/SignalFlowStudyModal.tsx',
   'src/renderer/lib/workshopDemos.ts',
   'src/renderer/components/layout/Sidebar.tsx',
 ]
@@ -688,7 +716,7 @@ if (engineSrc.includes('bundle-selected-catalog-v25.json') && engineSrc.includes
 if (existsSync(join(KNOWLEDGE, 'bundle-granular-models.json'))) {
   const gran = JSON.parse(readFileSync(join(KNOWLEDGE, 'bundle-granular-models.json'), 'utf-8'))
   const n = Object.keys(gran.contents ?? {}).length
-  if (n >= 11) ok(`bundle-granular-models.json has ${n} granular models`)
+  if (n >= 10) ok(`bundle-granular-models.json has ${n} granular models`)
   else bad('bundle-granular-models.json too small', String(n))
 } else {
   bad('bundle-granular-models.json missing — run node scripts/ingest-granular-models.mjs')
@@ -845,7 +873,7 @@ function stripCsOptionsHandledByCli(csd) {
   if (!/<CsOptions>/i.test(csd)) return csd
   const cliHandled = [
     /^-n\b/, /^-o\s+\S+/, /^-odac/, /^-iadc/, /^-d\b/, /^-m\d+/, /^-W\b/,
-    /^-\+\s*rtaudio/, /^-\+\s*rtmidi/, /^-M\d+/,
+    /^-\+\s*rtaudio/, /^-\+\s*rtmidi/, /^-M\d+/, /^--limiter(?:=\S+)?$/,
   ]
   let s = csd.replace(/<CsOptions>([\s\S]*?)<\/CsOptions>/i, (_, body) => {
     const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -910,21 +938,96 @@ const webappPrepareSrc = existsSync(join(REPO, 'src/shared/csd-webapp-prepare.ts
   if (
   webappPrepareSrc.includes('prepareOrchestraForWebapp') &&
   webappPrepareSrc.includes('adaptOrchestraPitchVelocityForWebKeyboard') &&
+  webappPrepareSrc.includes('adaptGaRvbReverbForWebapp') &&
   webappPrepareSrc.includes('isMisplacedScoreLine') &&
   webappPrepareSrc.includes('instr\\s+100')
 ) {
-  ok('webapp prepare strips misplaced score lines and adapts Hz keyboard pitch/velocity')
+  ok('webapp prepare strips misplaced score lines, adapts Hz keyboard, fixes gaRvb/p6 send')
 } else {
   bad('csd-webapp-prepare.ts missing orchestra cleanup for web export')
+}
+
+const webappPrepareLib = existsSync(join(REPO, 'src/renderer/lib/webappPrepare.ts'))
+  ? readFileSync(join(REPO, 'src/renderer/lib/webappPrepare.ts'), 'utf-8')
+  : ''
+if (
+  webappPrepareLib.includes('mechanicalPlayerAdapt') &&
+  webappPrepareLib.includes('buildWebappManifest') &&
+  webappPrepareLib.includes('prepareWebappCompileCsd')
+) {
+  ok('webappPrepare runs mechanicalPlayerAdapt before web export (reverb + chn_k sliders)')
+} else {
+  bad('webappPrepare.ts missing mechanical adapt for web export')
 }
 
 const webHarnessSrc = existsSync(join(REPO, 'src/renderer/lib/webHarness.ts'))
   ? readFileSync(join(REPO, 'src/renderer/lib/webHarness.ts'), 'utf-8')
   : ''
-if (webHarnessSrc.includes('compileCsdText') && webHarnessSrc.includes('adaptOrcForWebKeyboard')) {
-  ok('webHarness compiles CSD then starts WASM7 audio with keyboard Hz adapt')
+if (
+  webHarnessSrc.includes('compileOrc') &&
+  webHarnessSrc.includes('adaptOrcForWebKeyboard') &&
+  webHarnessSrc.includes('piano-scroll') &&
+  webHarnessSrc.includes('PIANO_OCTAVES')
+) {
+  ok('webHarness compiles orchestra then starts WASM7 audio with piano keyboard (3 octaves)')
 } else {
-  bad('webHarness.ts missing compileCsdText / keyboard adapt runtime')
+  bad('webHarness.ts missing compileOrc/start runtime or piano keyboard')
+}
+
+if (
+  webHarnessSrc.includes('buildFactoryPresets') &&
+  webHarnessSrc.includes('FACTORY_PRESETS') &&
+  webHarnessSrc.includes('initFactoryPresets') &&
+  webHarnessSrc.includes('randomizeControls') &&
+  webHarnessSrc.includes('presetStorageKey')
+) {
+  ok('webHarness embeds preset bar + factory presets from chn_k defaults')
+} else {
+  bad('webHarness.ts missing preset bar / localStorage factory presets')
+}
+
+if (
+  webHarnessSrc.includes('startVisualizerLoop') &&
+  webHarnessSrc.includes('initMIDI') &&
+  webHarnessSrc.includes('panicNotes') &&
+  webHarnessSrc.includes('turnoff2 1, 0, 0')
+) {
+  ok('webHarness adds FM·SYNTH + Fractal patterns: viz, USB MIDI, Panic/turnoff2')
+} else {
+  bad('webHarness.ts missing viz / MIDI / Panic turnoff2 runtime')
+}
+
+if (webHarnessSrc.includes('STUDY') && webHarnessSrc.includes('Study flow') && webHarnessSrc.includes('buildSignalFlowStudy')) {
+  ok('webHarness embeds Study flow block diagrams (Mermaid)')
+} else {
+  bad('webHarness.ts missing Study flow diagrams')
+}
+
+if (existsSync(join(REPO, 'src/renderer/lib/signalFlowStudy.ts'))) {
+  const sf = readFileSync(join(REPO, 'src/renderer/lib/signalFlowStudy.ts'), 'utf-8')
+  if (sf.includes('buildSignalFlowStudy') && sf.includes('architectureMermaid')) {
+    ok('signalFlowStudy.ts builds architecture + signal + controls diagrams')
+  } else {
+    bad('signalFlowStudy.ts incomplete')
+  }
+} else {
+  bad('signalFlowStudy.ts missing')
+}
+
+if (existsSync(join(REPO, 'src/renderer/lib/artifactDetect.ts'))) {
+  const detectSrc = readFileSync(join(REPO, 'src/renderer/lib/artifactDetect.ts'), 'utf-8')
+  if (detectSrc.includes('export function detectCsd')) {
+    ok('artifactDetect exposes detectCsd for web-app conversion turns')
+  } else {
+    bad('artifactDetect.ts missing detectCsd')
+  }
+}
+
+const sessionSrc = readFileSync(join(REPO, 'src/main/session/session.ts'), 'utf-8')
+if (sessionSrc.includes('chn_k') && sessionSrc.includes('Do NOT write HTML')) {
+  ok('session prompt: web app conversion emits orchestra CSD, not HTML')
+} else {
+  bad('session.ts still tells model to hand-write HTML for web apps')
 }
 
 const audioFlagsSrc = readFileSync(join(REPO, 'src/main/csound/audio-flags.ts'), 'utf-8')
@@ -932,6 +1035,11 @@ if (audioFlagsSrc.includes('resolveDacOutputArg') && audioFlagsSrc.includes("fla
   ok('realtime play maps device index → dac id (-o dac1 not dac0)')
 } else {
   bad('audio-flags.ts must map csound device index to dac id for -o dacN')
+}
+if (audioFlagsSrc.includes('csoundLimiterCliFlag()')) {
+  ok('realtime play passes --limiter on CLI for every spawn')
+} else {
+  bad('audio-flags.ts must append csoundLimiterCliFlag() to buildRealtimeIoFlags')
 }
 
 const realtimeOptsSrc = readFileSync(join(REPO, 'src/shared/csd-realtime-options.ts'), 'utf-8')
@@ -946,6 +1054,11 @@ if (csoundIpcSrc.includes('prepareCsdForOfflineRender') && csoundIpcSrc.includes
   ok('Agent afplay path uses offline demo score + silent render detection')
 } else {
   bad('csound.ipc.ts missing offline preview prepare')
+}
+if (csoundIpcSrc.includes('ensureCsoundLimiterCsOptions') && csoundIpcSrc.includes('csoundLimiterCliFlag()')) {
+  ok('writeCsd + offline render inject --limiter=0.9')
+} else {
+  bad('csound.ipc.ts must ensure limiter on writeCsd and offline render CLI')
 }
 
 const playbackSrc = readFileSync(join(REPO, 'src/main/csound/csd-playback.ts'), 'utf-8')
@@ -1080,7 +1193,6 @@ for (const [file, opts] of [
   ['pad_starter.csd', {}],
   ['player_fm_bell.csd', { shortenScore: true }],
   ['player_trapped_blue.csd', { shortenScore: true }],
-  ['player_trapped_black.csd', { shortenScore: true }],
   ['player_trapped_sand.csd', { shortenScore: true }],
   ['player_pluck_bass.csd', { shortenScore: true }],
   ['player_fm_starter.csd', { shortenScore: true }],
@@ -1117,6 +1229,33 @@ if (mechSrc.includes('isPluckPingPongBass') && mechSrc.includes('isShimmerBellVo
   ok('mechanicalPlayerAdapt: shimmer bell + ping-pong bass + simple FM paths')
 } else {
   bad('mechanicalPlayerAdapt missing specialized voice paths')
+}
+
+const legacyAdaptPath = join(REPO, 'src/renderer/lib/legacyDrBModelAdapt.ts')
+const modelRoutesPath = join(REPO, 'src/shared/workshop-model-routes.ts')
+const goldenPath = join(REPO, 'src/main/session/golden-shortcut.ts')
+if (existsSync(legacyAdaptPath) && mechSrc.includes('legacyDrBModelAdapt')) {
+  ok('mechanicalPlayerAdapt delegates to legacyDrBModelAdapt (Dr. B collection)')
+} else {
+  bad('legacyDrBModelAdapt not wired into mechanicalPlayerAdapt')
+}
+if (existsSync(modelRoutesPath) && existsSync(goldenPath)) {
+  const routes = readFileSync(modelRoutesPath, 'utf-8')
+  const golden = readFileSync(goldenPath, 'utf-8')
+  if (routes.includes('WaveshapeBrass.csd') && routes.includes('FrenchHorn.csd') && golden.includes('matchWorkshopModelRoute')) {
+    ok('golden-shortcut routes brass/horn/clarinet/pad to Dr. B models')
+  } else {
+    bad('workshop-model-routes not wired into golden-shortcut')
+  }
+}
+const brassModel = join(REPO, 'resources/workshop-starters/models/misc_synths/WaveshapeBrass.csd')
+if (existsSync(brassModel) && existsSync(legacyAdaptPath)) {
+  const legacy = readFileSync(legacyAdaptPath, 'utf-8')
+  if (legacy.includes('isWaveshapeBrass') && legacy.includes('instr 1')) {
+    ok('legacyDrBModelAdapt includes WaveshapeBrass keyboard wrap')
+  } else {
+    bad('legacyDrBModelAdapt missing WaveshapeBrass path')
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────────

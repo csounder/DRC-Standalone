@@ -1,6 +1,7 @@
 <CsoundSynthesizer>
 <CsOptions>
 -n -d -m0 -+rtmidi=NULL -M0 --midi-key-cps=4 --midi-velocity-amp=5
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 sr = 44100

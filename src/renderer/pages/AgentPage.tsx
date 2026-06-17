@@ -11,15 +11,16 @@ import ProfileBadge from '../components/chat/ProfileBadge'
 import SessionHistory from '../components/chat/SessionHistory'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
-import { detect, stripArtifact, deriveTitle } from '../lib/artifactDetect'
+import { detect, detectCsd, stripArtifact, deriveTitle } from '../lib/artifactDetect'
 import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../prompts/convert'
 import { playArtifact, stopPlayback, resetAutofix, isAutofixUserMessage } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { wrapWithArtifactContext } from '../lib/artifactContext'
-import { parseChannels, usesKeyboard } from '../lib/parseChannels'
 import { buildWebApp } from '../lib/webHarness'
+import { buildWebappManifest, prepareWebappCompileCsd } from '../lib/webappPrepare'
+import StudyFlowButton from '../components/study/StudyFlowButton'
+import type { SignalFlowStudyInput } from '../lib/signalFlowStudy'
 import { compileCheckWebappCsd } from '../lib/playback'
-import { prepareOrchestraForWebapp } from '../../shared/csd-webapp-prepare'
 import UsageBar from '../components/chat/UsageBar'
 import AgentActivityBar from '../components/chat/AgentActivityBar'
 import PromptRetryBar from '../components/chat/PromptRetryBar'
@@ -80,7 +81,7 @@ export default function AgentPage() {
   const clearRateLimit = useRateLimitStore((s) => s.clearCooldown)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
-  const { artifacts, panelOpen, addArtifact, updatePrimary, updateInPlace, setActive } = useArtifactStore()
+  const { artifacts, panelOpen, addArtifact, updatePrimary, updateInPlace, setActive, activeArtifactId } = useArtifactStore()
   const audioEnabled = useAppStore((s) => s.audioFeedbackEnabled)
 
   useEffect(() => {
@@ -134,22 +135,22 @@ export default function AgentPage() {
     }
     if (!last) return
 
-    const detected = detect(last.content)
-    if (!detected) return
-
-    // Convert-to-Web-App: the model emits an adapted orchestra CSD, not HTML. We
-    // own the UI, so suppress the CSD artifact while it streams; on completion
-    // wrap the orchestra into a web app deterministically. Consumed in this one
-    // turn — the flag is cleared here so it never affects a later generation.
+    // Convert-to-Web-App: model must emit orchestra CSD; host wraps via buildWebApp.
+    // Use detectCsd (not detect) so stray HTML never hijacks the conversion turn.
     const pendingConvert = pendingWebappConvertRef.current
-    if (pendingConvert && detected.type === 'csd') {
-      if (isStreaming) return            // wait for the full orchestra
-      const csd = detected.code
+    if (pendingConvert) {
+      const csdDet = detectCsd(last.content)
+      if (!csdDet) return
+      if (isStreaming && !csdDet.complete) return
+
+      const csd = csdDet.code
       const title = pendingConvert.title || deriveTitle(csd, 'csd', lastUserPrompt)
       const editBaseId = pendingConvert.editBaseId
       pendingWebappConvertRef.current = null
+      convertTurnRef.current = false
+
       void (async () => {
-        const compileCheck = await compileCheckWebappCsd(csd)
+        const compileCheck = await compileCheckWebappCsd(prepareWebappCompileCsd(csd))
         if (!compileCheck.ok) {
           addMessage({
             id: `webapp-compile-${Date.now()}`,
@@ -162,13 +163,13 @@ export default function AgentPage() {
           })
           return
         }
-        const orc = prepareOrchestraForWebapp(csd)
+        const manifest = buildWebappManifest(csd)
         const html = buildWebApp({
-          orc,
-          channels: parseChannels(csd),
+          orc: manifest.orc,
+          channels: manifest.channels,
           title,
-          hasKeyboard: usesKeyboard(orc),
-          hasReverbBus: /\binstr\s+99\b/.test(orc),
+          hasKeyboard: manifest.hasKeyboard,
+          hasReverbBus: manifest.hasReverbBus,
         })
         const artifact = editBaseId
           ? updatePrimary(editBaseId, html, last!.id)
@@ -178,6 +179,9 @@ export default function AgentPage() {
       })()
       return
     }
+
+    const detected = detect(last.content)
+    if (!detected) return
 
     let existingId = msgArtifactMap.get(last.id)
     const userBefore = userMessageBeforeAssistant(messages, last.id)
@@ -304,6 +308,8 @@ export default function AgentPage() {
         await window.api.session.send(activeSid, prompt)
       }
     } catch (err: any) {
+      pendingWebappConvertRef.current = null
+      convertTurnRef.current = false
       addMessage({ id: `msg_${Date.now()}`, role: 'assistant', content: `Error: ${err.message}`, timestamp: Date.now() })
       setStreaming(false)
     }
@@ -477,6 +483,23 @@ export default function AgentPage() {
     }
     return null
   }, [messages])
+
+  const agentInstrument = useMemo(() => {
+    if (activeArtifactId) {
+      const hit = artifacts.find((a) => a.id === activeArtifactId)
+      if (hit) return hit
+    }
+    for (let i = artifacts.length - 1; i >= 0; i--) {
+      const a = artifacts[i]
+      if (a.type === 'csd' || a.type === 'webapp' || a.type === 'vst') return a
+    }
+    return null
+  }, [artifacts, activeArtifactId])
+
+  const agentStudyInput = useMemo<SignalFlowStudyInput | null>(() => {
+    if (!agentInstrument) return null
+    return { title: agentInstrument.title, source: primaryContent(agentInstrument) }
+  }, [agentInstrument])
 
   const renderMessage = (msg: Message) => {
     if (msg.role === 'user') {
@@ -719,6 +742,12 @@ export default function AgentPage() {
           >
             ＋ New
           </button>
+          <div style={styles.topBarSpacer} />
+          <StudyFlowButton
+            studyInput={agentStudyInput}
+            label="Study flow"
+            title="Block diagram of the current Agent instrument"
+          />
         </div>
         {messages.length === 0 ? (
           /* Landing — centered hero + input (Claude-style) */
@@ -799,9 +828,11 @@ const styles: Record<string, CSSProperties> = {
   topBar: {
     display: 'flex',
     gap: 6,
+    alignItems: 'center',
     padding: '8px 16px',
     borderBottom: '1px solid var(--border-subtle)',
   },
+  topBarSpacer: { flex: 1 },
   topBtn: {
     border: '1px solid var(--border)',
     background: 'transparent',

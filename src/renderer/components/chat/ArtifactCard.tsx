@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { primaryContent, type Artifact } from '../../stores/artifactStore'
+import StudyFlowButton from '../study/StudyFlowButton'
 
 const TYPE_ICONS = { csd: '♪', webapp: '◫', vst: '⬡' }
 const TYPE_LABELS = { csd: 'Csound Instrument', webapp: 'Web App', vst: 'Cabbage Plugin' }
@@ -40,6 +41,13 @@ export default function ArtifactCard({ artifact, isPlaying, onClick, onPlay, onS
         >
           {isPlaying ? '■ Stop' : '▶ Play'}
         </button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <StudyFlowButton
+            studyInput={{ title: artifact.title, source: content }}
+            variant="compact"
+            label="Study flow"
+          />
+        </div>
         <button onClick={onClick} style={styles.actionBtn}>
           Open →
         </button>
@@ -70,7 +78,7 @@ const styles: Record<string, CSSProperties> = {
     maxHeight: 48,
   },
   cardActions: {
-    display: 'flex', gap: 6, padding: '8px 12px',
+    display: 'flex', gap: 6, padding: '8px 12px', alignItems: 'center', flexWrap: 'wrap',
     borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-tertiary)',
   },
   actionBtn: {

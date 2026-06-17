@@ -49,10 +49,42 @@ export function adaptOrchestraPitchVelocityForWebKeyboard(orc: string): string {
   return b
 }
 
+/**
+ * Starter / LLM orchestras that send reverb via p6 + gaRvbL/R — the web keyboard
+ * only sends p4 (Hz) and p5 (vel), so p6 is always 0 and the reverb bus is silent.
+ * Route send amount through a control channel instead (Fractal / Player pattern).
+ */
+export function adaptGaRvbReverbForWebapp(orc: string): string {
+  if (/chnmix\s+\w+\s*,\s*"revL"/i.test(orc)) return orc
+  if (!/\bgaRvb[LR]\b/.test(orc)) return orc
+
+  let b = orc
+  const usesP6Send = /^\s*iRvb\s*=\s*p6\s*$/gim.test(b) || /\*\s*iRvb\b/.test(b)
+  if (!usesP6Send) return b
+
+  if (!/\bchn_k\s+"reverbSend"/i.test(b) && !/\bchnset\s+[\d.]+\s*,\s*"reverbSend"/i.test(b)) {
+    const inject =
+      'chn_k "reverbSend", 3, 2, 0.5, 0, 1, 0, 0, 0, 0, "unit= label=Reverb_Send"\n' +
+      'chnset 0.5, "reverbSend"\n'
+    const hdr = b.match(/^((?:\s*(?:sr|ksmps|nchnls|0dbfs)\s*=[^\n]*\n)+)/i)
+    b = hdr ? b.replace(hdr[1], hdr[1] + inject) : inject + b
+  }
+
+  b = b.replace(/^\s*iRvb\s*=\s*p6\s*$/gim, 'kSend portk(chnget("reverbSend"), 0.05)')
+  b = b.replace(/\*\s*iRvb\b/g, '* kSend')
+
+  // Ensure instr 99 reads live reverbMix (and optional masterVolume) at k-rate.
+  b = b.replace(/chnget:k\s*\(\s*"([^"]+)"\s*\)/gi, 'chnget("$1")')
+
+  return b
+}
+
 /** Orchestra body safe for @csound/browser compileOrc (no score lines, no instr 100). */
 export function prepareOrchestraForWebapp(csd: string): string {
-  return adaptOrchestraPitchVelocityForWebKeyboard(
-    cleanOrchestraForWebapp(extractOrchestraBody(csd)),
+  return adaptGaRvbReverbForWebapp(
+    adaptOrchestraPitchVelocityForWebKeyboard(
+      cleanOrchestraForWebapp(extractOrchestraBody(csd)),
+    ),
   )
 }
 

@@ -29,7 +29,7 @@ const MIN_COUNTS = {
   'bundle-elected-models.json': 9,
   'bundle-mccurdy-haiku.json': 9,
   'bundle-selected-catalog-v25.json': 87,
-  'bundle-granular-models.json': 11,
+  'bundle-granular-models.json': 10,
   'bundle-physical-models.json': 14,
   'bundle-drum-models.json': 30,
   'bundle-generative-models.json': 25,

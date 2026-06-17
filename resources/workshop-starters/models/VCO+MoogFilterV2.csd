@@ -2,6 +2,7 @@
 
 <CsOptions>
 -dm0 -Ma
+--limiter=0.9
 </CsOptions>
 
 <CsInstruments>

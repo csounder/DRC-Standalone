@@ -21,6 +21,63 @@ const REPO = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUT_ROOT = join(REPO, 'resources/workshop-starters/models')
 const MANIFEST_OUT = join(REPO, 'resources/workshop-starters/player-model-demos.json')
 
+/** Basenames excluded from Player demos (removed from menu — do not re-ingest). */
+const EXCLUDE_BASENAMES = new Set([
+  'AnalogSynth.csd',
+  'BambooFlute1.csd',
+  'BambooFlute2.csd',
+  'BassClarinet.csd',
+  'Crickets.csd',
+  'Dizi.csd',
+  'FM_StringPad.csd',
+  'FMstringPad.csd',
+  'FatSubtractivePad.csd',
+  'FOFchoir.csd',
+  'Flute1.csd',
+  'Hulusi.csd',
+  'IteratedSineSynthTechinque.csd',
+  'KarplusStrongSynthTechnique.csd',
+  'NoiseGlissPad.csd',
+  'PulseWidthModSynth.csd',
+  'Scott_Daughtrey-GhostBell.csd',
+  'Sheng.csd',
+  'Subtract808Opcode.csd',
+  'SubtractTB303.csd',
+  'SubtractTB808Math.csd',
+  'SubtractiveFatPad.csd',
+  'WaveShapeFatPad.csd',
+  'WaveshapeAnalogpad1.csd',
+  'WaveshapeClarinet.csd',
+  'ScanHammerDisplaceTest.csd',
+  'synth_fm_FM_StringPad.csd',
+  'CZdblsine.csd',
+  'CZresonance.csd',
+  'CZresonance2.csd',
+  'CZsqr.csd',
+  'MCHOWBLL.csd',
+  'MCHOWD.csd',
+  'MCHOWN1.csd',
+  'MCHOWNING.csd',
+  'MSTRING.csd',
+  'vowgen_udo.csd',
+])
+
+const TITLE_OVERRIDES = {
+  'StepSequencer.csd': 'Fat Pad 1',
+  'midi_grain.csd': 'Granular 1',
+  'FrenchHorn.csd': 'FM Lead 3',
+}
+
+function shouldSkipFile(filePath) {
+  const base = basename(filePath)
+  if (EXCLUDE_BASENAMES.has(base)) return true
+  if (/^trapped-/i.test(base)) return true
+  if (/^CZresonance copy\.csd$/i.test(base)) return true
+  if (/^MCHOW/i.test(base) || base === 'MSTRING.csd') return true
+  if (/scanHammer/i.test(filePath)) return true
+  return false
+}
+
 /** @type {{ type: 'dir' | 'file', path: string, group: string, demoOrder: number }[]} */
 const SOURCES = [
   {
@@ -37,21 +94,9 @@ const SOURCES = [
   },
   {
     type: 'dir',
-    path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - Crickets - Hans Mikelson',
-    group: 'Crickets',
-    demoOrder: 220,
-  },
-  {
-    type: 'dir',
     path: '/Users/richardboulanger/Desktop/Selected Csound/Filter - DiodeLadder',
     group: 'Filters',
     demoOrder: 230,
-  },
-  {
-    type: 'dir',
-    path: '/Users/richardboulanger/Desktop/Selected Csound/SYNTH - PulseWidthMod',
-    group: 'Pulse Width Mod',
-    demoOrder: 240,
   },
   {
     type: 'file',
@@ -69,24 +114,6 @@ const SOURCES = [
   },
   {
     type: 'dir',
-    path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - Granular - Eugenio Giordani',
-    group: 'Granular',
-    demoOrder: 260,
-  },
-  {
-    type: 'file',
-    path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - FM/FM_Bell_Bass_Clairnet_Wood.csd',
-    group: 'FM',
-    demoOrder: 270,
-  },
-  {
-    type: 'file',
-    path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - FM/FM_StringPad.csd',
-    group: 'FM',
-    demoOrder: 271,
-  },
-  {
-    type: 'dir',
     path: '/Users/richardboulanger/Desktop/SYNTH - MISC',
     group: 'Misc Synths',
     demoOrder: 280,
@@ -96,18 +123,6 @@ const SOURCES = [
     path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - Pads',
     group: 'Pads',
     demoOrder: 290,
-  },
-  {
-    type: 'dir',
-    path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - AnalogSynth - Steven Cook',
-    group: 'Analog Synth',
-    demoOrder: 300,
-  },
-  {
-    type: 'dir',
-    path: '/Users/richardboulanger/dB-Studio/Csound/MODELS/SYNTH - CZsynth',
-    group: 'CZ Synth',
-    demoOrder: 310,
   },
 ]
 
@@ -184,6 +199,10 @@ for (const src of SOURCES) {
   const files = collectCsdFiles(src.path, src.type)
   let order = src.demoOrder
   for (const file of files) {
+    if (shouldSkipFile(file)) {
+      console.log(`skip ${basename(file)} (excluded)`)
+      continue
+    }
     const rel = destRelPath(src.group, file, src.type === 'dir' ? src.path : null)
     const dest = join(REPO, 'resources/workshop-starters', rel)
     mkdirSync(dirname(dest), { recursive: true })
@@ -191,10 +210,12 @@ for (const src of SOURCES) {
 
     const stem = basename(rel, '.csd')
     const id = `model_${slug(rel.replace(/\//g, '_').replace(/\.csd$/i, ''))}`
+    const base = basename(file)
     const title =
-      basename(file, '.csd').replace(/^_/g, '') === 'handpan'
+      TITLE_OVERRIDES[base] ??
+      (basename(file, '.csd').replace(/^_/g, '') === 'handpan'
         ? titleFromFile(dirname(file))
-        : titleFromFile(basename(file))
+        : titleFromFile(basename(file)))
     const entry = {
       id,
       title,

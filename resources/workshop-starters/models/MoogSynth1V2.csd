@@ -2,6 +2,7 @@
 
 <CsOptions>
 -odac -Ma -+rtmidi=null
+--limiter=0.9
 </CsOptions>
 
 <CsInstruments>

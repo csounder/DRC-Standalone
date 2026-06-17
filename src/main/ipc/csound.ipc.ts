@@ -8,7 +8,7 @@ import { normalizeNamedInstruments } from '../csound/normalize'
 import { Log } from '../util/log'
 import { withCsoundPath } from '../util/csound-path'
 import { getCsoundEnvironment, refreshCsoundEnvironment } from '../util/csound-version'
-import { buildRealtimeIoFlags, describeAudioRouting, readAudioIoConfig } from '../csound/audio-flags'
+import { buildRealtimeIoFlags, csoundLimiterCliFlag, describeAudioRouting, readAudioIoConfig } from '../csound/audio-flags'
 import { getConfigValue, setConfigValue } from '../util/config'
 import { AUDIO_INPUT_KEY, AUDIO_INPUT_OFF, AUDIO_OUTPUT_KEY, MIDI_INPUT_KEY } from './config-keys'
 import { listAudioDevices, resolveStoredOutputIndex } from '../util/audio-devices'
@@ -25,6 +25,7 @@ import {
   prepareCsdForOfflineRender,
   renderOutputWasSilent,
 } from '../../shared/csd-offline-prepare'
+import { ensureCsoundLimiterCsOptions } from '../../shared/csd-realtime-options'
 
 const execFileAsync = promisify(execFile)
 
@@ -48,10 +49,15 @@ function flushRealtimeNotes(stdin: NodeJS.WritableStream | null | undefined): vo
 }
 
 /** Orphan csound processes (from crashed stops) can lock macOS Core Audio system-wide. */
-async function killOrphanDrcCsoundProcesses(): Promise<void> {
+export async function killOrphanDrcCsoundProcesses(): Promise<void> {
   if (process.platform === 'win32') return
   const drcTemp = join(app.getPath('temp'), 'drc')
-  for (const name of ['realtime-play.csd', 'current.csd', 'offline-render.csd']) {
+  try {
+    await execFileAsync('pkill', ['-9', '-f', drcTemp])
+  } catch {
+    /* no matching processes */
+  }
+  for (const name of ['realtime-play.csd', 'current.csd', 'offline-render.csd', 'compile-check.csd']) {
     try {
       await execFileAsync('pkill', ['-9', '-f', join(drcTemp, name)])
     } catch {
@@ -73,7 +79,6 @@ function stopPlayProcess(): Promise<void> {
     }
     const proc = playProcess
     const stdin = proc.stdin
-    const pid = proc.pid
     playKilledBySignal = true
     playReady = false
     playProcess = null
@@ -94,26 +99,18 @@ function stopPlayProcess(): Promise<void> {
 
     const forceKill = setTimeout(() => {
       try {
-        if (process.platform !== 'win32' && pid) {
-          process.kill(-pid, 'SIGKILL')
-        } else {
-          proc.kill('SIGKILL')
-        }
+        proc.kill('SIGKILL')
       } catch {
-        try { proc.kill('SIGKILL') } catch { /* ignore */ }
+        /* ignore */
       }
     }, 80)
 
     const hardCap = setTimeout(done, 2000)
 
     try {
-      if (process.platform !== 'win32' && pid) {
-        process.kill(-pid, 'SIGKILL')
-      } else {
-        proc.kill('SIGKILL')
-      }
+      proc.kill('SIGKILL')
     } catch {
-      try { proc.kill('SIGKILL') } catch { done() }
+      done()
     }
   })
 }
@@ -196,7 +193,7 @@ function playWavViaAfplay(
     /* use original path */
   }
 
-  const renderArgs = ['-o', wavPath, '-W', '-d', '-m0', renderPath]
+  const renderArgs = ['-o', wavPath, '-W', '-d', '-m0', csoundLimiterCliFlag(), renderPath]
   emitCsoundOutput(sender, 'info', 'Playback: render to WAV, then afplay (macOS system audio)')
   emitCsoundOutput(sender, 'info', `▶ csound ${renderArgs.join(' ')}`)
 
@@ -270,6 +267,8 @@ async function playRealtimeCsound(
   sender: WebContents,
   csdPath: string,
 ): Promise<{ success: boolean; output?: string; error?: string }> {
+  await killOrphanDrcCsoundProcesses()
+
   let playPath = csdPath
   let cleanupPlay = false
   const cfg = readAudioIoConfig()
@@ -328,7 +327,6 @@ async function playRealtimeCsound(
     playProcess = spawn('csound', playArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: withCsoundPath(),
-      detached: process.platform !== 'win32',
     })
 
     const maybeReady = () => {
@@ -535,7 +533,8 @@ export function handleCsoundIPC(ipcMain: IpcMain): void {
   ipcMain.handle('csound:writeCsd', async (_event, content: string) => {
     const tmpPath = join(getTempDir(), 'current.csd')
     const { csd: namedFixed } = normalizeNamedInstruments(content)
-    const normalized = namedFixed.replace(
+    const withLimiter = ensureCsoundLimiterCsOptions(namedFixed)
+    const normalized = withLimiter.replace(
       /<CsOptions>([^\n<]*)<\/CsOptions>/i,
       (_, body: string) => `<CsOptions>\n${body.trim()}\n</CsOptions>`,
     )

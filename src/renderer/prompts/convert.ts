@@ -161,7 +161,7 @@ const CSD_TEMPLATE = `Extract the <CsoundSynthesizer>...</CsoundSynthesizer> fro
 
 OUTPUT FORMAT (strict):
 - Emit ONLY the <CsoundSynthesizer>...</CsoundSynthesizer> block. No <Cabbage>. No HTML. No code fences. No prose.
-- Keep <CsOptions> as \`-o dac\` only (remove MIDI or renderer flags).
+- Keep <CsOptions> as \`-o dac\`, \`-d\`, and \`${csoundLimiterCsOptionsLine()}\` (remove MIDI or renderer flags).
 - Keep all instruments and score events unchanged.
 
 SOURCE:
@@ -386,7 +386,7 @@ export function needsPlayerAdapt(source: string): boolean {
 const CONVERT_INTENT: { type: 'csd' | 'webapp' | 'vst'; re: RegExp }[] = [
   {
     type: 'webapp',
-    re: /\b(web\s?app|web\s?site|web version|html (?:page|app|document|version)|in the browser|as html|browser app)\b/i,
+    re: /\b(export\s+(?:as\s+)?web\s?app|web\s?app|web\s?site|web version|html (?:page|app|document|version)|in the browser|as html|browser app)\b/i,
   },
   {
     type: 'vst',

@@ -1,6 +1,7 @@
 <CsoundSynthesizer>
 <CsOptions>
 -M hw:1,0,0 -+rtmidi=NULL --daemon -dm0
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 

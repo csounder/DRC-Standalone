@@ -74,9 +74,16 @@ export function buildRealtimeIoFlags(
     flags.push('-iadc')
   }
 
-  if (!opts.webMidiOnly && /^\d+$/.test(cfg.midiInput)) {
+  if (opts.webMidiOnly) {
+    // Explicitly disable Csound's native MIDI — USB keyboard is routed Web MIDI → stdin only.
+    // Without this, PortMIDI defaults can leave a stale csound process receiving hardware MIDI
+    // while the on-screen keyboard talks to a different stdin-driven instance.
+    flags.push('-+rtmidi=NULL', '-M0')
+  } else if (/^\d+$/.test(cfg.midiInput)) {
     flags.push('-+rtmidi=portmidi', `-M${cfg.midiInput}`)
   }
+
+  flags.push(csoundLimiterCliFlag())
 
   return flags
 }
@@ -106,7 +113,7 @@ export function describeAudioRouting(
     const dev = devices.inputs.find((d) => String(d.index) === cfg.input)
     parts.push(dev ? `input: ${dev.name}` : `input adc${cfg.input}`)
   } else parts.push('input: system default')
-  if (opts.webMidiOnly) parts.push('MIDI: Web MIDI → stdin (no csound rtmidi)')
+  if (opts.webMidiOnly) parts.push('MIDI: Web MIDI → stdin (-+rtmidi=NULL -M0)')
   else if (/^\d+$/.test(cfg.midiInput)) parts.push(`MIDI: rtmidi device ${cfg.midiInput}`)
   return `Audio: ${parts.join(', ')} → ${flags.join(' ')}`
 }

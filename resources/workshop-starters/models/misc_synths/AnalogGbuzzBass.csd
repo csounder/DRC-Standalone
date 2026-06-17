@@ -5,6 +5,7 @@
 ;-+rtmidi=alsa  --midi-device=hw:1,0 -+rtaudio=alsa -odac -r16000 -k160 ;-O stdout
 ; Mac
 -odac -r44100 -k441
+--limiter=0.9
 </CsOptions>
 
 <CsInstruments>

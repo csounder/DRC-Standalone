@@ -2,6 +2,7 @@
 <CsOptions>
 -odac -m0
 ; -o/sdcard/ghost_bell.wav -3 --format=wav:float ; 32 bit float
+--limiter=0.9
 </CsOptions>
 <CsInstruments>
 
