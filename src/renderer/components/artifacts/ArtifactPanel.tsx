@@ -243,6 +243,15 @@ export default function ArtifactPanel({ onConvert }: Props) {
 
       {/* Actions */}
       <div style={styles.footer}>
+        {active.type === 'webapp' && (
+          <button
+            onClick={handleOpenInBrowser}
+            style={styles.primary}
+            title="Save HTML and open in Chrome or your chosen browser (Settings → Web Browser)"
+          >
+            Open in Browser
+          </button>
+        )}
         {canPlay && (
           <button
             onClick={playing ? handleStop : handlePlay}
@@ -253,11 +262,6 @@ export default function ArtifactPanel({ onConvert }: Props) {
         )}
         <button onClick={handleSave} style={styles.secondary}>↓ Save</button>
         <StudyFlowButton studyInput={studyInput} variant="compact" label="Study flow" />
-        {active.type === 'webapp' && (
-          <button onClick={handleOpenInBrowser} style={styles.secondary} title="Save HTML and open in your default browser">
-            🌐 Export to Browser
-          </button>
-        )}
         {active.type !== 'webapp' && (
           <button onClick={handleOpenInCsoundQt} style={styles.secondary}>
             ⌨ Open in CsoundQt

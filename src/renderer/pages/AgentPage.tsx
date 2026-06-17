@@ -154,6 +154,7 @@ export default function AgentPage() {
       const csd = csdDet.code
       const title = pendingConvert.title || deriveTitle(csd, 'csd', lastUserPrompt)
       const editBaseId = pendingConvert.editBaseId
+      editBaseRef.current = null
       pendingWebappConvertRef.current = null
       convertTurnRef.current = false
       webappBuildInFlightRef.current = last.id
@@ -203,6 +204,20 @@ export default function AgentPage() {
 
     if (webappBuildInFlightRef.current === last.id) return
 
+    // Orchestra-CSD assistant turns that already produced a web app must never be
+    // re-derived as CSD (editBaseRef / updateInPlace / autoplay would steal the panel).
+    const canonicalForMsg = findBySourceMessageId(useArtifactStore.getState().artifacts, last.id)
+    if (canonicalForMsg?.type === 'webapp' && !pendingWebappConvertRef.current) {
+      const mappedId = msgArtifactMap.get(last.id)
+      if (mappedId !== canonicalForMsg.id) {
+        setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
+      }
+      if (useArtifactStore.getState().activeArtifactId !== canonicalForMsg.id) {
+        setActive(canonicalForMsg.id)
+      }
+      return
+    }
+
     const detected = detect(last.content)
     if (!detected) return
 
@@ -239,6 +254,7 @@ export default function AgentPage() {
       const adopted = findBySourceMessageId(useArtifactStore.getState().artifacts, last.id)
       if (adopted) {
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, adopted.id))
+        if (adopted.type === 'webapp') setActive(adopted.id)
         return
       }
       // Fresh-turn guard: a non-conversion generation must be a CSD. A stray
@@ -263,6 +279,12 @@ export default function AgentPage() {
         ? useArtifactStore.getState().artifacts.find((a) => a.id === editBaseRef.current)
         : null
       if (base && base.type === detected.type) {
+        if (canonicalForMsg?.type === 'webapp') {
+          setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
+          setActive(canonicalForMsg.id)
+          editBaseRef.current = null
+          return
+        }
         const artifact = updatePrimary(base.id, artifactCodeFromDetection(detected), last.id)
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
         editBaseRef.current = null
@@ -295,10 +317,17 @@ export default function AgentPage() {
       useArtifactStore.getState().openPanel()
     }
 
-    if (!isStreaming && detected.complete && detected.type === 'csd' && !isAutofixTurn && !autoPlayedRef.current.has(last.id)) {
+    if (
+      !isStreaming &&
+      detected.complete &&
+      detected.type === 'csd' &&
+      !isAutofixTurn &&
+      !autoPlayedRef.current.has(last.id) &&
+      canonicalForMsg?.type !== 'webapp'
+    ) {
       autoPlayedRef.current.add(last.id)
       const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
-      if (artifact) void playArtifact(artifact)
+      if (artifact && artifact.type === 'csd') void playArtifact(artifact)
     }
   }, [messages, isStreaming])
 
@@ -319,7 +348,11 @@ export default function AgentPage() {
 
     // The webapp conversion now returns an orchestra CSD that we wrap ourselves
     // (see the detection effect). Mark the turn so it's intercepted.
-    pendingWebappConvertRef.current = targetType === 'webapp' ? { title: active.title } : null
+    editBaseRef.current = null
+    pendingWebappConvertRef.current =
+      targetType === 'webapp'
+        ? { title: active.title, editBaseId: active.type === 'webapp' ? active.id : undefined }
+        : null
     // Explicit conversion — the fresh-turn guard must NOT suppress the artifact.
     convertTurnRef.current = true
 
@@ -391,6 +424,11 @@ export default function AgentPage() {
     autoPlayedRef.current = loaded // suppress autoplay for restored turns
   }, [sessionID, clearMessages, setSessionID, setAgentMode, addMessage])
 
+  const handleOpenInBrowser = useCallback(async (artifact: Artifact) => {
+    if (artifact.type !== 'webapp') return
+    await window.api?.export?.openInBrowser?.(primaryContent(artifact), artifact.title)
+  }, [])
+
   const handlePlay = useCallback((artifact: Artifact) => {
     void playArtifact(artifact)
   }, [])
@@ -410,29 +448,41 @@ export default function AgentPage() {
   const buildPayloadFromText = useCallback((text: string): string => {
     const active = useArtifactStore.getState().getActive()
     const convertTo = active ? detectConvertIntent(text, active.type) : null
+    const conversionBusy = Boolean(pendingWebappConvertRef.current || webappBuildInFlightRef.current)
 
     if (active && active.type === 'webapp' && !convertTo) {
-      const msgs = useSessionStore.getState().messages
-      const srcMsg = active.sourceMessageId
-        ? msgs.find((m) => m.id === active.sourceMessageId)
-        : null
-      const srcDet = srcMsg ? detect(srcMsg.content) : null
-      const srcCsd = srcDet && srcDet.type === 'csd' ? srcDet.code : null
-      if (srcCsd) {
-        editBaseRef.current = null
-        pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id }
-        convertTurnRef.current = true
-        return `${buildConvertPrompt('webapp', srcCsd)}\n\n<user-note>${text}</user-note>`
+      if (!conversionBusy) {
+        const msgs = useSessionStore.getState().messages
+        const srcMsg = active.sourceMessageId
+          ? msgs.find((m) => m.id === active.sourceMessageId)
+          : null
+        const srcDet = srcMsg ? detect(srcMsg.content) : null
+        const srcCsd = srcDet && srcDet.type === 'csd' ? srcDet.code : null
+        if (srcCsd) {
+          editBaseRef.current = null
+          pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id }
+          convertTurnRef.current = true
+          return `${buildConvertPrompt('webapp', srcCsd)}\n\n<user-note>${text}</user-note>`
+        }
+        editBaseRef.current = active.id
+        pendingWebappConvertRef.current = null
       }
-      editBaseRef.current = active.id
-      pendingWebappConvertRef.current = null
       return wrapWithArtifactContext(text)
     }
 
-    editBaseRef.current = active && !convertTo ? active.id : null
-    pendingWebappConvertRef.current =
-      convertTo === 'webapp' && active ? { title: active.title } : null
-    convertTurnRef.current = Boolean(convertTo && active)
+    if (!conversionBusy) {
+      editBaseRef.current = active && !convertTo ? active.id : null
+      pendingWebappConvertRef.current =
+        convertTo === 'webapp' && active
+          ? { title: active.title, editBaseId: active.type === 'webapp' ? active.id : undefined }
+          : null
+      convertTurnRef.current = Boolean(convertTo && active)
+    }
+
+    if (conversionBusy) {
+      return wrapWithArtifactContext(text)
+    }
+
     return convertTo && active
       ? `${buildConvertPrompt(convertTo, primaryContent(active))}\n\n<user-note>${text}</user-note>`
       : wrapWithArtifactContext(text)
@@ -469,7 +519,9 @@ export default function AgentPage() {
     } else {
       displayText = text
       resetAutofix(sessionID)
-      convertTurnRef.current = false
+      if (!pendingWebappConvertRef.current && !webappBuildInFlightRef.current) {
+        convertTurnRef.current = false
+      }
       payload = buildPayloadFromText(text)
       lastSendRef.current = { displayText, payload }
       addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
@@ -652,6 +704,11 @@ export default function AgentPage() {
               onClick={() => setActive(artifact.id)}
               onPlay={() => handlePlay(artifact)}
               onStop={handleStop}
+              onOpenInBrowser={
+                artifact.type === 'webapp'
+                  ? () => void handleOpenInBrowser(artifact)
+                  : undefined
+              }
             />
           )}
           {showFeedback && <MessageFeedback messageId={msg.id} content={msg.content} />}

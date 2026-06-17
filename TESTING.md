@@ -152,8 +152,25 @@ Double-click **`Launch Web App.command`** → Start audio → load a sample → 
 | Gemini empty / no CSD | Free tier rate limit | Wait for countdown; use Groq; or attendee mode |
 | Web app `cpsmidinn` out of range | Old export used MIDI opcodes with Hz keyboard | Re-convert; or use latest `webHarness` (adapts at compile) |
 | Web app silent in browser | Skipped **Start Audio** or offline | Click Start Audio; need CDN network |
+| Web app reverts to CSD after convert | Orchestra message re-detected; `editBaseRef` stole panel | Fixed — webapp freeze guard + `editBaseRef` cleared on convert |
 | `better-sqlite3` error | Node/Electron ABI mismatch | `npx electron-builder install-app-deps` |
 | Packaged app “damaged” (macOS) | Unsigned build | Right-click → Open, or notarize for wide release |
+
+---
+
+## Manual repro: web-app artifact survival (regression)
+
+Use after any Agent / artifact-store change.
+
+1. Agent → **Load workshop FM bell (no key)** (or golden FM bell prompt) — wait for CSD + autoplay.
+2. Artifact panel → **Convert** → **Web App** — wait for Preview tab (orchestra wrap may take a few seconds).
+3. Confirm panel stays on **Web App** / Preview (not `main.csd` orchestra text).
+4. Click **Open in Browser** in panel footer or chat **ArtifactCard** — Chrome opens `~/Documents/DrC/webapps/.../index.html`.
+5. In browser: **Start Audio** → keyboard plays bell.
+6. Back in Agent: type a short follow-up (e.g. `add a reverb mix knob`) — web app must **not** revert to original CSD or autoplay CSD.
+7. Switch to **Web Apps** tab and back to **Agent** — web app artifact still in panel.
+
+Pass: steps 3–7 hold. Fail: panel flips to CSD, original bell autoplays, or **Open in Browser** missing.
 
 ---
 

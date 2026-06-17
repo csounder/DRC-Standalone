@@ -11,14 +11,18 @@ interface Props {
   onClick: () => void
   onPlay: () => void
   onStop: () => void
+  onOpenInBrowser?: () => void
 }
 
-export default function ArtifactCard({ artifact, isPlaying, onClick, onPlay, onStop }: Props) {
+export default function ArtifactCard({ artifact, isPlaying, onClick, onPlay, onStop, onOpenInBrowser }: Props) {
   const content = primaryContent(artifact)
   const lines = content.split('\n')
   const instrCount = (content.match(/\binstr\b/g) || []).length
-  const preview = lines.slice(0, 3).join('\n')
+  const preview = artifact.type === 'webapp'
+    ? '<!DOCTYPE html> … interactive web app preview'
+    : lines.slice(0, 3).join('\n')
   const fileCount = artifact.files.length
+  const canPlay = artifact.type !== 'webapp'
 
   return (
     <div style={styles.card}>
@@ -35,12 +39,23 @@ export default function ArtifactCard({ artifact, isPlaying, onClick, onPlay, onS
         <pre style={styles.preview}>{preview}</pre>
       </button>
       <div style={styles.cardActions}>
-        <button
-          onClick={(e) => { e.stopPropagation(); isPlaying ? onStop() : onPlay() }}
-          style={{ ...styles.actionBtn, ...(isPlaying ? styles.stopBtn : styles.playBtn) }}
-        >
-          {isPlaying ? '■ Stop' : '▶ Play'}
-        </button>
+        {canPlay && (
+          <button
+            onClick={(e) => { e.stopPropagation(); isPlaying ? onStop() : onPlay() }}
+            style={{ ...styles.actionBtn, ...(isPlaying ? styles.stopBtn : styles.playBtn) }}
+          >
+            {isPlaying ? '■ Stop' : '▶ Play'}
+          </button>
+        )}
+        {onOpenInBrowser && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenInBrowser() }}
+            style={{ ...styles.actionBtn, ...styles.browserBtn }}
+            title="Save HTML and open in Chrome or your chosen browser"
+          >
+            Open in Browser
+          </button>
+        )}
         <div onClick={(e) => e.stopPropagation()}>
           <StudyFlowButton
             studyInput={{ title: artifact.title, source: content }}
@@ -87,5 +102,11 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 500, fontFamily: 'var(--font-primary)', cursor: 'pointer',
   },
   playBtn: { borderColor: 'var(--accent)', color: 'var(--accent)' },
+  browserBtn: {
+    borderColor: 'var(--accent)',
+    background: 'var(--accent-muted)',
+    color: 'var(--accent)',
+    fontWeight: 600,
+  },
   stopBtn: { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--bg-primary)' },
 }

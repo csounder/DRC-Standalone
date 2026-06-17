@@ -1212,6 +1212,38 @@ if (
   bad('AgentPage missing render-time artifact map fallback')
 }
 
+if (
+  agentSrc.includes("canonicalForMsg?.type === 'webapp'") &&
+  agentSrc.includes('!pendingWebappConvertRef.current')
+) {
+  ok('AgentPage freezes webapp artifacts — never re-detects orchestra CSD')
+} else {
+  bad('AgentPage missing webapp freeze guard after conversion')
+}
+if (agentSrc.includes('conversionBusy') && agentSrc.includes('webappBuildInFlightRef.current')) {
+  ok('AgentPage preserves pending web-app conversion when user chats mid-wrap')
+} else {
+  bad('AgentPage missing conversionBusy guard in buildPayloadFromText')
+}
+if (agentSrc.includes('editBaseRef.current = null') && agentSrc.includes('requestConversion')) {
+  ok('AgentPage clears editBaseRef before Convert to Web App')
+} else {
+  bad('AgentPage missing editBaseRef clear on requestConversion')
+}
+
+const artifactCardSrc = readFileSync(join(REPO, 'src/renderer/components/chat/ArtifactCard.tsx'), 'utf-8')
+const artifactPanelSrc = readFileSync(join(REPO, 'src/renderer/components/artifacts/ArtifactPanel.tsx'), 'utf-8')
+if (artifactCardSrc.includes('Open in Browser') && artifactCardSrc.includes('onOpenInBrowser')) {
+  ok('ArtifactCard shows Open in Browser for webapp artifacts')
+} else {
+  bad('ArtifactCard missing Open in Browser for webapp')
+}
+if (artifactPanelSrc.includes('Open in Browser') && !artifactPanelSrc.includes('Export to Browser')) {
+  ok('ArtifactPanel labels webapp export as Open in Browser')
+} else {
+  bad('ArtifactPanel missing prominent Open in Browser label')
+}
+
 const playerDemosMenuSrc = existsSync(join(REPO, 'src/renderer/components/player/PlayerDemosMenu.tsx'))
   ? readFileSync(join(REPO, 'src/renderer/components/player/PlayerDemosMenu.tsx'), 'utf-8')
   : ''
