@@ -2,6 +2,18 @@ import { create } from 'zustand'
 
 export type ArtifactType = 'csd' | 'webapp' | 'vst'
 
+const ARTIFACT_TYPE_PRIORITY: Record<ArtifactType, number> = { webapp: 3, vst: 2, csd: 1 }
+
+/** When several artifacts share a source message (race during web-app wrap), prefer webapp. */
+export function findBySourceMessageId(artifacts: Artifact[], messageId: string): Artifact | null {
+  const matches = artifacts.filter((a) => a.sourceMessageId === messageId)
+  if (!matches.length) return null
+  return matches.sort(
+    (a, b) =>
+      ARTIFACT_TYPE_PRIORITY[b.type] - ARTIFACT_TYPE_PRIORITY[a.type] || b.timestamp - a.timestamp,
+  )[0]
+}
+
 export type FileLanguage = 'csd' | 'html' | 'js' | 'css' | 'cabbage'
 
 export interface ArtifactFile {
@@ -128,6 +140,7 @@ interface ArtifactState {
   togglePanel: () => void
   getVersions: (id: string) => Artifact[]
   getActive: () => Artifact | null
+  removeArtifacts: (ids: string[]) => void
   reset: () => void
 }
 
@@ -218,6 +231,17 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
   getActive: () => {
     const { artifacts, activeArtifactId } = get()
     return artifacts.find((a) => a.id === activeArtifactId) || null
+  },
+
+  removeArtifacts: (ids) => {
+    const drop = new Set(ids)
+    if (!drop.size) return
+    set((s) => {
+      const artifacts = s.artifacts.filter((a) => !drop.has(a.id))
+      const activeArtifactId =
+        s.activeArtifactId && drop.has(s.activeArtifactId) ? null : s.activeArtifactId
+      return { artifacts, activeArtifactId }
+    })
   },
 
   // Wipe all artifact state. Called when starting a new chat so the previous

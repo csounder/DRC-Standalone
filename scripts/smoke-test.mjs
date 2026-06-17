@@ -610,6 +610,7 @@ const TOUCHED = [
   'src/renderer/pages/PlayerPage.tsx',
   'src/renderer/pages/AgentPage.tsx',
   'src/renderer/pages/SettingsPage.tsx',
+  'src/renderer/stores/artifactStore.ts',
   'src/renderer/lib/mechanicalPlayerAdapt.ts',
   'src/renderer/lib/webHarness.ts',
   'src/renderer/lib/signalFlowStudy.ts',
@@ -1169,6 +1170,46 @@ if (
   ok('Agent links to Player demo menu')
 } else {
   bad('Agent missing Player demo menu link')
+}
+
+section('webapp artifact guard')
+
+const artifactStoreSrc = readFileSync(join(REPO, 'src/renderer/stores/artifactStore.ts'), 'utf-8')
+if (artifactStoreSrc.includes('export function findBySourceMessageId')) {
+  ok('artifactStore prefers webapp over csd for shared sourceMessageId')
+} else {
+  bad('artifactStore missing findBySourceMessageId')
+}
+if (artifactStoreSrc.includes('removeArtifacts')) {
+  ok('artifactStore can prune spurious CSD after web-app wrap')
+} else {
+  bad('artifactStore missing removeArtifacts')
+}
+
+if (
+  agentSrc.includes('webappBuildInFlightRef') &&
+  agentSrc.includes('webappBuildInFlightRef.current === last.id')
+) {
+  ok('AgentPage blocks detect() while async web-app wrap is in flight')
+} else {
+  bad('AgentPage missing webappBuildInFlightRef guard')
+}
+if (agentSrc.includes('findBySourceMessageId')) {
+  ok('AgentPage re-adopts webapp via findBySourceMessageId (survives remount)')
+} else {
+  bad('AgentPage missing findBySourceMessageId adoption')
+}
+if (agentSrc.includes('removeArtifacts(spurious)')) {
+  ok('AgentPage drops race-created CSD after web-app build succeeds')
+} else {
+  bad('AgentPage missing spurious CSD cleanup after web-app wrap')
+}
+if (
+  agentSrc.includes('msgArtifactMap.get(msg.id) ?? findBySourceMessageId')
+) {
+  ok('Agent chat cards fall back to store when local map is empty')
+} else {
+  bad('AgentPage missing render-time artifact map fallback')
 }
 
 const playerDemosMenuSrc = existsSync(join(REPO, 'src/renderer/components/player/PlayerDemosMenu.tsx'))

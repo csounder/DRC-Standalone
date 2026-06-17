@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useSessionStore, type AgentMode, type Message } from '../stores/sessionStore'
-import { useArtifactStore, primaryContent, type Artifact } from '../stores/artifactStore'
+import { useArtifactStore, primaryContent, findBySourceMessageId, type Artifact } from '../stores/artifactStore'
 import ArtifactPanel from '../components/artifacts/ArtifactPanel'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { useEditorStore } from '../stores/editorStore'
@@ -130,6 +130,9 @@ export default function AgentPage() {
   // True only on a turn that explicitly requested a format conversion. A fresh
   // generation leaves it false, so a stray DOCTYPE is never made a webapp/vst.
   const convertTurnRef = useRef<boolean>(false)
+  // While buildWebApp + compile-check run async, block normal detect() from
+  // re-deriving a spurious CSD from the same orchestra message.
+  const webappBuildInFlightRef = useRef<string | null>(null)
   useEffect(() => {
     // Look for the most recent non-narration assistant message. Narration messages
     // are ambient context and never contain artifacts.
@@ -153,37 +156,52 @@ export default function AgentPage() {
       const editBaseId = pendingConvert.editBaseId
       pendingWebappConvertRef.current = null
       convertTurnRef.current = false
+      webappBuildInFlightRef.current = last.id
 
       void (async () => {
-        const compileCheck = await compileCheckWebappCsd(prepareWebappCompileCsd(csd))
-        if (!compileCheck.ok) {
-          addMessage({
-            id: `webapp-compile-${Date.now()}`,
-            role: 'assistant',
-            type: 'narration',
-            content:
-              `Web app conversion could not compile. ${compileCheck.error ?? 'Check the Csound console for details.'} ` +
-              'Common fix: score lines like f 0 3600 must live in <CsScore>, not <CsInstruments>. Try Convert to Web App again.',
-            timestamp: Date.now(),
+        try {
+          const compileCheck = await compileCheckWebappCsd(prepareWebappCompileCsd(csd))
+          if (!compileCheck.ok) {
+            addMessage({
+              id: `webapp-compile-${Date.now()}`,
+              role: 'assistant',
+              type: 'narration',
+              content:
+                `Web app conversion could not compile. ${compileCheck.error ?? 'Check the Csound console for details.'} ` +
+                'Common fix: score lines like f 0 3600 must live in <CsScore>, not <CsInstruments>. Try Convert to Web App again.',
+              timestamp: Date.now(),
+            })
+            return
+          }
+          const manifest = buildWebappManifest(csd)
+          const html = buildWebApp({
+            orc: manifest.orc,
+            channels: manifest.channels,
+            title,
+            hasKeyboard: manifest.hasKeyboard,
+            hasReverbBus: manifest.hasReverbBus,
           })
-          return
+          const artifact = editBaseId
+            ? updatePrimary(editBaseId, html, last!.id)
+            : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last!.id })
+          // Drop any spurious CSD created by detect() while the wrap was in flight.
+          const store = useArtifactStore.getState()
+          const spurious = store.artifacts
+            .filter((a) => a.sourceMessageId === last!.id && a.type === 'csd' && a.id !== artifact.id)
+            .map((a) => a.id)
+          if (spurious.length) store.removeArtifacts(spurious)
+          setMsgArtifactMap((prev) => new Map(prev).set(last!.id, artifact.id))
+          setActive(artifact.id)
+        } finally {
+          if (webappBuildInFlightRef.current === last.id) {
+            webappBuildInFlightRef.current = null
+          }
         }
-        const manifest = buildWebappManifest(csd)
-        const html = buildWebApp({
-          orc: manifest.orc,
-          channels: manifest.channels,
-          title,
-          hasKeyboard: manifest.hasKeyboard,
-          hasReverbBus: manifest.hasReverbBus,
-        })
-        const artifact = editBaseId
-          ? updatePrimary(editBaseId, html, last!.id)
-          : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last!.id })
-        setMsgArtifactMap((prev) => new Map(prev).set(last!.id, artifact.id))
-        setActive(artifact.id)
       })()
       return
     }
+
+    if (webappBuildInFlightRef.current === last.id) return
 
     const detected = detect(last.content)
     if (!detected) return
@@ -218,7 +236,7 @@ export default function AgentPage() {
       // a remount would re-derive a brand-new artifact from the message text —
       // and for converted web apps that text is an orchestra CSD, not the HTML,
       // so it would clobber the web app with a spurious CSD version.
-      const adopted = useArtifactStore.getState().artifacts.find((a) => a.sourceMessageId === last.id)
+      const adopted = findBySourceMessageId(useArtifactStore.getState().artifacts, last.id)
       if (adopted) {
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, adopted.id))
         return
@@ -262,7 +280,13 @@ export default function AgentPage() {
     // Never overwrite an artifact whose type no longer matches the message text
     // (e.g. a converted web app derived from an orchestra-CSD message). The
     // message isn't the source of truth for those, so re-deriving would corrupt it.
-    const existing = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
+    const storeArtifacts = useArtifactStore.getState().artifacts
+    const existing = storeArtifacts.find((a) => a.id === existingId)
+    const canonical = findBySourceMessageId(storeArtifacts, last.id)
+    if (canonical && existing && canonical.id !== existing.id) {
+      setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonical.id))
+      return
+    }
     if (existing && existing.type !== detected.type) return
 
     updateInPlace(existingId, artifactCodeFromDetection(detected))
@@ -333,6 +357,7 @@ export default function AgentPage() {
     autoPlayedRef.current = new Set()
     pendingWebappConvertRef.current = null
     convertTurnRef.current = false
+    webappBuildInFlightRef.current = null
     lastSendRef.current = null
   }, [sessionID, startNewSession])
 
@@ -354,6 +379,7 @@ export default function AgentPage() {
     setMsgArtifactMap(new Map())
     pendingWebappConvertRef.current = null
     convertTurnRef.current = false
+    webappBuildInFlightRef.current = null
     setSessionID(data.id)
     if (['csound', 'csound-sine'].includes(data.agent)) setAgentMode(data.agent)
     const loaded = new Set<string>()
@@ -608,7 +634,8 @@ export default function AgentPage() {
     }
 
     const text = stripArtifact(msg.content)
-    const artifactId = msgArtifactMap.get(msg.id)
+    const artifactId =
+      msgArtifactMap.get(msg.id) ?? findBySourceMessageId(artifacts, msg.id)?.id
     const artifact = artifactId ? artifacts.find((a) => a.id === artifactId) : null
     // Don't offer feedback on the turn that's still streaming in.
     const streamingThis = isStreaming && messages[messages.length - 1]?.id === msg.id
