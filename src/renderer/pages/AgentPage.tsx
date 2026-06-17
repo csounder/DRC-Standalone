@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useSessionStore, type AgentMode, type Message } from '../stores/sessionStore'
-import { useArtifactStore, primaryContent, findBySourceMessageId, type Artifact } from '../stores/artifactStore'
+import { useArtifactStore, primaryContent, findBySourceMessageId, hasWebappForMessage, type Artifact } from '../stores/artifactStore'
 import ArtifactPanel from '../components/artifacts/ArtifactPanel'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { useEditorStore } from '../stores/editorStore'
@@ -54,6 +54,17 @@ function assistantTurnAfterUser(messages: Message[], userMsgId: string, assistan
   const userIdx = messages.findIndex((m) => m.id === userMsgId)
   const asstIdx = messages.findIndex((m) => m.id === assistantId)
   return userIdx >= 0 && asstIdx > userIdx
+}
+
+function syncWebappFrozenFromStore(frozen: Set<string>): void {
+  for (const a of useArtifactStore.getState().artifacts) {
+    if (a.type === 'webapp' && a.sourceMessageId) frozen.add(a.sourceMessageId)
+  }
+}
+
+function isMessageWebappLocked(messageId: string, frozen: Set<string>): boolean {
+  if (frozen.has(messageId)) return true
+  return hasWebappForMessage(useArtifactStore.getState().artifacts, messageId)
 }
 
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
@@ -113,6 +124,8 @@ export default function AgentPage() {
 
   // Map message IDs to artifact IDs for rendering
   const [msgArtifactMap, setMsgArtifactMap] = useState<Map<string, string>>(new Map())
+  const msgArtifactMapRef = useRef(msgArtifactMap)
+  msgArtifactMapRef.current = msgArtifactMap
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -143,14 +156,19 @@ export default function AgentPage() {
   // re-deriving a spurious CSD from the same orchestra message.
   const webappBuildInFlightRef = useRef<string | null>(null)
 
-  // Re-seed frozen message ids when AgentPage mounts (artifact store survives tab navigation).
+  // Re-seed frozen message ids on mount and whenever the artifact store gains a webapp.
   useEffect(() => {
-    const frozen = new Set<string>()
-    for (const a of useArtifactStore.getState().artifacts) {
-      if (a.type === 'webapp' && a.sourceMessageId) frozen.add(a.sourceMessageId)
-    }
-    webappFrozenMessageIds.current = frozen
+    syncWebappFrozenFromStore(webappFrozenMessageIds.current)
+    return useArtifactStore.subscribe(() => {
+      syncWebappFrozenFromStore(webappFrozenMessageIds.current)
+    })
   }, [])
+
+  // Detection keys on message text only — usage metadata must not re-trigger detect().
+  const messagesContentKey = useMemo(
+    () => messages.map((m) => `${m.id}\t${m.role}\t${m.type ?? ''}\t${m.content}`).join('\n'),
+    [messages],
+  )
 
   useEffect(() => {
     // Look for the most recent non-narration assistant message. Narration messages
@@ -162,12 +180,11 @@ export default function AgentPage() {
     }
     if (!last) return
 
+    const streaming = useSessionStore.getState().isStreaming
     const storeNow = useArtifactStore.getState()
     const canonicalForMsg = findBySourceMessageId(storeNow.artifacts, last.id)
-    const webappFrozen =
-      webappFrozenMessageIds.current.has(last.id) || canonicalForMsg?.type === 'webapp'
-    if (webappFrozen) {
-      const mappedId = msgArtifactMap.get(last.id)
+    if (isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) {
+      const mappedId = msgArtifactMapRef.current.get(last.id)
       if (canonicalForMsg && mappedId !== canonicalForMsg.id) {
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
       }
@@ -188,20 +205,24 @@ export default function AgentPage() {
 
       const csdDet = detectCsd(last.content)
       if (!csdDet) return
-      if (isStreaming && !csdDet.complete) return
+      if (streaming && !csdDet.complete) return
 
       const csd = csdDet.code
       const title = pendingConvert.title || deriveTitle(csd, 'csd', lastUserPrompt)
       const editBaseId = pendingConvert.editBaseId
+      const messageId = last.id
       editBaseRef.current = null
       pendingWebappConvertRef.current = null
       convertTurnRef.current = false
-      webappBuildInFlightRef.current = last.id
+      webappBuildInFlightRef.current = messageId
+      // Optimistic freeze — block detect()/updateInPlace for the full async wrap.
+      webappFrozenMessageIds.current.add(messageId)
 
       void (async () => {
         try {
           const compileCheck = await compileCheckWebappCsd(prepareWebappCompileCsd(csd))
           if (!compileCheck.ok) {
+            webappFrozenMessageIds.current.delete(messageId)
             addMessage({
               id: `webapp-compile-${Date.now()}`,
               role: 'assistant',
@@ -222,19 +243,19 @@ export default function AgentPage() {
             hasReverbBus: manifest.hasReverbBus,
           })
           const artifact = editBaseId
-            ? updatePrimary(editBaseId, html, last!.id)
-            : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last!.id })
-          webappFrozenMessageIds.current.add(last!.id)
+            ? updatePrimary(editBaseId, html, messageId)
+            : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: messageId })
+          webappFrozenMessageIds.current.add(messageId)
           // Drop any spurious CSD created by detect() while the wrap was in flight.
           const store = useArtifactStore.getState()
           const spurious = store.artifacts
-            .filter((a) => a.sourceMessageId === last!.id && a.type === 'csd' && a.id !== artifact.id)
+            .filter((a) => a.sourceMessageId === messageId && a.type === 'csd' && a.id !== artifact.id)
             .map((a) => a.id)
           if (spurious.length) store.removeArtifacts(spurious)
-          setMsgArtifactMap((prev) => new Map(prev).set(last!.id, artifact.id))
+          setMsgArtifactMap((prev) => new Map(prev).set(messageId, artifact.id))
           setActive(artifact.id)
         } finally {
-          if (webappBuildInFlightRef.current === last.id) {
+          if (webappBuildInFlightRef.current === messageId) {
             webappBuildInFlightRef.current = null
           }
         }
@@ -246,8 +267,11 @@ export default function AgentPage() {
 
     const detected = detect(last.content)
     if (!detected) return
+    if (detected.type === 'csd' && isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) {
+      return
+    }
 
-    let existingId = msgArtifactMap.get(last.id)
+    let existingId = msgArtifactMapRef.current.get(last.id)
     const userBefore = userMessageBeforeAssistant(messages, last.id)
     const isAutofixTurn = !!(userBefore && isAutofixUserMessage(userBefore.content))
     const autofixTargetId = isAutofixTurn
@@ -258,15 +282,13 @@ export default function AgentPage() {
 
     // Auto-fix: update the broken artifact in place — never spawn a second one.
     if (autofixTargetId && (!existingId || existingId !== autofixTargetId)) {
+      const autofixTarget = useArtifactStore.getState().artifacts.find((a) => a.id === autofixTargetId)
+      if (autofixTarget?.type === 'webapp') return
+      if (isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) return
       updateInPlace(autofixTargetId, artifactCodeFromDetection(detected))
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, autofixTargetId))
       if (detected.complete && !useArtifactStore.getState().panelOpen) {
         useArtifactStore.getState().openPanel()
-      }
-      if (!isStreaming && detected.complete && detected.type === 'csd' && !autoPlayedRef.current.has(last.id)) {
-        autoPlayedRef.current.add(last.id)
-        const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === autofixTargetId)
-        if (artifact) void playArtifact(artifact, { allowAutofix: false })
       }
       return
     }
@@ -291,10 +313,10 @@ export default function AgentPage() {
       // wrongly emits a web app on a first turn would render as a webapp. Refuse
       // it; recover an embedded CSD if the message has one, else ignore the turn.
       if (!convertTurnRef.current && detected.type !== 'csd') {
-        if (!isStreaming) {
+        if (!streaming) {
           const stripped = last.content.replace(DOCTYPE_RE, '').replace(HTML_FENCE_RE, '')
           const csdFallback = detect(stripped)
-          if (csdFallback && csdFallback.type === 'csd') {
+          if (csdFallback && csdFallback.type === 'csd' && !isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) {
             const t = deriveTitle(csdFallback.code, 'csd', lastUserPrompt)
             const a = addArtifact({ type: 'csd', title: t, content: csdFallback.code, sourceMessageId: last.id }, { openPanel: true })
             setMsgArtifactMap((prev) => new Map(prev).set(last.id, a.id))
@@ -308,9 +330,11 @@ export default function AgentPage() {
         ? useArtifactStore.getState().artifacts.find((a) => a.id === editBaseRef.current)
         : null
       if (base && base.type === detected.type) {
-        if (canonicalForMsg?.type === 'webapp') {
-          setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
-          setActive(canonicalForMsg.id)
+        if (canonicalForMsg?.type === 'webapp' || isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) {
+          if (canonicalForMsg) {
+            setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
+            setActive(canonicalForMsg.id)
+          }
           editBaseRef.current = null
           return
         }
@@ -319,6 +343,7 @@ export default function AgentPage() {
         editBaseRef.current = null
         return
       }
+      if (detected.type === 'csd' && isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) return
       const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
       const artifact = addArtifact(
         { type: detected.type, title, content: artifactCodeFromDetection(detected), sourceMessageId: last.id },
@@ -339,26 +364,55 @@ export default function AgentPage() {
       return
     }
     if (existing && existing.type !== detected.type) return
+    if (detected.type === 'csd' && isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) return
+    if (existing?.type === 'webapp' && detected.type === 'csd') return
 
     updateInPlace(existingId, artifactCodeFromDetection(detected))
 
     if (detected.complete && !useArtifactStore.getState().panelOpen) {
       useArtifactStore.getState().openPanel()
     }
+  }, [messagesContentKey, lastUserPrompt])
 
-    if (
-      !isStreaming &&
-      detected.complete &&
-      detected.type === 'csd' &&
-      !isAutofixTurn &&
-      !autoPlayedRef.current.has(last.id) &&
-      canonicalForMsg?.type !== 'webapp'
-    ) {
-      autoPlayedRef.current.add(last.id)
-      const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
-      if (artifact && artifact.type === 'csd') void playArtifact(artifact)
+  // Autoplay is separate from detection — playback state must not re-run detect().
+  useEffect(() => {
+    if (isStreaming) return
+    let last: Message | null = null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role === 'assistant' && m.type !== 'narration') { last = m; break }
     }
-  }, [messages, isStreaming])
+    if (!last) return
+    if (isMessageWebappLocked(last.id, webappFrozenMessageIds.current)) return
+
+    const detected = detect(last.content)
+    if (!detected?.complete || detected.type !== 'csd') return
+
+    const userBefore = userMessageBeforeAssistant(messages, last.id)
+    const isAutofixTurn = !!(userBefore && isAutofixUserMessage(userBefore.content))
+    if (isAutofixTurn) {
+      const autofixTargetId =
+        useSessionStore.getState().pendingAutofixArtifactId
+        ?? useSessionStore.getState().lastFailure?.artifactId
+        ?? msgArtifactMapRef.current.get(last.id)
+        ?? null
+      if (!autofixTargetId || autoPlayedRef.current.has(last.id)) return
+      const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === autofixTargetId)
+      if (!artifact || artifact.type !== 'csd') return
+      autoPlayedRef.current.add(last.id)
+      void playArtifact(artifact, { allowAutofix: false })
+      return
+    }
+
+    const existingId = msgArtifactMapRef.current.get(last.id)
+    if (!existingId || autoPlayedRef.current.has(last.id)) return
+    const canonicalForMsg = findBySourceMessageId(useArtifactStore.getState().artifacts, last.id)
+    if (canonicalForMsg?.type === 'webapp') return
+    const artifact = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
+    if (!artifact || artifact.type !== 'csd') return
+    autoPlayedRef.current.add(last.id)
+    void playArtifact(artifact)
+  }, [messagesContentKey, isStreaming])
 
   // Send a conversion prompt to the LLM
   const requestConversion = useCallback(async (targetType: ConvertTarget) => {

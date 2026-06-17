@@ -1236,6 +1236,26 @@ if (artifactStoreSrc.includes("a.type === 'webapp'") && artifactStoreSrc.include
 } else {
   bad('artifactStore missing webapp updateInPlace guard')
 }
+if (artifactStoreSrc.includes('hasWebappForMessage') && artifactStoreSrc.includes("input.type === 'csd'")) {
+  ok('artifactStore blocks addArtifact CSD when webapp owns source message')
+} else {
+  bad('artifactStore missing addArtifact webapp lock guard')
+}
+if (agentSrc.includes('messagesContentKey')) {
+  ok('AgentPage keys detection on message content (usage metadata cannot re-detect)')
+} else {
+  bad('AgentPage missing messagesContentKey detection split')
+}
+if (agentSrc.includes('isMessageWebappLocked')) {
+  ok('AgentPage uses isMessageWebappLocked before CSD add/update paths')
+} else {
+  bad('AgentPage missing isMessageWebappLocked guards')
+}
+if (agentSrc.includes('webappFrozenMessageIds.current.add(messageId)') && agentSrc.includes('Optimistic freeze')) {
+  ok('AgentPage optimistically freezes message id before async web-app wrap')
+} else {
+  bad('AgentPage missing optimistic webapp freeze at wrap start')
+}
 const rendererPlaybackSrc = readFileSync(join(REPO, 'src/renderer/lib/playback.ts'), 'utf-8')
 if (rendererPlaybackSrc.includes("artifact.type === 'webapp'")) {
   ok('playArtifact skips webapp (iframe/browser only — no compile autofix)')

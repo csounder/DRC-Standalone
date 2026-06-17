@@ -14,6 +14,21 @@ export function findBySourceMessageId(artifacts: Artifact[], messageId: string):
   )[0]
 }
 
+/** True when a web app already owns this assistant message — CSD must never be re-added. */
+export function hasWebappForMessage(artifacts: Artifact[], messageId: string): boolean {
+  return artifacts.some((a) => a.sourceMessageId === messageId && a.type === 'webapp')
+}
+
+export function getWebappForMessage(artifacts: Artifact[], messageId: string): Artifact | null {
+  const matches = artifacts.filter((a) => a.sourceMessageId === messageId && a.type === 'webapp')
+  if (!matches.length) return null
+  return matches.sort((a, b) => b.timestamp - a.timestamp)[0]
+}
+
+function isOrchestraCsdContent(content: string): boolean {
+  return /<CsoundSynthesizer/i.test(content) && !/<!DOCTYPE\s+html/i.test(content)
+}
+
 export type FileLanguage = 'csd' | 'html' | 'js' | 'css' | 'cabbage'
 
 export interface ArtifactFile {
@@ -151,6 +166,10 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
 
   addArtifact: (input, opts) => {
     const existing = get().artifacts
+    if (input.sourceMessageId && input.type === 'csd') {
+      const locked = getWebappForMessage(existing, input.sourceMessageId)
+      if (locked) return locked
+    }
     const sameTitle = existing.filter((a) => a.title === input.title && a.type === input.type)
     const version = sameTitle.length + 1
     const parentId = sameTitle.length > 0 ? sameTitle[sameTitle.length - 1].id : undefined
@@ -178,6 +197,15 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
   updatePrimary: (id, newContent, sourceMessageId) => {
     const existing = get().artifacts.find((a) => a.id === id)
     if (!existing) return existing!
+    const msgId = sourceMessageId ?? existing.sourceMessageId
+    if (
+      msgId &&
+      existing.type !== 'webapp' &&
+      isOrchestraCsdContent(newContent) &&
+      getWebappForMessage(get().artifacts, msgId)
+    ) {
+      return getWebappForMessage(get().artifacts, msgId)!
+    }
 
     const artifact: Artifact = {
       ...existing,
@@ -202,10 +230,15 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
     artifacts: s.artifacts.map((a) => {
       if (a.id !== id) return a
       // Never overwrite a web app with raw orchestra CSD from message re-detection.
+      if (a.type === 'webapp' && isOrchestraCsdContent(newContent)) {
+        return a
+      }
+      // Never mutate a stale CSD sibling once a web app owns the source message.
       if (
-        a.type === 'webapp' &&
-        /<CsoundSynthesizer/i.test(newContent) &&
-        !/<!DOCTYPE\s+html/i.test(newContent)
+        a.type === 'csd' &&
+        a.sourceMessageId &&
+        hasWebappForMessage(s.artifacts, a.sourceMessageId) &&
+        isOrchestraCsdContent(newContent)
       ) {
         return a
       }

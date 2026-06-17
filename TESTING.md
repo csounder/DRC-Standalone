@@ -152,7 +152,7 @@ Double-click **`Launch Web App.command`** → Start audio → load a sample → 
 | Gemini empty / no CSD | Free tier rate limit | Wait for countdown; use Groq; or attendee mode |
 | Web app `cpsmidinn` out of range | Old export used MIDI opcodes with Hz keyboard | Re-convert; or use latest `webHarness` (adapts at compile) |
 | Web app silent in browser | Skipped **Start Audio** or offline | Click Start Audio; need CDN network |
-| Web app reverts to CSD after convert | `pendingWebappConvert` consumed on **prior** assistant CSD before conversion stream; orchestra response then detected as plain CSD | Fixed — `afterUserMsgId` turn gate + permanent `webappFrozenMessageIds` |
+| Web app reverts to CSD after convert | Streaming/usage re-ran `detect()` on orchestra-CSD message after wrap | Fixed — permanent `webappFrozenMessageIds`, store-level `hasWebappForMessage` blocks, optimistic freeze, split autoplay effect |
 | `better-sqlite3` error | Node/Electron ABI mismatch | `npx electron-builder install-app-deps` |
 | Packaged app “damaged” (macOS) | Unsigned build | Right-click → Open, or notarize for wide release |
 
