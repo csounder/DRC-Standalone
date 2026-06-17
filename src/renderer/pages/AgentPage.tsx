@@ -49,6 +49,13 @@ function userMessageBeforeAssistant(messages: Message[], assistantId: string): M
   return null
 }
 
+/** True when `assistantId` is a non-narration assistant turn strictly after `userMsgId`. */
+function assistantTurnAfterUser(messages: Message[], userMsgId: string, assistantId: string): boolean {
+  const userIdx = messages.findIndex((m) => m.id === userMsgId)
+  const asstIdx = messages.findIndex((m) => m.id === assistantId)
+  return userIdx >= 0 && asstIdx > userIdx
+}
+
 const MODE_INFO: Record<AgentMode, { label: string; color: string }> = {
   csound: { label: 'Complex', color: '#7cb8a4' },
   'csound-sine': { label: 'Sine', color: '#f0b27a' },
@@ -126,13 +133,25 @@ export default function AgentPage() {
   // `editBaseId` is set when this turn is a FOLLOW-UP edit of an existing web app
   // (vs a first-time conversion): the rebuilt web app becomes a new VERSION of that
   // artifact rather than a brand-new one.
-  const pendingWebappConvertRef = useRef<{ title: string; editBaseId?: string } | null>(null)
+  const pendingWebappConvertRef = useRef<{ title: string; editBaseId?: string; afterUserMsgId: string } | null>(null)
+  // Message ids that already produced a web app — never re-detect orchestra CSD from them.
+  const webappFrozenMessageIds = useRef<Set<string>>(new Set())
   // True only on a turn that explicitly requested a format conversion. A fresh
   // generation leaves it false, so a stray DOCTYPE is never made a webapp/vst.
   const convertTurnRef = useRef<boolean>(false)
   // While buildWebApp + compile-check run async, block normal detect() from
   // re-deriving a spurious CSD from the same orchestra message.
   const webappBuildInFlightRef = useRef<string | null>(null)
+
+  // Re-seed frozen message ids when AgentPage mounts (artifact store survives tab navigation).
+  useEffect(() => {
+    const frozen = new Set<string>()
+    for (const a of useArtifactStore.getState().artifacts) {
+      if (a.type === 'webapp' && a.sourceMessageId) frozen.add(a.sourceMessageId)
+    }
+    webappFrozenMessageIds.current = frozen
+  }, [])
+
   useEffect(() => {
     // Look for the most recent non-narration assistant message. Narration messages
     // are ambient context and never contain artifacts.
@@ -143,10 +162,30 @@ export default function AgentPage() {
     }
     if (!last) return
 
+    const storeNow = useArtifactStore.getState()
+    const canonicalForMsg = findBySourceMessageId(storeNow.artifacts, last.id)
+    const webappFrozen =
+      webappFrozenMessageIds.current.has(last.id) || canonicalForMsg?.type === 'webapp'
+    if (webappFrozen) {
+      const mappedId = msgArtifactMap.get(last.id)
+      if (canonicalForMsg && mappedId !== canonicalForMsg.id) {
+        setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
+      }
+      if (canonicalForMsg && storeNow.activeArtifactId !== canonicalForMsg.id) {
+        setActive(canonicalForMsg.id)
+      }
+      return
+    }
+
     // Convert-to-Web-App: model must emit orchestra CSD; host wraps via buildWebApp.
     // Use detectCsd (not detect) so stray HTML never hijacks the conversion turn.
     const pendingConvert = pendingWebappConvertRef.current
     if (pendingConvert) {
+      // Do not consume on a PRIOR assistant message (e.g. original CSD) before the
+      // conversion stream's first chunk — that wrapped the wrong orchestra and left
+      // pendingConvert null when the real conversion response arrived as plain CSD.
+      if (!assistantTurnAfterUser(messages, pendingConvert.afterUserMsgId, last.id)) return
+
       const csdDet = detectCsd(last.content)
       if (!csdDet) return
       if (isStreaming && !csdDet.complete) return
@@ -185,6 +224,7 @@ export default function AgentPage() {
           const artifact = editBaseId
             ? updatePrimary(editBaseId, html, last!.id)
             : addArtifact({ type: 'webapp', title, content: html, sourceMessageId: last!.id })
+          webappFrozenMessageIds.current.add(last!.id)
           // Drop any spurious CSD created by detect() while the wrap was in flight.
           const store = useArtifactStore.getState()
           const spurious = store.artifacts
@@ -203,20 +243,6 @@ export default function AgentPage() {
     }
 
     if (webappBuildInFlightRef.current === last.id) return
-
-    // Orchestra-CSD assistant turns that already produced a web app must never be
-    // re-derived as CSD (editBaseRef / updateInPlace / autoplay would steal the panel).
-    const canonicalForMsg = findBySourceMessageId(useArtifactStore.getState().artifacts, last.id)
-    if (canonicalForMsg?.type === 'webapp' && !pendingWebappConvertRef.current) {
-      const mappedId = msgArtifactMap.get(last.id)
-      if (mappedId !== canonicalForMsg.id) {
-        setMsgArtifactMap((prev) => new Map(prev).set(last.id, canonicalForMsg.id))
-      }
-      if (useArtifactStore.getState().activeArtifactId !== canonicalForMsg.id) {
-        setActive(canonicalForMsg.id)
-      }
-      return
-    }
 
     const detected = detect(last.content)
     if (!detected) return
@@ -254,7 +280,10 @@ export default function AgentPage() {
       const adopted = findBySourceMessageId(useArtifactStore.getState().artifacts, last.id)
       if (adopted) {
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, adopted.id))
-        if (adopted.type === 'webapp') setActive(adopted.id)
+        if (adopted.type === 'webapp') {
+          webappFrozenMessageIds.current.add(last.id)
+          setActive(adopted.id)
+        }
         return
       }
       // Fresh-turn guard: a non-conversion generation must be a CSD. A stray
@@ -349,16 +378,17 @@ export default function AgentPage() {
     // The webapp conversion now returns an orchestra CSD that we wrap ourselves
     // (see the detection effect). Mark the turn so it's intercepted.
     editBaseRef.current = null
+    const userMsgId = `msg_${Date.now()}`
     pendingWebappConvertRef.current =
       targetType === 'webapp'
-        ? { title: active.title, editBaseId: active.type === 'webapp' ? active.id : undefined }
+        ? { title: active.title, editBaseId: active.type === 'webapp' ? active.id : undefined, afterUserMsgId: userMsgId }
         : null
     // Explicit conversion — the fresh-turn guard must NOT suppress the artifact.
     convertTurnRef.current = true
 
     setInput('')
     // Show a compact user-visible message, not the full template
-    addMessage({ id: `msg_${Date.now()}`, role: 'user', content: shortLabel, timestamp: Date.now() })
+    addMessage({ id: userMsgId, role: 'user', content: shortLabel, timestamp: Date.now() })
     setLastUserPrompt(shortLabel)
     setStreaming(true)
 
@@ -391,6 +421,7 @@ export default function AgentPage() {
     pendingWebappConvertRef.current = null
     convertTurnRef.current = false
     webappBuildInFlightRef.current = null
+    webappFrozenMessageIds.current = new Set()
     lastSendRef.current = null
   }, [sessionID, startNewSession])
 
@@ -413,6 +444,7 @@ export default function AgentPage() {
     pendingWebappConvertRef.current = null
     convertTurnRef.current = false
     webappBuildInFlightRef.current = null
+    webappFrozenMessageIds.current = new Set()
     setSessionID(data.id)
     if (['csound', 'csound-sine'].includes(data.agent)) setAgentMode(data.agent)
     const loaded = new Set<string>()
@@ -460,7 +492,8 @@ export default function AgentPage() {
         const srcCsd = srcDet && srcDet.type === 'csd' ? srcDet.code : null
         if (srcCsd) {
           editBaseRef.current = null
-          pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id }
+          // afterUserMsgId patched in handleSend before addMessage
+          pendingWebappConvertRef.current = { title: active.title, editBaseId: active.id, afterUserMsgId: '' }
           convertTurnRef.current = true
           return `${buildConvertPrompt('webapp', srcCsd)}\n\n<user-note>${text}</user-note>`
         }
@@ -474,7 +507,7 @@ export default function AgentPage() {
       editBaseRef.current = active && !convertTo ? active.id : null
       pendingWebappConvertRef.current =
         convertTo === 'webapp' && active
-          ? { title: active.title, editBaseId: active.type === 'webapp' ? active.id : undefined }
+          ? { title: active.title, editBaseId: active.type === 'webapp' ? active.id : undefined, afterUserMsgId: '' }
           : null
       convertTurnRef.current = Boolean(convertTo && active)
     }
@@ -523,8 +556,12 @@ export default function AgentPage() {
         convertTurnRef.current = false
       }
       payload = buildPayloadFromText(text)
+      const userMsgId = `msg_${Date.now()}`
+      if (pendingWebappConvertRef.current?.afterUserMsgId === '') {
+        pendingWebappConvertRef.current = { ...pendingWebappConvertRef.current, afterUserMsgId: userMsgId }
+      }
       lastSendRef.current = { displayText, payload }
-      addMessage({ id: `msg_${Date.now()}`, role: 'user', content: text, timestamp: Date.now() })
+      addMessage({ id: userMsgId, role: 'user', content: text, timestamp: Date.now() })
       setInput('')
     }
 
@@ -686,8 +723,12 @@ export default function AgentPage() {
     }
 
     const text = stripArtifact(msg.content)
+    const canonical = findBySourceMessageId(artifacts, msg.id)
+    const mappedId = msgArtifactMap.get(msg.id)
     const artifactId =
-      msgArtifactMap.get(msg.id) ?? findBySourceMessageId(artifacts, msg.id)?.id
+      canonical?.type === 'webapp'
+        ? canonical.id
+        : (mappedId && artifacts.some((a) => a.id === mappedId) ? mappedId : canonical?.id ?? mappedId)
     const artifact = artifactId ? artifacts.find((a) => a.id === artifactId) : null
     // Don't offer feedback on the turn that's still streaming in.
     const streamingThis = isStreaming && messages[messages.length - 1]?.id === msg.id

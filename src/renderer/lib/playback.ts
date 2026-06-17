@@ -57,6 +57,7 @@ export async function playArtifact(
 ): Promise<void> {
   const allowAutofix = opts.allowAutofix !== false
   if (!window.api?.csound) return
+  if (artifact.type === 'webapp') return
   const store = usePlaybackStore.getState()
   store.set({ artifactId: artifact.id, status: 'compiling', message: 'Rendering with Csound…' })
 

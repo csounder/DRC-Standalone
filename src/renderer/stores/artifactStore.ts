@@ -201,6 +201,14 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
   updateInPlace: (id, newContent) => set((s) => ({
     artifacts: s.artifacts.map((a) => {
       if (a.id !== id) return a
+      // Never overwrite a web app with raw orchestra CSD from message re-detection.
+      if (
+        a.type === 'webapp' &&
+        /<CsoundSynthesizer/i.test(newContent) &&
+        !/<!DOCTYPE\s+html/i.test(newContent)
+      ) {
+        return a
+      }
       const files = splitIntoFiles(a.type, newContent)
       const activeFileIndex = a.activeFileIndex < files.length ? a.activeFileIndex : 0
       return { ...a, files, activeFileIndex }

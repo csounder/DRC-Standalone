@@ -1205,20 +1205,42 @@ if (agentSrc.includes('removeArtifacts(spurious)')) {
   bad('AgentPage missing spurious CSD cleanup after web-app wrap')
 }
 if (
-  agentSrc.includes('msgArtifactMap.get(msg.id) ?? findBySourceMessageId')
+  agentSrc.includes('findBySourceMessageId(artifacts, msg.id)') &&
+  agentSrc.includes("canonical?.type === 'webapp'")
 ) {
-  ok('Agent chat cards fall back to store when local map is empty')
+  ok('Agent chat cards prefer webapp canonical over stale CSD map entry')
 } else {
-  bad('AgentPage missing render-time artifact map fallback')
+  bad('AgentPage missing render-time webapp canonical fallback')
 }
 
 if (
-  agentSrc.includes("canonicalForMsg?.type === 'webapp'") &&
-  agentSrc.includes('!pendingWebappConvertRef.current')
+  agentSrc.includes("canonicalForMsg?.type === 'webapp'") ||
+  agentSrc.includes('webappFrozenMessageIds')
 ) {
   ok('AgentPage freezes webapp artifacts — never re-detects orchestra CSD')
 } else {
   bad('AgentPage missing webapp freeze guard after conversion')
+}
+if (agentSrc.includes('afterUserMsgId') && agentSrc.includes('assistantTurnAfterUser')) {
+  ok('AgentPage gates web-app convert until NEW assistant turn after user message')
+} else {
+  bad('AgentPage missing afterUserMsgId conversion turn gate')
+}
+if (agentSrc.includes('webappFrozenMessageIds')) {
+  ok('AgentPage permanently freezes message ids after web-app wrap')
+} else {
+  bad('AgentPage missing webappFrozenMessageIds permanent freeze')
+}
+if (artifactStoreSrc.includes("a.type === 'webapp'") && artifactStoreSrc.includes('CsoundSynthesizer')) {
+  ok('artifactStore blocks updateInPlace CSD overwrite on webapp artifacts')
+} else {
+  bad('artifactStore missing webapp updateInPlace guard')
+}
+const rendererPlaybackSrc = readFileSync(join(REPO, 'src/renderer/lib/playback.ts'), 'utf-8')
+if (rendererPlaybackSrc.includes("artifact.type === 'webapp'")) {
+  ok('playArtifact skips webapp (iframe/browser only — no compile autofix)')
+} else {
+  bad('playback.ts missing webapp play guard')
 }
 if (agentSrc.includes('conversionBusy') && agentSrc.includes('webappBuildInFlightRef.current')) {
   ok('AgentPage preserves pending web-app conversion when user chats mid-wrap')
