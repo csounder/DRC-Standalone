@@ -947,6 +947,28 @@ const webappPrepareSrc = existsSync(join(REPO, 'src/shared/csd-webapp-prepare.ts
   bad('csd-webapp-prepare.ts missing orchestra cleanup for web export')
 }
 
+const cabbagePrepareSrc = existsSync(join(REPO, 'src/shared/csd-cabbage-prepare.ts'))
+  ? readFileSync(join(REPO, 'src/shared/csd-cabbage-prepare.ts'), 'utf-8')
+  : ''
+if (
+  cabbagePrepareSrc.includes('prepareCsdForCabbage') &&
+  cabbagePrepareSrc.includes('fixCabbageMidiOpcodeSyntax') &&
+  cabbagePrepareSrc.includes('fixCabbageEnvelopeRates')
+) {
+  ok('cabbage prepare fixes cpsmidi/ampmidi opcode syntax and envelope i-rate slips')
+} else {
+  bad('csd-cabbage-prepare.ts missing Cabbage export fixes')
+}
+
+const convertVstSrc = existsSync(join(REPO, 'src/renderer/prompts/convert.ts'))
+  ? readFileSync(join(REPO, 'src/renderer/prompts/convert.ts'), 'utf-8')
+  : ''
+if (convertVstSrc.includes('iFreq = cpsmidi') && convertVstSrc.includes('MIDI opcode syntax')) {
+  ok('VST convert prompt documents cpsmidi syntax (no equals)')
+} else {
+  bad('convert.ts VST_TEMPLATE missing cpsmidi syntax guard')
+}
+
 const webappPrepareLib = existsSync(join(REPO, 'src/renderer/lib/webappPrepare.ts'))
   ? readFileSync(join(REPO, 'src/renderer/lib/webappPrepare.ts'), 'utf-8')
   : ''

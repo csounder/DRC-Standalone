@@ -148,6 +148,17 @@ CSD CHANGES:
           iVel  ampmidi 1      ; note velocity, 0..1
           ; ... the rest of the voice is unchanged; multiply the signal by iVel
 
+  - **MIDI opcode syntax — CRITICAL.** \`cpsmidi\` and \`ampmidi\` are output opcodes: the variable name comes FIRST with NO equals sign. These are WRONG and will not compile:
+
+        iFreq = cpsmidi      ; WRONG — syntax error in Csound 7
+        iAmp  = ampmidi 1    ; WRONG
+
+    Emit exactly:
+
+        iFreq cpsmidi
+        iVel  ampmidi 1
+
+  - **Envelope rates — CRITICAL.** \`linsegr\`, \`expsegr\`, \`linenr\`, and \`madsr\` accept ONLY i-rate time and value arguments — every segment time AND every breakpoint level. Read any envelope parameter that feeds these opcodes with an \`i\`-prefixed variable (or a numeric literal). Do NOT pass \`gk…\` globals or \`k…\` variables into \`expsegr\`/\`linsegr\` — Csound 7 rejects k-rate args (e.g. \`ival1 is zero\` or opcode type mismatch). When the source used k-rate envelope math, snapshot the needed values at note-on into \`i…\` locals first, then call \`expsegr\`/\`linsegr\`. Do NOT suffix literals with \`:c\` on envelope opcode lines.
   - Keep the release-aware envelope (\`linsegr\`/\`expsegr\`) so MIDI note-off releases the tail cleanly.
   - Do NOT use \`cpsmidinn(p4)\`, \`= p4\`, or \`= p5\` for a MIDI voice — those are 0 under MIDI activation.
 - Everything else in the CsInstruments and CsScore sections stays verbatim.

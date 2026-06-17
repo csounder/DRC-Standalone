@@ -11,7 +11,8 @@ import ProfileBadge from '../components/chat/ProfileBadge'
 import SessionHistory from '../components/chat/SessionHistory'
 import { audioFeedback } from '../styles/audio-feedback'
 import { useAppStore } from '../stores/appStore'
-import { detect, detectCsd, stripArtifact, deriveTitle } from '../lib/artifactDetect'
+import { detect, detectCsd, stripArtifact, deriveTitle, type DetectionResult } from '../lib/artifactDetect'
+import { prepareCsdForCabbage } from '../../shared/csd-cabbage-prepare'
 import { buildConvertPrompt, detectConvertIntent, type ConvertTarget } from '../prompts/convert'
 import { playArtifact, stopPlayback, resetAutofix, isAutofixUserMessage } from '../lib/playback'
 import { usePlaybackStore } from '../stores/playbackStore'
@@ -23,6 +24,10 @@ import type { SignalFlowStudyInput } from '../lib/signalFlowStudy'
 import { compileCheckWebappCsd } from '../lib/playback'
 import UsageBar from '../components/chat/UsageBar'
 import AgentActivityBar from '../components/chat/AgentActivityBar'
+
+function artifactCodeFromDetection(detected: DetectionResult): string {
+  return detected.type === 'vst' ? prepareCsdForCabbage(detected.code) : detected.code
+}
 import PromptRetryBar from '../components/chat/PromptRetryBar'
 import QuotaCooldown from '../components/QuotaCooldown'
 import ApiKeyPromptDialog from '../components/ApiKeyPromptDialog'
@@ -194,7 +199,7 @@ export default function AgentPage() {
 
     // Auto-fix: update the broken artifact in place — never spawn a second one.
     if (autofixTargetId && (!existingId || existingId !== autofixTargetId)) {
-      updateInPlace(autofixTargetId, detected.code)
+      updateInPlace(autofixTargetId, artifactCodeFromDetection(detected))
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, autofixTargetId))
       if (detected.complete && !useArtifactStore.getState().panelOpen) {
         useArtifactStore.getState().openPanel()
@@ -240,14 +245,14 @@ export default function AgentPage() {
         ? useArtifactStore.getState().artifacts.find((a) => a.id === editBaseRef.current)
         : null
       if (base && base.type === detected.type) {
-        const artifact = updatePrimary(base.id, detected.code, last.id)
+        const artifact = updatePrimary(base.id, artifactCodeFromDetection(detected), last.id)
         setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
         editBaseRef.current = null
         return
       }
       const title = deriveTitle(detected.code, detected.type, lastUserPrompt)
       const artifact = addArtifact(
-        { type: detected.type, title, content: detected.code, sourceMessageId: last.id },
+        { type: detected.type, title, content: artifactCodeFromDetection(detected), sourceMessageId: last.id },
         { openPanel: detected.complete },
       )
       setMsgArtifactMap((prev) => new Map(prev).set(last.id, artifact.id))
@@ -260,7 +265,7 @@ export default function AgentPage() {
     const existing = useArtifactStore.getState().artifacts.find((a) => a.id === existingId)
     if (existing && existing.type !== detected.type) return
 
-    updateInPlace(existingId, detected.code)
+    updateInPlace(existingId, artifactCodeFromDetection(detected))
 
     if (detected.complete && !useArtifactStore.getState().panelOpen) {
       useArtifactStore.getState().openPanel()
