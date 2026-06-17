@@ -109,9 +109,33 @@ if ! passwd -S "${VM_USER}" 2>/dev/null | grep -q P; then
   echo "[vm-setup] set password for user ${VM_USER} (RDP login)"
 fi
 
-echo "startxfce4" > "${VM_HOME}/.xsession"
+# xrdp must read TLS key (snakeoil in ssl-cert group)
+adduser xrdp ssl-cert 2>/dev/null || usermod -aG ssl-cert xrdp
+
+cat > "${VM_HOME}/.xsession" <<'XSESS'
+#!/bin/sh
+unset DBUS_SESSION_BUS_ADDRESS
+export XDG_SESSION_DESKTOP=xfce
+export XDG_CURRENT_DESKTOP=XFCE
+export XDG_DATA_DIRS=/usr/share/xfce4:/usr/local/share:/usr/share:/var/lib/snapd/desktop
+export LIBGL_ALWAYS_SOFTWARE=1
+export MESA_GL_VERSION_OVERRIDE=3.3
+exec dbus-launch --exit-with-session xfce4-session
+XSESS
 chown "${VM_USER}:${VM_USER}" "${VM_HOME}/.xsession"
 chmod +x "${VM_HOME}/.xsession"
+
+mkdir -p "${VM_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml"
+cat > "${VM_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml" <<'XFWM'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+    <property name="sync_to_vblank" type="bool" value="false"/>
+  </property>
+</channel>
+XFWM
+chown -R "${VM_USER}:${VM_USER}" "${VM_HOME}/.config"
 
 systemctl enable xrdp
 systemctl restart xrdp
