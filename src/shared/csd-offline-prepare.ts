@@ -33,6 +33,33 @@ i 1 2   1.5 48 0.5
 i 1 3   2.0 36 0.55
 </CsScore>`
 
+/** Descending bell melody — matches fm_bell_starter (MIDI p4 + cpsmidinn). */
+export const BELL_OFFLINE_DEMO_SCORE = `<CsScore>
+i 99 0 18
+i 1 0   4.5  72 0.5 0.5
+i 1 1.5 4.0  69 0.4 0.5
+i 1 3   3.5  67 0.45 0.5
+i 1 4.5 5.0  64 0.5 0.6
+i 1 6   4.5  60 0.55 0.6
+i 1 8   5.0  67 0.35 0.5
+i 1 8.1 5.0  71 0.3  0.5
+i 1 8.2 5.0  74 0.32 0.5
+i 1 12  6.0  48 0.6 0.7
+</CsScore>`
+
+/** Chowning-style models use p4 as Hz — never inject MIDI note numbers (60 reads as 60 Hz bass). */
+export const CHOWNING_HZ_DEMO_SCORE = `<CsScore>
+i 99 0 14
+i 1 0   4.5  523.25 0.5
+i 1 1.5 4.0  440 0.45
+i 1 3   3.5  392 0.45
+i 1 4.5 5.0  349.23 0.5
+i 1 6   4.5  293.66 0.55
+i 1 8   5.0  392 0.35
+i 1 8.1 5.0  440 0.3
+i 1 8.2 5.0  493.88 0.32
+</CsScore>`
+
 export const GENERIC_OFFLINE_DEMO_SCORE = `<CsScore>
 i 1 0.00 0.45 60 0.22
 i 1 0.45 0.45 64 0.22
@@ -87,6 +114,28 @@ function orchestraNeedsEchoBus(csd: string): boolean {
   return /\binstr\s+99\b/.test(orch) && /\b(gaEcho|vdelay3)\b/.test(orch)
 }
 
+export function orchestraUsesMidiPitch(csd: string): boolean {
+  const orch = csd.match(/<CsInstruments>([\s\S]*?)<\/CsInstruments>/i)?.[1] ?? ''
+  return (
+    /\bcpsmidinn\s*\(\s*p4\s*\)/i.test(orch) ||
+    /\bcpsmidi\s*\(/i.test(orch) ||
+    /\bampmidi\b/i.test(orch) ||
+    /\bmassign\b/i.test(orch)
+  )
+}
+
+export function orchestraIsShimmerBell(csd: string): boolean {
+  const orch = csd.match(/<CsInstruments>([\s\S]*?)<\/CsInstruments>/i)?.[1] ?? ''
+  return /\bkMod1Idx\b/.test(orch) && /\bkMod2Idx\b/.test(orch) && /\boscili\b/i.test(orch)
+}
+
+function pickOfflineDemoScore(csd: string): string {
+  if (orchestraIsShimmerBell(csd)) return BELL_OFFLINE_DEMO_SCORE
+  if (orchestraNeedsEchoBus(csd)) return BASS_OFFLINE_DEMO_SCORE
+  if (!orchestraUsesMidiPitch(csd)) return CHOWNING_HZ_DEMO_SCORE
+  return GENERIC_OFFLINE_DEMO_SCORE
+}
+
 /** Prepare Agent CSD for offline WAV preview (afplay / file render). */
 export function prepareCsdForOfflineRender(csd: string): string {
   let s = ensureCsoundLimiterCsOptions(csd.trim())
@@ -95,7 +144,7 @@ export function prepareCsdForOfflineRender(csd: string): string {
   const hasDemo = csdHasScheduledDemoScore(s)
 
   if (hasVoice && !hasDemo) {
-    const score = orchestraNeedsEchoBus(s) ? BASS_OFFLINE_DEMO_SCORE : GENERIC_OFFLINE_DEMO_SCORE
+    const score = pickOfflineDemoScore(s)
     if (/<CsScore>[\s\S]*?<\/CsScore>/i.test(s)) {
       s = s.replace(/<CsScore>[\s\S]*?<\/CsScore>/i, score)
     } else {

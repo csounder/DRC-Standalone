@@ -43,9 +43,8 @@ export const WORKSHOP_MODEL_ROUTES: ModelRouteRule[] = [
     },
   },
   {
-    test: (q) =>
-      /\b(chowning|fm\s*bell|bell.*fm)\b/.test(q) &&
-      !/\b(shimmer|simple|plain|stick)\b/.test(q),
+    // Bare "FM bell" → fm_bell_starter (golden-shortcut). Chowning model is Player-only (p4 in Hz).
+    test: (q) => /\bchowning\b/.test(q) && /\b(bell|chime)\b/.test(q),
     route: {
       starterId: 'chowning_fm_bell',
       filename: 'models/chowning/chowning_fm_bell.csd',

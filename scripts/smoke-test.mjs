@@ -1269,6 +1269,49 @@ if (existsSync(modelRoutesPath) && existsSync(goldenPath)) {
   } else {
     bad('workshop-model-routes not wired into golden-shortcut')
   }
+  if (routes.includes('chowning_fm_bell')) {
+    const idx = routes.indexOf("starterId: 'chowning_fm_bell'")
+    const chowningBellBlock = idx >= 0 ? routes.slice(Math.max(0, idx - 180), idx + 80) : ''
+    const requiresChowning = chowningBellBlock.includes('/\\bchowning\\b/')
+    const allowsBareFmBell = chowningBellBlock.includes('fm\\s*bell') || chowningBellBlock.includes('bell.*fm')
+    if (requiresChowning && !allowsBareFmBell) {
+      ok('chowning_fm_bell route requires explicit "chowning" (not bare FM bell)')
+    } else {
+      bad('chowning_fm_bell still matches bare "FM bell" — use fm_bell_starter instead')
+    }
+  } else {
+    bad('workshop-model-routes missing chowning_fm_bell')
+  }
+  if (golden.includes('matchFmBellStarter') && golden.includes('extractGoldenIntent')) {
+    ok('golden-shortcut prioritizes fm_bell_starter and parses artifact-edit intent')
+  } else {
+    bad('golden-shortcut missing FM bell priority / intent extraction')
+  }
+}
+if (offlinePrepareSrc.includes('BELL_OFFLINE_DEMO_SCORE') && offlinePrepareSrc.includes('CHOWNING_HZ_DEMO_SCORE')) {
+  ok('offline prepare: bell melody + Hz Chowning demo scores')
+} else {
+  bad('csd-offline-prepare missing bell/Hz demo score guards')
+}
+const chowningBellPath = join(REPO, 'resources/workshop-starters/models/chowning/chowning_fm_bell.csd')
+if (existsSync(chowningBellPath) && offlinePrepareSrc.includes('CHOWNING_HZ_DEMO_SCORE')) {
+  const raw = readFileSync(chowningBellPath, 'utf-8')
+  const orch = raw.match(/<CsInstruments>([\s\S]*?)<\/CsInstruments>/i)?.[1] ?? ''
+  const usesMidi = /\bcpsmidinn\s*\(\s*p4\s*\)/i.test(orch)
+  const hzFirst = offlinePrepareSrc.match(/CHOWNING_HZ_DEMO_SCORE = `[\s\S]*?i 1 0\s+4\.5\s+([\d.]+)/)?.[1]
+  if (!usesMidi && hzFirst && parseFloat(hzFirst) > 200) {
+    ok('chowning_fm_bell offline demo uses Hz pitches (not MIDI 60)')
+  } else {
+    bad('chowning_fm_bell offline demo guard missing or still MIDI-as-Hz')
+  }
+}
+if (existsSync(bellPath)) {
+  const fmBellStarter = readFileSync(bellPath, 'utf-8')
+  if (/\bkMod1Idx\b/.test(fmBellStarter) && /\bi\s+1\s+0\s+4\.5\s+72\b/.test(fmBellStarter)) {
+    ok('fm_bell_starter has shimmer voice + descending MIDI bell score')
+  } else {
+    bad('fm_bell_starter missing workshop bell character markers')
+  }
 }
 const brassModel = join(REPO, 'resources/workshop-starters/models/misc_synths/WaveshapeBrass.csd')
 if (existsSync(brassModel) && existsSync(legacyAdaptPath)) {

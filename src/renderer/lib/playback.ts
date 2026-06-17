@@ -11,7 +11,7 @@ export interface PlayArtifactOptions {
 
 // One auto-fix attempt per artifact — prevents compile→fix→play→fail→fix loops.
 const autofixAttempts = new Map<string, number>()
-const AUTOFIX_LIMIT = 2
+const AUTOFIX_LIMIT = 1
 
 /** Prepare CSD for offline WAV render (strips realtime flags, injects demo score if needed). */
 export function prepareCsdForWavRender(csd: string): string {
@@ -150,9 +150,18 @@ async function requestAutofix(
     message: kind === 'runtime' ? 'Auto-fixing runtime error…' : 'Auto-fixing compile error…',
   })
 
+  const broken = primaryContent(artifact)
+  const bellHzTrap =
+    /\biFreq\s*=\s*p4\b/i.test(broken) &&
+    !/\bcpsmidinn\s*\(\s*p4\s*\)/i.test(broken) &&
+    /\b(bell|chime|shimmer|giBellIdx|giFcRatio)\b/i.test(broken)
+  const bellHint = bellHzTrap
+    ? ' Hint: this bell patch reads p4 as Hz — score p4 must be 300–900 (A4≈440), not MIDI 60–72 (that sounds like sub-bass). Prefer `iFreq = cpsmidinn(p4)` or copy golden `fm_bell_starter.csd`.'
+    : ''
+
   const hint = kind === 'runtime'
-    ? `Hint: INIT/PERF errors usually come from rate mismatches at init time. Common traps: \`i(kVar)\` on a k-var that's only written inside the instrument body (reads 0 at init); passing a k-rate ftable index to \`table\` instead of \`tablekt\`; expseg endpoints of 0; unknown opcodes; or silent output from unscheduled instruments / missing \`out\`.`
-    : `Hint: "Unable to find opcode entry for '<opcode>' with matching argument types" means wrong-rate args — often \`foscili\` needs SIX args \`(xamp, kcps, xcar, xmod, kndx, ifn)\`, not three. For envelopes use \`linsegr\` with \`p3\`, not \`expseg\` with \`p3 *\` math. Never schedule \`i 99\` without defining \`instr 99\`.` 
+    ? `Hint: INIT/PERF errors usually come from rate mismatches at init time. Common traps: \`i(kVar)\` on a k-var that's only written inside the instrument body (reads 0 at init); passing a k-rate ftable index to \`table\` instead of \`tablekt\`; expseg endpoints of 0; unknown opcodes; or silent output from unscheduled instruments / missing \`out\`.${bellHint}`
+    : `Hint: "Unable to find opcode entry for '<opcode>' with matching argument types" means wrong-rate args — often \`foscili\` needs SIX args \`(xamp, kcps, xcar, xmod, kndx, ifn)\`, not three. For envelopes use \`linsegr\` with \`p3\`, not \`expseg\` with \`p3 *\` math. Never schedule \`i 99\` without defining \`instr 99\`.${bellHint}`
 
   const prompt =
     `The CSD you just wrote failed to ${kind === 'runtime' ? 'run' : 'compile'}. Fix it and emit the full corrected <CsoundSynthesizer>…</CsoundSynthesizer> block (one short sentence, then the CSD).\n\n` +

@@ -45,15 +45,48 @@ const RULES: Rule[] = [
   },
 ]
 
+/** User text from a wrapped artifact-edit payload (panel follow-ups). */
+export function extractGoldenIntent(userText: string): string {
+  const userNote = userText.match(/<user-note>\s*([\s\S]*?)\s*<\/user-note>/i)?.[1]
+  if (userNote?.trim()) return userNote.trim()
+  const afterArtifact = userText.match(/<\/current-artifact>\s*\n\n([\s\S]*)$/i)?.[1]
+  if (afterArtifact?.trim()) return afterArtifact.trim()
+  return userText.trim()
+}
+
+function isTimbreRescueIntent(q: string): boolean {
+  return (
+    /\b(bell|chime|shimmer|woodblock|bass|brass|clarinet)\b/.test(q) &&
+    /\b(sound|sounds|like|wrong|fix|correct|actually|instead|not|too)\b/.test(q)
+  )
+}
+
+function matchFmBellStarter(q: string): GoldenShortcut | null {
+  const rule = RULES.find((r) => r.starterId === 'fm_bell')
+  if (!rule?.test(q)) return null
+  const csd = readWorkshopStarter(rule.filename)
+  if (!csd?.trim()) return null
+  return { intro: rule.intro, csd: csd.trim(), starterId: rule.starterId }
+}
+
 /** Deterministic golden CSD for common workshop requests — skips the LLM when matched. */
 export function matchGoldenShortcut(userText: string): GoldenShortcut | null {
-  const q = userText.toLowerCase().replace(/\s+/g, ' ')
+  const intent = extractGoldenIntent(userText)
+  const q = intent.toLowerCase().replace(/\s+/g, ' ')
   if (q.length < 4) return null
-  if (/\b(change|modify|add|remove|fix|convert|adapt|make it|more|less)\b/.test(q) && q.length > 40) {
+  if (
+    !isTimbreRescueIntent(q) &&
+    /\b(change|modify|add|remove|fix|convert|adapt|make it|more|less)\b/.test(q) &&
+    userText.length > 40
+  ) {
     return null
   }
 
-  const modelRoute = matchWorkshopModelRoute(userText)
+  // Workshop shimmer bell before Chowning Player models — "FM Bell" must not land on Hz p4 hold scores.
+  const bell = matchFmBellStarter(q)
+  if (bell) return bell
+
+  const modelRoute = matchWorkshopModelRoute(intent)
   if (modelRoute) {
     const csd = readWorkshopStarter(modelRoute.filename)
     if (csd?.trim()) {
