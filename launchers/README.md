@@ -3,6 +3,7 @@
 | OS | Instructor (Pro+) | Attendee (free tier) |
 |----|-----------------|----------------------|
 | **macOS** | `Dr.C-Standalone.command` | `Dr.C-Workshop-Attendee.command` |
+| **macOS → Linux VM** | `Dr.C-Linux-VM.command` (Multipass `lac-2026-linux`) | — |
 | **Linux** | `chmod +x Dr.C-Standalone.sh && ./Dr.C-Standalone.sh` | `chmod +x Dr.C-Workshop-Attendee.sh && ./Dr.C-Workshop-Attendee.sh` |
 
 From repo root:

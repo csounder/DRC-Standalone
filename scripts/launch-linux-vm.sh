@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# LAC 2026 — open Multipass Linux VM shell for workshop demos (macOS host)
+set -euo pipefail
+
+VM_NAME="${DRC_LINUX_VM:-lac-2026-linux}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PROVISION_SCRIPT="${SCRIPT_DIR}/linux-vm-provision.sh"
+
+DO_PROVISION=0
+DO_SYNC=0
+for arg in "$@"; do
+  case "$arg" in
+    --provision) DO_PROVISION=1 ;;
+    --sync) DO_SYNC=1 ;;
+    -h|--help)
+      cat <<EOF
+Usage: $(basename "$0") [--provision] [--sync]
+
+  Default: start VM if needed, show status, enter interactive shell.
+
+  --provision  Re-run linux-vm-provision.sh inside the VM
+  --sync       Rsync repos from /mnt mounts (if present in VM)
+
+VM name: ${VM_NAME} (override with DRC_LINUX_VM)
+EOF
+      exit 0
+      ;;
+  esac
+done
+
+if ! command -v multipass >/dev/null 2>&1; then
+  echo "multipass is not installed."
+  echo ""
+  echo "Install Multipass for macOS:"
+  echo "  brew install --cask multipass"
+  echo "  — or — https://multipass.run/install"
+  echo ""
+  echo "Then create the workshop VM (Ubuntu 22.04 aarch64) and run provision once."
+  exit 1
+fi
+
+if ! multipass info "${VM_NAME}" >/dev/null 2>&1; then
+  echo "Multipass VM '${VM_NAME}' not found."
+  echo ""
+  echo "Create and provision the LAC 2026 Linux VM, then re-run this launcher."
+  echo "Provision script: ${PROVISION_SCRIPT}"
+  exit 1
+fi
+
+STATE="$(multipass info "${VM_NAME}" 2>/dev/null | awk -F': ' '/^State:/ {print $2}')"
+if [[ "${STATE}" != "Running" ]]; then
+  echo "Starting ${VM_NAME}…"
+  multipass start "${VM_NAME}"
+fi
+
+IP="$(multipass info "${VM_NAME}" 2>/dev/null | awk -F': ' '/^IPv4:/ {print $2; exit}')"
+echo ""
+echo "━━━ ${VM_NAME} ━━━"
+multipass info "${VM_NAME}" | awk -F': ' '/^State:|^Release:|^IPv4:/ {printf "  %-8s %s\n", $1, $2}'
+echo ""
+
+if [[ "${DO_SYNC}" -eq 1 ]]; then
+  echo "Syncing repos from VM mounts (if present)…"
+  multipass exec "${VM_NAME}" -- bash -lc '
+    set -euo pipefail
+    synced=0
+    if [ -d /mnt/DRC-Standalone ]; then
+      rsync -a --delete \
+        --exclude node_modules --exclude out --exclude release --exclude dist \
+        /mnt/DRC-Standalone/ ~/DRC-Standalone/
+      echo "  synced /mnt/DRC-Standalone → ~/DRC-Standalone"
+      synced=1
+    fi
+    if [ -d /mnt/Dr.C ]; then
+      rsync -a --delete \
+        --exclude node_modules --exclude .turbo --exclude dist \
+        --exclude "sdks/vscode/images/icon.png" \
+        --exclude "sdks/vscode/images/button-dark.svg" \
+        --exclude "sdks/vscode/images/button-light.svg" \
+        /mnt/Dr.C/ ~/Dr.C/ || true
+      echo "  synced /mnt/Dr.C → ~/Dr.C"
+      synced=1
+    fi
+    if [ "$synced" -eq 0 ]; then
+      echo "  no /mnt mounts — repos should already be in ~/DRC-Standalone and ~/Dr.C"
+    fi
+  '
+  echo ""
+fi
+
+if [[ "${DO_PROVISION}" -eq 1 ]]; then
+  echo "Re-running provision inside ${VM_NAME}…"
+  if [[ -f "${PROVISION_SCRIPT}" ]]; then
+    multipass transfer "${PROVISION_SCRIPT}" "${VM_NAME}:/tmp/linux-vm-provision.sh"
+    multipass exec "${VM_NAME}" -- bash -lc 'chmod +x /tmp/linux-vm-provision.sh && /tmp/linux-vm-provision.sh'
+  elif multipass exec "${VM_NAME}" -- test -x ~/linux-vm-provision.sh 2>/dev/null; then
+    multipass exec "${VM_NAME}" -- bash -lc '~/linux-vm-provision.sh'
+  else
+    echo "Provision script not found on host (${PROVISION_SCRIPT}) or in VM (~/linux-vm-provision.sh)."
+    exit 1
+  fi
+  echo ""
+fi
+
+cat <<'CHEAT'
+Quick commands (inside VM):
+
+  export PATH="$HOME/bin:$HOME/Applications/Csound/bin:$HOME/.bun/bin:$PATH"
+  export LD_LIBRARY_PATH="$HOME/Applications/Csound/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  cd ~/DRC-Standalone
+  csound --version
+  npm test
+  ./scripts/launch-drc.sh
+  ./launchers/Dr.C-Standalone.sh
+
+CHEAT
+
+echo "Entering Linux shell (type exit to return to macOS)…"
+echo ""
+exec multipass shell "${VM_NAME}"

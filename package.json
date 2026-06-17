@@ -18,6 +18,7 @@
     "sync:cli": "node scripts/sync-knowledge-to-cli.mjs",
     "test:workshop": "node scripts/workshop-test.mjs",
     "generate:workshop-handout": "node scripts/generate-workshop-handout.mjs",
+    "generate:install-slide": "node scripts/generate-workshop-handout.mjs --install-slide",
     "test": "npm run test:workshop",
     "extract-knowledge": "node scripts/extract-knowledge.mjs",
     "extract-knowledge:dry": "node scripts/extract-knowledge.mjs --dry-run",
