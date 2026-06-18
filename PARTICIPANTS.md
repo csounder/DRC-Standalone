@@ -97,6 +97,16 @@ Pre-built installers may be added later; for LAC 2026 use **git clone** on `lac-
 | Attendee (free tier) | `launchers/Dr.C-Workshop-Attendee.command` |
 | Instructor (Pro+) | `launchers/Dr.C-Standalone.command` |
 
+**First launch (Gatekeeper):** Right-click the `.command` file → **Open** → **Open**. If macOS blocks it or says “damaged”:
+
+```bash
+xattr -cr ~/Dr.C-Standalone/launchers/*.command
+xattr -cr ~/Dr.C-Workshop-Demo/*.command
+chmod +x ~/Dr.C-Standalone/launchers/*.command
+```
+
+Packaged app: `xattr -cr /Applications/DrC.app`
+
 Or in Terminal:
 
 ```bash
@@ -327,7 +337,8 @@ Full steps: `~/Dr.C-URLS/INSTALL-STANDALONE.md` §2.5–2.8.
 | `csound not found` | Re-run OS install steps; restart terminal; use workshop launcher (sets PATH) |
 | Blank screen after Send | Close app; launcher kills stale port 5173 |
 | Agent empty / weak Csound | Enable Ollama, or add Anthropic/OpenAI; use offline demos |
-| macOS "damaged" app | Right-click → Open, or `xattr -cr DrC.app` |
+| macOS `.command` blocked / “damaged” | Right-click → **Open** → **Open**; `xattr -cr ~/Dr.C-Standalone/launchers/*.command` · `chmod +x launchers/*.command` (see §3) |
+| macOS DrC.app “damaged” | Right-click → **Open** → **Open**; or `xattr -cr /Applications/DrC.app` |
 | Linux `npm install` fails | Use Node 22; `npx electron-builder install-app-deps` |
 | Linux apt `csound` is 6.x | Ubuntu 22.04 ships 6.17 — build Csound 7 from source (see Linux section above) |
 | `test:platform` fails Csound 7 | Same — workshop gate needs 7.x even if `test:smoke` passes on 6.x |
