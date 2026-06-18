@@ -6,6 +6,8 @@ log() { echo "[provision] $*"; }
 
 export DEBIAN_FRONTEND=noninteractive
 
+ARCH="$(uname -m)"
+
 log "apt base packages"
 sudo apt-get update -qq
 sudo apt-get install -y -qq \
@@ -13,23 +15,35 @@ sudo apt-get install -y -qq \
   libsndfile1-dev libasound2-dev libjack-jackd2-dev \
   bison flex libssl-dev python3 unzip \
   libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2 libgbm1 \
-  rsync lsb-release python3-numpy
+  rsync lsb-release python3-numpy \
+  pulseaudio pulseaudio-utils pavucontrol alsa-utils
+
+log "PulseAudio — audio group + user daemon"
+sudo usermod -aG audio "$USER" 2>/dev/null || true
+if ! pulseaudio --check 2>/dev/null; then
+  pulseaudio --start 2>/dev/null || log "pulseaudio --start deferred (no session yet — OK over SSH)"
+fi
+if pulseaudio --check 2>/dev/null; then
+  log "PulseAudio daemon running"
+else
+  log "PulseAudio not running in this shell — start after login: pulseaudio --start"
+fi
 
 log "Web browser (Open in Browser / web app testing)"
-ARCH="$(dpkg --print-architecture)"
-case "$ARCH" in
+DPKG_ARCH="$(dpkg --print-architecture)"
+case "$DPKG_ARCH" in
   arm64) CHROME_DEB_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_arm64.deb" ;;
   amd64) CHROME_DEB_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" ;;
   *) CHROME_DEB_URL="" ;;
 esac
-CHROME_DEB="/tmp/google-chrome-stable_${ARCH}.deb"
+CHROME_DEB="/tmp/google-chrome-stable_${DPKG_ARCH}.deb"
 if [ -n "$CHROME_DEB_URL" ] && curl -fsSL -o "$CHROME_DEB" "$CHROME_DEB_URL" && [ -s "$CHROME_DEB" ]; then
   sudo apt-get install -y -qq "$CHROME_DEB" || { sudo dpkg -i "$CHROME_DEB" && sudo apt-get install -f -y -qq; }
   rm -f "$CHROME_DEB"
   google-chrome-stable --version 2>/dev/null | head -1 || google-chrome --version 2>/dev/null | head -1 || true
 else
   rm -f "$CHROME_DEB"
-  log "No Google Chrome .deb for ${ARCH:-unknown} — installing Chromium (Ubuntu snap via apt)"
+  log "No Google Chrome .deb for ${DPKG_ARCH:-unknown} — installing Chromium (Ubuntu snap via apt)"
   sudo apt-get install -y -qq chromium-browser
   chromium-browser --version 2>/dev/null | head -1 || true
   log "Manual Chrome download: https://www.google.com/chrome/"
@@ -83,38 +97,88 @@ fi
 # Docs: PARTICIPANTS.md, INSTALL-STANDALONE.md §2.5–2.8
 # Set INSTALL_OPTIONAL_TOOLS=0 to skip.
 if [ "${INSTALL_OPTIONAL_TOOLS:-1}" = "1" ]; then
-  log "optional companion tools (CsoundQt, Cabbage, Audacity, Reaper)"
+  log "optional companion tools (Audacity, Reaper, CsoundQt, Cabbage)"
 
   if ! command -v audacity >/dev/null 2>&1; then
     sudo apt-get install -y -qq audacity \
       || log "audacity apt failed — try: flatpak install flathub org.audacityteam.Audacity"
   fi
 
-  ARCH="$(uname -m)"
-
-  # CsoundQt 7 — https://github.com/CsoundQt/CsoundQt/releases (v7 AppImage)
-  if ! ls ~/Applications/CsoundQt*.AppImage >/dev/null 2>&1 && ! command -v csoundqt >/dev/null 2>&1; then
-    if [ "$ARCH" = "aarch64" ]; then
-      log "CsoundQt: check GitHub releases for aarch64 AppImage — https://github.com/CsoundQt/CsoundQt/releases"
+  REAPER_VER=774
+  case "$ARCH" in
+    aarch64|arm64) REAPER_TAR="reaper${REAPER_VER}_linux_aarch64.tar.xz" ;;
+    x86_64|amd64) REAPER_TAR="reaper${REAPER_VER}_linux_x86_64.tar.xz" ;;
+    *) REAPER_TAR="" ;;
+  esac
+  if [ -n "$REAPER_TAR" ] && [ ! -x "$HOME/Applications/Reaper/REAPER/reaper" ]; then
+    mkdir -p ~/Applications/Reaper ~/bin
+    if curl -fsSL -A "Mozilla/5.0" -o "/tmp/$REAPER_TAR" "https://www.reaper.fm/files/7.x/$REAPER_TAR"; then
+      tar -xf "/tmp/$REAPER_TAR" -C /tmp
+      REAPER_DIR="$(find /tmp -maxdepth 1 -type d -name "reaper_linux_*" | head -1)"
+      rsync -a "$REAPER_DIR/" ~/Applications/Reaper/
+      chmod +x ~/Applications/Reaper/REAPER/reaper
+      ln -sf ~/Applications/Reaper/REAPER/reaper ~/bin/reaper
+      log "Reaper installed — accept eval license on first GUI launch"
     else
-      CSOUNDQT_URL="https://github.com/CsoundQt/CsoundQt/releases/download/v7.0.0-beta3/CsoundQt-7.0.0-beta3-x86_64.AppImage"
-      if curl -fsSL -o ~/Applications/CsoundQt.AppImage "$CSOUNDQT_URL" 2>/dev/null; then
-        chmod +x ~/Applications/CsoundQt.AppImage
-        ln -sf ~/Applications/CsoundQt.AppImage ~/bin/csoundqt 2>/dev/null || true
-      else
-        log "CsoundQt download failed — manual: https://github.com/CsoundQt/CsoundQt/releases"
-      fi
+      log "Reaper download failed — manual: https://www.reaper.fm/download.php"
     fi
   fi
 
-  # Cabbage — https://cabbageaudio.com/download/ or GitHub releases
-  if ! command -v cabbage >/dev/null 2>&1; then
-    log "Cabbage: manual install from https://cabbageaudio.com/download/ (aarch64 builds may lag x86_64)"
+  # CsoundQt 7 — https://github.com/CsoundQt/CsoundQt/releases (v7 AppImage is x86_64 only)
+  mkdir -p ~/Applications/CsoundQt
+  CSQ_APPIMAGE="CsoundQt-7.0.0-beta4-x86_64.AppImage"
+  CSQ_URL="https://github.com/CsoundQt/CsoundQt/releases/download/v7.0.0-beta4/${CSQ_APPIMAGE}"
+  if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+    if [ ! -x "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE" ]; then
+      curl -fsSL -o "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE" "$CSQ_URL"
+      chmod +x "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE"
+    fi
+    ln -sf "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE" ~/bin/csoundqt 2>/dev/null || true
+    log "CsoundQt 7 AppImage → ~/bin/csoundqt"
+  else
+    log "CsoundQt: no aarch64 v7 binary — use macOS CsoundQt or BUILD_CSOUNDQT=1 (source build, slow)"
+    if [ "${BUILD_CSOUNDQT:-0}" = "1" ]; then
+      log "BUILD_CSOUNDQT=1 — building CsoundQt 7 from csoundqt7 branch (Qt6 + user Csound 7)"
+      sudo apt-get install -y -qq qt6-base-dev qt6-tools-dev qt6-tools-dev-tools \
+        libqt6svg6-dev libqt6opengl6-dev libjack-jackd2-dev
+      if [ ! -d ~/src/CsoundQt ]; then
+        git clone --depth 1 --branch csoundqt7 https://github.com/CsoundQt/CsoundQt.git ~/src/CsoundQt
+      fi
+      cmake -S ~/src/CsoundQt -B ~/src/CsoundQt/build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH="$HOME/Applications/Csound"
+      cmake --build ~/src/CsoundQt/build -j"$(nproc)"
+      cmake --install ~/src/CsoundQt/build --prefix "$HOME/Applications/CsoundQt"
+      ln -sf "$HOME/Applications/CsoundQt/bin/CsoundQt" ~/bin/csoundqt 2>/dev/null || true
+    fi
   fi
 
-  # Reaper — https://www.reaper.fm/download.php (eval license; aarch64 + x86_64)
-  if [ ! -d ~/opt/REAPER ] && [ ! -x ~/Applications/Reaper/reaper ]; then
-    log "Reaper: manual download from https://www.reaper.fm/download.php — eval license, install to ~/opt/REAPER"
+  # Cabbage — https://github.com/rorywalsh/cabbage/releases (Linux zip is x86_64 only; latest v2.10.0)
+  mkdir -p ~/src/cabbage-dl ~/Applications/Cabbage
+  CABBAGE_ZIP="CabbageLinux-2.10.0.zip"
+  CABBAGE_URL="https://github.com/rorywalsh/cabbage/releases/download/v2.10.0/${CABBAGE_ZIP}"
+  if [ ! -f "$HOME/src/cabbage-dl/$CABBAGE_ZIP" ]; then
+    curl -fsSL -o "$HOME/src/cabbage-dl/$CABBAGE_ZIP" "$CABBAGE_URL" || log "Cabbage zip download failed"
+  fi
+  if [ -f "$HOME/src/cabbage-dl/$CABBAGE_ZIP" ]; then
+    unzip -qo "$HOME/src/cabbage-dl/$CABBAGE_ZIP" -d "$HOME/src/cabbage-dl" 2>/dev/null || true
+  fi
+  if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+    if [ ! -f "$HOME/Applications/Cabbage/installCabbage.sh" ]; then
+      rsync -a --exclude "$CABBAGE_ZIP" "$HOME/src/cabbage-dl/" "$HOME/Applications/Cabbage/" 2>/dev/null || true
+    fi
+    if [ -x "$HOME/Applications/Cabbage/installCabbage.sh" ]; then
+      (cd "$HOME/Applications/Cabbage" && sudo ./installCabbage.sh) || log "Cabbage installCabbage.sh failed — run manually"
+    fi
+    if command -v cabbage >/dev/null 2>&1; then
+      log "Cabbage → $(command -v cabbage)"
+    fi
+  else
+    log "Cabbage: Linux zip is x86_64 only — no native aarch64 IDE (use macOS Cabbage-2.10.x for workshop GUI)"
+    log "Cabbage export smoke still runs on Mac: node scripts/test-cabbage-export.mjs"
+    mkdir -p ~/Applications/Cabbage
+    echo "aarch64: no native Cabbage binary — use macOS for GUI; zip cached at ~/src/cabbage-dl/" \
+      > ~/Applications/Cabbage/AARCH64-BLOCKER.txt
   fi
 fi
 
@@ -151,55 +215,8 @@ git config --global user.name "Workshop" 2>/dev/null || true
 log "workshop demo folder"
 mkdir -p ~/Dr.C-Workshop-Demo
 
-
-
-# --- Optional workshop companion tools (recommended for LAC; install after Csound 7) ---
-log "optional: Audacity"
-if ! command -v audacity >/dev/null 2>&1; then
-  sudo apt-get install -y -qq audacity
-fi
-
-log "optional: Reaper eval (reaper.fm — accept license on first GUI launch)"
-ARCH="$(uname -m)"
-REAPER_VER=774
-case "$ARCH" in
-  aarch64|arm64) REAPER_TAR="reaper${REAPER_VER}_linux_aarch64.tar.xz" ;;
-  x86_64|amd64) REAPER_TAR="reaper${REAPER_VER}_linux_x86_64.tar.xz" ;;
-  *) REAPER_TAR="" ;;
-esac
-if [ -n "$REAPER_TAR" ] && [ ! -x "$HOME/Applications/Reaper/REAPER/reaper" ]; then
-  mkdir -p ~/Applications/Reaper ~/bin
-  curl -fsSL -A "Mozilla/5.0" -o "/tmp/$REAPER_TAR" "https://www.reaper.fm/files/7.x/$REAPER_TAR"
-  tar -xf "/tmp/$REAPER_TAR" -C /tmp
-  REAPER_DIR="$(find /tmp -maxdepth 1 -type d -name "reaper_linux_*" | head -1)"
-  rsync -a "$REAPER_DIR/" ~/Applications/Reaper/
-  chmod +x ~/Applications/Reaper/REAPER/reaper
-  ln -sf ~/Applications/Reaper/REAPER/reaper ~/bin/reaper
-fi
-
-log "optional: CsoundQt 7 (GitHub v7 AppImage — upstream x86_64 only as of beta4)"
-mkdir -p ~/Applications/CsoundQt
-CSQ_APPIMAGE="CsoundQt-7.0.0-beta4-x86_64.AppImage"
-if [ ! -f "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE" ]; then
-  curl -fsSL -o "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE"     "https://github.com/CsoundQt/CsoundQt/releases/download/v7.0.0-beta4/$CSQ_APPIMAGE"
-  chmod +x "$HOME/Applications/CsoundQt/$CSQ_APPIMAGE"
-fi
-if [ "$ARCH" = aarch64 ] || [ "$ARCH" = arm64 ]; then
-  log "note: CsoundQt AppImage is x86_64 — on ARM VMs use host macOS CsoundQt or build from source"
-fi
-
-log "optional: Cabbage (rorywalsh/cabbage Linux zip — VST3/rack; binaries are x86_64)"
-mkdir -p ~/src/cabbage-dl ~/Applications/Cabbage
-CABBAGE_ZIP="CabbageLinux-2.10.0.zip"
-if [ ! -f "$HOME/src/cabbage-dl/$CABBAGE_ZIP" ]; then
-  curl -fsSL -o "$HOME/src/cabbage-dl/$CABBAGE_ZIP"     "https://github.com/rorywalsh/cabbage/releases/download/v2.10.0/$CABBAGE_ZIP"
-  unzip -qo "$HOME/src/cabbage-dl/$CABBAGE_ZIP" -d "$HOME/src/cabbage-dl"
-fi
-if [ ! -f "$HOME/Applications/Cabbage/installCabbage.sh" ]; then
-  rsync -a --exclude "$CABBAGE_ZIP" "$HOME/src/cabbage-dl/" "$HOME/Applications/Cabbage/"
-fi
-if [ "$ARCH" = aarch64 ] || [ "$ARCH" = arm64 ]; then
-  log "note: Cabbage Linux 2.10 zip has no native aarch64 IDE — use macOS Cabbage for GUI workshop steps"
-fi
-
 log "provision complete"
+log "verify: csound --version | head -1; pulseaudio --check; which csoundqt cabbage reaper 2>/dev/null"
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+  log "aarch64 notes: CsoundQt/Cabbage GUI → use Mac host; RDP audio needs pulseaudio-module-xrdp (vm-setup-linux-desktop.sh)"
+fi

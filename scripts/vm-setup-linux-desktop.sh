@@ -122,9 +122,27 @@ if [[ "${DRC_DESKTOP_ONLY:-}" == "1" ]]; then
   exit 0
 fi
 
-echo "[vm-setup] apt update + XFCE + xrdp"
+echo "[vm-setup] apt update + XFCE + xrdp + PulseAudio"
 apt-get update -qq
-apt-get install -y -qq xfce4 xfce4-goodies xrdp dbus-x11
+apt-get install -y -qq xfce4 xfce4-goodies xrdp dbus-x11 \
+  pulseaudio pulseaudio-utils pavucontrol alsa-utils
+
+# RDP audio redirection (neutrinolabs pulseaudio-module-xrdp)
+if ! dpkg -l pulseaudio-module-xrdp 2>/dev/null | grep -q '^ii'; then
+  if apt-cache show pulseaudio-module-xrdp >/dev/null 2>&1; then
+    apt-get install -y -qq pulseaudio-module-xrdp
+  else
+    echo "[vm-setup] pulseaudio-module-xrdp not in apt — building from neutrinolabs (one-time)"
+    apt-get install -y -qq libpulse-dev autoconf automake libtool pkg-config
+    BUILD_DIR="/tmp/pulseaudio-module-xrdp-build"
+    rm -rf "$BUILD_DIR"
+    git clone --depth 1 https://github.com/neutrinolabs/pulseaudio-module-xrdp.git "$BUILD_DIR"
+    (cd "$BUILD_DIR" && ./bootstrap && ./configure PULSE_DIR=/usr && make -j"$(nproc)" && make install)
+    ldconfig
+  fi
+fi
+
+adduser "${VM_USER}" audio 2>/dev/null || usermod -aG audio "${VM_USER}"
 
 if ! passwd -S "${VM_USER}" 2>/dev/null | grep -q P; then
   echo "${VM_USER}:ubuntu" | chpasswd
@@ -142,6 +160,10 @@ export XDG_CURRENT_DESKTOP=XFCE
 export XDG_DATA_DIRS=/usr/share/xfce4:/usr/local/share:/usr/share:/var/lib/snapd/desktop
 export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_GL_VERSION_OVERRIDE=3.3
+# Start PulseAudio for ALSA apps and xrdp sound redirection
+if ! pulseaudio --check 2>/dev/null; then
+  pulseaudio --start --log-target=syslog 2>/dev/null || true
+fi
 exec dbus-launch --exit-with-session xfce4-session
 XSESS
 chown "${VM_USER}:${VM_USER}" "${VM_HOME}/.xsession"
@@ -167,3 +189,6 @@ enable_xfce_desktop_launchers
 
 echo "[vm-setup] done — xrdp: $(systemctl is-active xrdp)"
 echo "[vm-setup] RDP: <VM-IP>:3389  user ${VM_USER}  password ubuntu"
+echo "[vm-setup] RDP audio (Mac Windows App): edit PC → Display & Audio → Play sound on: This computer"
+echo "[vm-setup] VM sound test (after RDP login): speaker-test -t sine -f 440 -l 1 -c 2"
+echo "[vm-setup] PulseAudio check: pulseaudio --check && echo OK"
