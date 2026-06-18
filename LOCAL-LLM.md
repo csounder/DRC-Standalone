@@ -85,13 +85,15 @@ Use **Refresh** after the server is running so Dr.C lists models from `/v1/model
 
 ## Compare: local vs free cloud vs your own API key
 
-| Option | Cost | Rate limits | Sound-design quality | Setup |
-|--------|------|-------------|----------------------|--------|
-| **Ollama (local)** | Free | None | Good — better than free Gemini/Groq for many users | Install + server URL + model |
-| Groq / Gemini (free tier) | Free | Yes (~20–30 req/min) | Variable; often weak for Csound | Paste key in Settings |
-| **Your Anthropic / OpenAI key** | Pay per use | Account limits only | **Best** for workshops | Paste key in Settings |
-| **OpenRouter (one key)** | Pay per use | Account limits only | **Best** — routes to Claude, GPT, Gemini | Paste key in Settings |
-| No model | Free | — | Use offline demos only | Web Apps, Player workshop demo |
+| Option | Cost | Rate limits | Sound-design quality | Setup | Standalone? |
+|--------|------|-------------|----------------------|--------|-------------|
+| **Ollama (local)** | Free | None | Good — better than free Gemini/Groq for many users | Install + server URL + model | Yes |
+| Groq / Gemini (free tier) | Free | Yes (~20–30 req/min) | Variable; often weak for Csound | Paste key in Settings | Yes |
+| **OpenRouter (paid defaults)** | Pay per use | Account limits only | **Best** — routes to Claude, GPT, Gemini | Paste key in Settings | Yes |
+| OpenRouter `:free` slugs | Free | Yes (50/day without credits) | Variable | [Browse free models](https://openrouter.ai/models?max_price=0) — **not preset in Dr.C Standalone today** | No (future) |
+| **OpenCode Zen** | Free + paid models | Varies by model | Good for Terminal workflow | `/connect` in Dr.C Terminal | **Terminal only** |
+| **Your Anthropic / OpenAI key** | Pay per use | Account limits only | **Best** for workshops | Paste key in Settings | Yes |
+| No model | Free | — | Use offline demos only | Web Apps, Player workshop demo | Yes |
 
 **Workshop advice:** Encourage everyone to bring **their own** Anthropic or OpenAI API key if they want the best Agent results. Offer **Ollama** as the best free path with no signup. Keep Groq/Gemini as optional backups (rate-limit timers apply).
 
@@ -112,5 +114,7 @@ Use **Refresh** after the server is running so Dr.C lists models from `/v1/model
 ## Dr.C Terminal (CLI)
 
 Same Ollama install. In the TUI: `/settings` → enable **use Ollama** → **test**.
+
+**OpenCode Zen (Terminal only — not Standalone):** `/connect` or `/auth login`, then `/models`. Free rotating models and `opencode/gpt-5-nano` are listed at [opencode.ai/docs/zen](https://opencode.ai/docs/zen/). Paid Zen models need a balance.
 
 Guide: [Dr.C/opencode/GET-STARTED.md](https://github.com/mateolarreaferro/Dr.C/blob/main/opencode/GET-STARTED.md)

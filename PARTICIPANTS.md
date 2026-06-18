@@ -131,9 +131,17 @@ chmod +x launchers/*.sh scripts/*.sh
 
 ---
 
-## 4. Agent model (optional)
+## 4. Agent / LLM (optional)
 
-Dr.C needs a language model for the **Agent** tab. Three paths — pick what fits your workshop.
+Dr.C needs a language model for the **Agent** tab. Pick what fits your workshop.
+
+| Option | Type | Works in Standalone today? | Notes |
+|--------|------|----------------------------|-------|
+| **Ollama** | Local | Yes | Best free path — no signup, no rate limits |
+| Groq | Cloud free | Yes | `llama-3.3-70b-versatile` · ~30 req/min |
+| Gemini | Cloud free | Yes | `gemini-2.5-flash` · backup when Groq throttles |
+| OpenRouter | Cloud | Yes (paid defaults) | Routes to Claude Sonnet — add credits for best results |
+| OpenCode Zen | Cloud | **Terminal only** | Free rotating models at [opencode.ai/docs/zen](https://opencode.ai/docs/zen/) via `/connect` — not in Standalone GUI |
 
 ### Best quality: your own API key (recommended for instructors)
 
@@ -149,12 +157,14 @@ Paste in **Settings → API Keys** → **Test**.
 
 ### Free cloud (backup — rate limits apply)
 
-| Provider | Cost | Get a key |
-|----------|------|-----------|
-| Groq | Free tier | [console.groq.com/keys](https://console.groq.com/keys) |
-| Google Gemini | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| Provider | Cost | Get a key | Model Dr.C uses |
+|----------|------|-----------|-----------------|
+| Groq | Free tier | [console.groq.com/keys](https://console.groq.com/keys) | `llama-3.3-70b-versatile` |
+| Google Gemini | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `gemini-2.5-flash` |
 
 Free tiers are weak for Csound sound design and hit rate limits (~20–30 requests/minute). Dr.C shows a **countdown timer** when throttled and switches between Groq and Gemini if both keys are saved. **Your own paid key works much better.**
+
+**OpenRouter free models:** OpenRouter also hosts zero-cost model slugs ([browse free models](https://openrouter.ai/models?max_price=0)). Dr.C Standalone does **not** preset those today — it routes OpenRouter keys to paid models (`anthropic/claude-sonnet-4`). Use Ollama or Groq/Gemini for free Standalone Agent use.
 
 ### Best free option: local model (Ollama)
 
@@ -232,6 +242,8 @@ Expected: platform checks + **126 passed, 0 failed** (smoke) + build
 ## Dr.C Terminal (optional)
 
 For shell-native users — full guide: **`Dr.C/opencode/GET-STARTED.md`**
+
+**OpenCode Zen (Terminal only):** Sign in with `/connect` or `/auth login`, then `/models` to pick a model. [OpenCode Zen](https://opencode.ai/docs/zen/) offers rotating free models (e.g. Big Pickle, DeepSeek V4 Flash Free) plus `opencode/gpt-5-nano`. Paid Zen models need a balance. This path is **not** available in Dr.C Standalone — use Ollama or Groq/Gemini there instead.
 
 | OS | Launcher |
 |----|----------|

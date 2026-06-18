@@ -54,6 +54,7 @@ export const WORKSHOP_LINK_GROUPS: WorkshopLinkGroup[] = [
     links: [
       { label: 'OpenRouter (one key — recommended)', url: 'https://openrouter.ai/keys' },
       { label: 'OpenRouter credits', url: 'https://openrouter.ai/credits' },
+      { label: 'OpenRouter free models', url: 'https://openrouter.ai/models?max_price=0' },
       { label: 'Anthropic (direct)', url: 'https://console.anthropic.com/settings/keys' },
       { label: 'OpenAI (direct)', url: 'https://platform.openai.com/api-keys' },
       { label: 'Groq (free tier)', url: 'https://console.groq.com/keys' },
@@ -66,6 +67,14 @@ export const WORKSHOP_LINK_GROUPS: WorkshopLinkGroup[] = [
       { label: 'Ollama download', url: 'https://ollama.com/download' },
       { label: 'Ollama model library', url: 'https://ollama.com/library' },
       { label: 'Default model pull', url: 'https://ollama.com/library/qwen2.5-coder:7b' },
+      { label: 'LM Studio (local server)', url: 'https://lmstudio.ai/' },
+    ],
+  },
+  {
+    title: 'Dr.C Terminal only',
+    links: [
+      { label: 'OpenCode Zen models', url: 'https://opencode.ai/docs/zen/' },
+      { label: 'Dr.C Terminal GET-STARTED', url: 'https://github.com/mateolarreaferro/Dr.C/blob/main/opencode/GET-STARTED.md' },
     ],
   },
 ]
