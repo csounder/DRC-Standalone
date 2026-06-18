@@ -86,17 +86,39 @@ EOF
   chown "${VM_USER}:${VM_USER}" "${DESK}"/*.desktop
   chmod +x "${DESK}"/*.desktop
 
-  if command -v gio >/dev/null 2>&1; then
-    for f in "${DESK}"/*.desktop; do
-      runuser -u "${VM_USER}" -- gio set "$f" metadata::trusted true 2>/dev/null || true
-    done
-  fi
-
   echo "[vm-setup] desktop shortcuts installed in ${DESK}"
+}
+
+# XFCE 4.16+: desktop launchers need trusted metadata or clicks do nothing.
+enable_xfce_desktop_launchers() {
+  local desktop="${VM_HOME}/Desktop"
+  local apps="${VM_HOME}/.local/share/applications"
+  mkdir -p "$apps"
+  chown "${VM_USER}:${VM_USER}" "$apps"
+  for f in "${desktop}"/*.desktop; do
+    [ -f "$f" ] || continue
+    chmod +x "$f"
+    chown "${VM_USER}:${VM_USER}" "$f"
+    if command -v gio >/dev/null 2>&1; then
+      runuser -u "${VM_USER}" -- gio set "$f" metadata::trusted true 2>/dev/null || true
+    fi
+    cp -f "$f" "${apps}/$(basename "$f")"
+    chown "${VM_USER}:${VM_USER}" "${apps}/$(basename "$f")"
+    chmod +x "${apps}/$(basename "$f")"
+    if command -v gio >/dev/null 2>&1; then
+      runuser -u "${VM_USER}" -- gio set "${apps}/$(basename "$f")" metadata::trusted true 2>/dev/null || true
+    fi
+  done
+  runuser -u "${VM_USER}" -- xfconf-query -c xfce4-desktop -p /desktop-icons/style -s 0 --create -t int 2>/dev/null || true
+  runuser -u "${VM_USER}" -- xfconf-query -c xfce4-desktop -p /desktop-icons/show-executables -s true --create -t bool 2>/dev/null || true
+  # F5 may not refresh desktop over RDP; use right-click Desktop → Refresh
+  # or: multipass exec lac-2026-linux -- bash -lc "DISPLAY=:0 xfdesktop --reload"
+  echo "[vm-setup] XFCE desktop launchers enabled (trusted + xfconf)"
 }
 
 if [[ "${DRC_DESKTOP_ONLY:-}" == "1" ]]; then
   install_drc_desktop_shortcuts
+  enable_xfce_desktop_launchers
   exit 0
 fi
 
@@ -141,6 +163,7 @@ systemctl enable xrdp
 systemctl restart xrdp
 
 install_drc_desktop_shortcuts
+enable_xfce_desktop_launchers
 
 echo "[vm-setup] done — xrdp: $(systemctl is-active xrdp)"
 echo "[vm-setup] RDP: <VM-IP>:3389  user ${VM_USER}  password ubuntu"
