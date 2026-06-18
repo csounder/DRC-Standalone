@@ -27,13 +27,22 @@ if ! dpkg -l pulseaudio-module-xrdp 2>/dev/null | grep -q '^ii'; then
   if apt-cache show pulseaudio-module-xrdp >/dev/null 2>&1; then
     sudo apt-get install -y -qq pulseaudio-module-xrdp
   else
-    log "Building pulseaudio-module-xrdp from neutrinolabs…"
-    sudo apt-get install -y -qq libpulse-dev autoconf automake libtool pkg-config git
-    BUILD_DIR="/tmp/pulseaudio-module-xrdp-build"
-    rm -rf "$BUILD_DIR"
-    git clone --depth 1 https://github.com/neutrinolabs/pulseaudio-module-xrdp.git "$BUILD_DIR"
-    (cd "$BUILD_DIR" && ./bootstrap && ./configure PULSE_DIR=/usr && make -j"$(nproc)" && sudo make install)
-    sudo ldconfig
+    build_pulseaudio_module_xrdp() {
+      if find /usr/lib -name module-xrdp-sink.so 2>/dev/null | grep -q .; then
+        log "pulseaudio-module-xrdp: already installed"
+        return 0
+      fi
+      log "Building pulseaudio-module-xrdp from neutrinolabs…"
+      sudo apt-get install -y -qq libpulse-dev autoconf automake libtool pkg-config git meson ninja-build
+      local PA_SRC=/tmp/pulseaudio-upstream PA_BUILD=/tmp/pa-meson-build BUILD_DIR=/tmp/pulseaudio-module-xrdp-build
+      rm -rf "$PA_SRC" "$PA_BUILD" "$BUILD_DIR"
+      git clone --depth 1 --branch v15.99.1 https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git "$PA_SRC"
+      meson setup "$PA_BUILD" "$PA_SRC" --prefix=/usr -Ddaemon=false -Dtests=false -Dman=false -Ddoxygen=false
+      git clone --depth 1 https://github.com/neutrinolabs/pulseaudio-module-xrdp.git "$BUILD_DIR"
+      (cd "$BUILD_DIR" && ./bootstrap && ./configure PULSE_DIR="$PA_SRC" PULSE_CONFIG_DIR="$PA_BUILD" && make -j"$(nproc)" && sudo make install)
+      sudo ldconfig
+    }
+    build_pulseaudio_module_xrdp
   fi
 fi
 ls /etc/xrdp/pulseaudio*.so 2>/dev/null || ls /usr/lib*/pulse-*/modules/module-xrdp-sink.so 2>/dev/null || true
