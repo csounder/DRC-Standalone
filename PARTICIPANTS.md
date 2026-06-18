@@ -137,23 +137,26 @@ Dr.C needs a language model for the **Agent** tab. Pick what fits your workshop.
 
 | Option | Type | Works in Standalone today? | Notes |
 |--------|------|----------------------------|-------|
-| **Ollama** | Local | Yes | Best free path — no signup, no rate limits |
-| Groq | Cloud free | Yes | `llama-3.3-70b-versatile` · ~30 req/min |
+| **Ollama** | Local | Yes | **Recommended free path** — no signup, no rate limits |
+| **Anthropic (Claude)** | Cloud paid | Yes | **Richard's typical cloud choice** — best Agent quality for teaching |
+| OpenRouter | Cloud | Yes | One key, many models (incl. free slugs); paid defaults route to Claude Sonnet |
+| Groq | Cloud free | Yes | `llama-3.3-70b-versatile` · ~30 req/min · backup |
 | Gemini | Cloud free | Yes | `gemini-2.5-flash` · backup when Groq throttles |
-| OpenRouter | Cloud | Yes (paid defaults) | Routes to Claude Sonnet — add credits for best results |
-| OpenCode Zen | Cloud | **Terminal only** | Free rotating models at [opencode.ai/docs/zen](https://opencode.ai/docs/zen/) via `/connect` — not in Standalone GUI |
+| OpenCode Zen | Cloud | **Terminal only** | Free rotating models at [opencode.ai/docs/zen](https://opencode.ai/docs/zen/) via `/connect` — **not** in Standalone GUI |
 
 ### Best quality: your own API key (recommended for instructors)
 
-**Simplest:** one **[OpenRouter](https://openrouter.ai/keys)** key — routes to Claude, GPT, Gemini, and more. Add credits at [openrouter.ai/credits](https://openrouter.ai/credits). Paste in **Settings → Agent model → OpenRouter** → **Test**.
+**Richard's typical setup:** **[Anthropic](https://console.anthropic.com/settings/keys)** (Claude) — paste in **Settings → Anthropic (Claude)** → **Test**, or set `ANTHROPIC_API_KEY=` in `.env` (dev / git clone).
 
-| Provider | Cost | Get a key |
-|----------|------|-----------|
-| **OpenRouter** (one key, many models) | Pay per use | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| Anthropic (Claude) direct | Paid credits | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
-| OpenAI direct | Paid credits | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+**Alternative — one key, many models:** **[OpenRouter](https://openrouter.ai/keys)** routes to Claude, GPT, Gemini, and more. Add credits at [openrouter.ai/credits](https://openrouter.ai/credits). Paste in **Settings → OpenRouter** → **Test**. Free model slugs: [openrouter.ai/models?max_price=0](https://openrouter.ai/models?max_price=0) (Dr.C defaults to paid Claude Sonnet when credits are available).
 
-Paste in **Settings → API Keys** → **Test**.
+| Provider | Cost | Get a key | Env var (optional) |
+|----------|------|-----------|-------------------|
+| **Anthropic (Claude)** | Pay per use | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) | `ANTHROPIC_API_KEY` |
+| **OpenRouter** (one key, many models) | Pay per use | [openrouter.ai/keys](https://openrouter.ai/keys) | `OPENROUTER_API_KEY` |
+| OpenAI direct | Pay per use | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` |
+
+Paste keys in **Settings → API Keys** → **Test** (packaged builds) or copy `.env.example` → `.env` for dev.
 
 ### Free cloud (backup — rate limits apply)
 

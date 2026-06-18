@@ -89,13 +89,16 @@ Use **Refresh** after the server is running so Dr.C lists models from `/v1/model
 |--------|------|-------------|----------------------|--------|-------------|
 | **Ollama (local)** | Free | None | Good — better than free Gemini/Groq for many users | Install + server URL + model | Yes |
 | Groq / Gemini (free tier) | Free | Yes (~20–30 req/min) | Variable; often weak for Csound | Paste key in Settings | Yes |
-| **OpenRouter (paid defaults)** | Pay per use | Account limits only | **Best** — routes to Claude, GPT, Gemini | Paste key in Settings | Yes |
+| **Anthropic (Claude)** | Pay per use | Account limits only | **Best** — Richard's typical cloud choice | Settings → **Anthropic (Claude)** or `ANTHROPIC_API_KEY` in `.env` | Yes |
+| **OpenRouter (paid defaults)** | Pay per use | Account limits only | **Best** — one key, routes to Claude, GPT, Gemini | Settings or `OPENROUTER_API_KEY` | Yes |
 | OpenRouter `:free` slugs | Free | Yes (50/day without credits) | Variable | [Browse free models](https://openrouter.ai/models?max_price=0) — **not preset in Dr.C Standalone today** | No (future) |
 | **OpenCode Zen** | Free + paid models | Varies by model | Good for Terminal workflow | `/connect` in Dr.C Terminal | **Terminal only** |
-| **Your Anthropic / OpenAI key** | Pay per use | Account limits only | **Best** for workshops | Paste key in Settings | Yes |
+| OpenAI direct | Pay per use | Account limits only | **Best** — strong alternative | Settings or `OPENAI_API_KEY` | Yes |
 | No model | Free | — | Use offline demos only | Web Apps, Player workshop demo | Yes |
 
-**Workshop advice:** Encourage everyone to bring **their own** Anthropic or OpenAI API key if they want the best Agent results. Offer **Ollama** as the best free path with no signup. Keep Groq/Gemini as optional backups (rate-limit timers apply).
+**Workshop advice:** Offer **Ollama** as the best free path with no signup. For cloud, **Anthropic** is Richard's typical choice — paste a key in **Settings** or set `ANTHROPIC_API_KEY` in `.env`. **OpenRouter** is a good one-key alternative. Keep Groq/Gemini as optional backups (rate-limit timers apply).
+
+**Cloud keys (not local):** [PARTICIPANTS.md §4](./PARTICIPANTS.md#4-agent--llm-optional) · [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
 
 ---
 
