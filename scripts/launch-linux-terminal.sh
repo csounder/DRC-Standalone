@@ -23,6 +23,7 @@ USAGE
 done
 
 drc_ensure_vm_running
+drc_vm_sync_from_mount
 
 echo ""
 echo "━━━ Dr.C Linux Terminal (${VM_NAME}) ━━━"
@@ -30,11 +31,13 @@ echo "  IPv4: $(drc_vm_ip || echo '?')"
 echo ""
 
 if [[ "${DRC_DRY_RUN:-}" == "1" ]]; then
+  drc_vm_ensure_terminal_deps
   drc_vm_bash_lc "${DRC_VM_PATH_EXPORT}; cd ~/Dr.C/opencode && DRC_DRY_RUN=1 ./scripts/launch-drc-terminal.sh"
   exit 0
 fi
 
 echo "Preflight…"
+drc_vm_ensure_terminal_deps
 drc_vm_bash_lc "${DRC_VM_PATH_EXPORT}; cd ~/Dr.C/opencode && DRC_DRY_RUN=1 ./scripts/launch-drc-terminal.sh"
 echo ""
 echo "Starting Dr.C Terminal in VM (Ctrl+C to stop)…"

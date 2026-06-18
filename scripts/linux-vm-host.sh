@@ -5,6 +5,9 @@
 : "${DRC_LINUX_VM:=lac-2026-linux}"
 VM_NAME="${DRC_LINUX_VM}"
 
+: "${DRC_HOST_DR_C:=${HOME}/Dr.C}"
+: "${DRC_HOST_DR_C_STANDALONE:=${HOME}/Dr.C-Standalone}"
+
 # Workshop PATH inside the Ubuntu VM (bash -lc).
 DRC_VM_PATH_EXPORT='export PATH="$HOME/bin:$HOME/Applications/Csound/bin:$HOME/Applications/Csound:$HOME/.bun/bin:$PATH"'
 DRC_VM_LD_EXPORT='export LD_LIBRARY_PATH="$HOME/Applications/Csound/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'
@@ -99,32 +102,105 @@ drc_vm_xrdp_reminder() {
   echo ""
 }
 
-# Copy host-mounted repos into ~ (never sync node_modules — run npm install on the VM).
+# Marker files that prove a Multipass mount is live (not an empty mountpoint).
+drc_vm_mount_marker() {
+  case "$1" in
+    Dr.C) echo "opencode/scripts/launch-drc-terminal.sh" ;;
+    Dr.C-Standalone) echo "scripts/launch-drc.sh" ;;
+    *) echo "README.md" ;;
+  esac
+}
+
+drc_vm_mount_is_live() {
+  local mount_name="$1"
+  local marker
+  marker="$(drc_vm_mount_marker "${mount_name}")"
+  drc_vm_bash_lc "[ -f /mnt/${mount_name}/${marker} ]" 2>/dev/null
+}
+
+# Remount from macOS when sshfs is missing (empty /mnt/Dr.C breaks rsync --delete).
+drc_vm_ensure_mounts() {
+  drc_ensure_vm_running
+  local entry name host_path marker
+  for entry in "Dr.C-Standalone:${DRC_HOST_DR_C_STANDALONE}" "Dr.C:${DRC_HOST_DR_C}"; do
+    name="${entry%%:*}"
+    host_path="${entry#*:}"
+    marker="$(drc_vm_mount_marker "${name}")"
+    if [[ ! -f "${host_path}/${marker}" ]]; then
+      echo "  host repo missing: ${host_path}/${marker} (skip /mnt/${name})"
+      continue
+    fi
+    if drc_vm_mount_is_live "${name}"; then
+      echo "  mount OK: /mnt/${name}"
+      continue
+    fi
+    echo "  repairing stale mount: ${host_path} → /mnt/${name}"
+    multipass umount "${VM_NAME}:/mnt/${name}" 2>/dev/null || true
+    multipass mount "${host_path}" "${VM_NAME}:/mnt/${name}"
+    if ! drc_vm_mount_is_live "${name}"; then
+      echo "ERROR: /mnt/${name} still empty after remount (expected ${marker})"
+      return 1
+    fi
+    echo "  remounted /mnt/${name}"
+  done
+}
+
+# Copy host-mounted repos into ~ (never sync node_modules — run npm/bun install on the VM).
 drc_vm_sync_from_mount() {
+  echo "Ensuring Multipass mounts…"
+  drc_vm_ensure_mounts || true
+  echo ""
   echo "Syncing repos from VM mounts (if present)…"
   drc_vm_bash_lc '
     set -euo pipefail
     synced=0
-    if [ -d /mnt/Dr.C-Standalone ]; then
-      rsync -a --delete \
-        --exclude node_modules --exclude out --exclude release --exclude dist \
-        /mnt/Dr.C-Standalone/ ~/Dr.C-Standalone/
-      echo "  synced /mnt/Dr.C-Standalone → ~/Dr.C-Standalone (node_modules excluded)"
-      synced=1
-    fi
-    if [ -d /mnt/Dr.C ]; then
-      rsync -a --delete \
-        --exclude node_modules --exclude .turbo --exclude dist \
-        --exclude "sdks/vscode/images/icon.png" \
-        --exclude "sdks/vscode/images/button-dark.svg" \
-        --exclude "sdks/vscode/images/button-light.svg" \
-        /mnt/Dr.C/ ~/Dr.C/ || true
-      echo "  synced /mnt/Dr.C → ~/Dr.C (node_modules excluded)"
+
+    _drc_safe_rsync() {
+      local src="$1" dst="$2" marker="$3"
+      shift 3
+      if [ ! -d "$src" ]; then
+        return 0
+      fi
+      if [ ! -f "${src}/${marker}" ]; then
+        echo "  SKIP ${src} → ${dst}: mount empty or stale (missing ${marker})"
+        return 0
+      fi
+      rsync -a --delete "$@" "${src}/" "${dst}/"
+      echo "  synced ${src} → ${dst} (node_modules excluded)"
+    }
+
+    _drc_safe_rsync /mnt/Dr.C-Standalone ~/Dr.C-Standalone scripts/launch-drc.sh \
+      --exclude node_modules --exclude out --exclude release --exclude dist
+
+    _drc_safe_rsync /mnt/Dr.C ~/Dr.C opencode/scripts/launch-drc-terminal.sh \
+      --exclude node_modules --exclude .turbo --exclude dist \
+      --exclude "sdks/vscode/images/icon.png" \
+      --exclude "sdks/vscode/images/button-dark.svg" \
+      --exclude "sdks/vscode/images/button-light.svg"
+
+    if [ -f ~/Dr.C-Standalone/scripts/launch-drc.sh ] || [ -f ~/Dr.C/opencode/scripts/launch-drc-terminal.sh ]; then
       synced=1
     fi
     if [ "$synced" -eq 0 ]; then
-      echo "  no /mnt mounts — using ~/Dr.C-Standalone and ~/Dr.C as-is"
+      echo "  no live /mnt mounts — using ~/Dr.C-Standalone and ~/Dr.C as-is"
     fi
   '
   echo ""
+}
+
+drc_vm_ensure_terminal_deps() {
+  drc_vm_bash_lc '
+    set -euo pipefail
+    export PATH="$HOME/bin:$HOME/Applications/Csound/bin:$HOME/.bun/bin:$PATH"
+    if [ ! -f ~/Dr.C/opencode/scripts/launch-drc-terminal.sh ]; then
+      echo "Missing ~/Dr.C/opencode/scripts/launch-drc-terminal.sh"
+      echo "Ensure ~/Dr.C exists on the Mac host and Multipass mount /mnt/Dr.C is live."
+      exit 1
+    fi
+    cd ~/Dr.C/opencode
+    if [ ! -d node_modules ] || [ ! -d node_modules/@drc ] 2>/dev/null; then
+      echo "Installing Dr.C Terminal deps (bun install)…"
+      bun install
+    fi
+  '
 }

@@ -45,6 +45,7 @@ if [[ -z "${DISPLAY}" ]]; then
 fi
 
 echo "Preflight…"
+drc_vm_ensure_terminal_deps
 drc_vm_bash_lc "export DISPLAY=${DISPLAY}; ${DRC_VM_PATH_EXPORT}; cd ~/Dr.C/opencode && DRC_DRY_RUN=1 ./scripts/launch-drc-terminal.sh"
 echo ""
 
