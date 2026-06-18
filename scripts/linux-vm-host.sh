@@ -49,6 +49,56 @@ drc_vm_bash_lc() {
   drc_vm_exec bash -lc "$1"
 }
 
+# Detect active X11 display inside the VM (xrdp sessions are usually :10+).
+drc_vm_detect_display() {
+  drc_vm_bash_lc '
+    rdp_display=""
+    fallback=""
+    for sock in /tmp/.X11-unix/X*; do
+      [[ -S "$sock" ]] || continue
+      n="${sock##*/X}"
+      [[ "$n" =~ ^[0-9]+$ ]] || continue
+      disp=":$n"
+      fallback="$disp"
+      if (( n >= 10 )); then
+        if [[ -z "$rdp_display" ]] || (( n > ${rdp_display#:} )); then
+          rdp_display="$disp"
+        fi
+      fi
+    done
+    if [[ -n "$rdp_display" ]]; then
+      echo "$rdp_display"
+    elif [[ -n "$fallback" ]]; then
+      echo "$fallback"
+    elif systemctl is-active xrdp >/dev/null 2>&1; then
+      echo ":10"
+    fi
+  ' 2>/dev/null | tail -1
+}
+
+drc_vm_xrdp_reminder() {
+  local ip display
+  ip="$(drc_vm_ip || echo '?')"
+  display="$(drc_vm_detect_display || true)"
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo " Linux desktop (RDP) — connect before GUI launch"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "  1. Double-click: a-Dr.C Linux Desktop.command (or open-linux-desktop.sh)"
+  echo "  2. Windows App → Add PC → ${ip}:3389"
+  echo "  3. Login: ubuntu / ubuntu"
+  echo ""
+  if [[ -n "${display}" ]]; then
+    echo "  Active DISPLAY in VM: ${display}"
+  else
+    echo "  No X display detected yet — connect RDP first, then re-run this launcher."
+  fi
+  echo ""
+  echo "  Guide: ~/Dr.C-Workshop-Demo/LINUX-DESKTOP.md"
+  echo ""
+}
+
 # Copy host-mounted repos into ~ (never sync node_modules — run npm install on the VM).
 drc_vm_sync_from_mount() {
   echo "Syncing repos from VM mounts (if present)…"

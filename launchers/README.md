@@ -9,6 +9,8 @@ Presenter Desktop shortcuts (symlink to these files):
 | **Dr.C Linux VM Shell.command** | `Dr.C Linux VM Shell.command` |
 | **Dr.C Linux Standalone.command** | `Dr.C Linux Standalone.command` |
 | **Dr.C Linux Terminal.command** | `Dr.C Linux Terminal.command` |
+| **Dr.C Linux Standalone Launch.command** | `Dr.C Linux Standalone Launch.command` (RDP — auto DISPLAY) |
+| **Dr.C Linux Terminal Launch.command** | `Dr.C Linux Terminal Launch.command` (RDP — xfce4-terminal) |
 
 ```bash
 ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Mac Standalone.command" ~/Desktop/
@@ -16,6 +18,8 @@ ln -sf "$HOME/Dr.C/opencode/launchers/Dr.C Mac Terminal.command" ~/Desktop/
 ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux VM Shell.command" ~/Desktop/
 ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux Standalone.command" ~/Desktop/
 ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux Terminal.command" ~/Desktop/
+ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux Standalone Launch.command" ~/Desktop/
+ln -sf "$HOME/Dr.C-Standalone/launchers/Dr.C Linux Terminal Launch.command" ~/Desktop/
 ```
 
 | OS | Instructor (Pro+) | Attendee (free tier) |
@@ -31,10 +35,12 @@ From repo root:
 ./scripts/launch-linux-vm.sh            # Multipass shell (lac-2026-linux)
 ./scripts/launch-linux-standalone.sh    # Standalone inside VM (needs DISPLAY in VM)
 ./scripts/launch-linux-terminal.sh      # Terminal TUI inside VM
+./scripts/launch-linux-standalone-rdp.sh  # Standalone on RDP display (:10+ auto-detect)
+./scripts/launch-linux-terminal-rdp.sh    # Terminal in xfce4-terminal on RDP desktop
 ./scripts/launch-workshop-attendee.sh   # attendees
 ```
 
-**Linux GUI in Multipass:** Electron cannot display on the Mac host. `launch-linux-standalone.sh` runs preflight then attempts `./scripts/launch-drc.sh` in the VM; without an X11/Wayland session you will see a Missing X server error — use **Dr.C Mac Standalone** for on-stage GUI, or run Standalone from a graphical session inside the VM.
+**Linux GUI in Multipass:** Electron cannot display on the Mac host. Use **Dr.C Linux Standalone Launch.command** (or `launch-linux-standalone-rdp.sh`) after connecting **Windows App** RDP — it auto-detects `DISPLAY` (`:10` for xrdp) and opens the app in the RDP session. For on-stage sound demos, prefer **Dr.C Mac Standalone** on the host.
 
 Full install steps: **[PARTICIPANTS.md](../PARTICIPANTS.md)**
 
