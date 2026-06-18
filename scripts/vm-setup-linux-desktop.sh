@@ -52,7 +52,7 @@ Version=1.0
 Name=Dr.C Standalone
 Comment=Launch Dr.C Electron in Linux VM
 Path=${VM_HOME}/Dr.C-Standalone
-Exec=xfce4-terminal --hold -e bash -lc '${DRC_PATH}; cd "\$HOME/Dr.C-Standalone" && ./scripts/launch-drc.sh'
+Exec=xfce4-terminal --hold -e bash -lc '${DRC_PATH}; exec "\$HOME/Dr.C-Standalone/scripts/launch-drc.sh"'
 Icon=applications-multimedia
 Terminal=false
 Categories=Audio;
@@ -65,19 +65,19 @@ Version=1.0
 Name=Dr.C Terminal
 Comment=Dr.C TUI
 Path=${VM_HOME}/Dr.C/opencode
-Exec=xfce4-terminal --hold -e bash -lc '${DRC_PATH}; cd "\$HOME/Dr.C/opencode" && ./scripts/launch-drc-terminal.sh'
+Exec=xfce4-terminal --hold -e bash -lc '${DRC_PATH}; exec "\$HOME/Dr.C/opencode/scripts/launch-drc-terminal.sh"'
 Icon=utilities-terminal
 Terminal=false
 Categories=Development;
 EOF
 
-  cat > "${DESK}/Terminal-Dr.C-Standalone.desktop" <<'EOF'
+  cat > "${DESK}/Terminal-Dr.C-Standalone.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=Terminal (Dr.C folder)
 Comment=Open shell in Dr.C-Standalone
-Exec=xfce4-terminal --working-directory=/home/ubuntu/Dr.C-Standalone
+Exec=xfce4-terminal --working-directory=${VM_HOME}/Dr.C-Standalone
 Icon=utilities-terminal
 Terminal=false
 Categories=System;
