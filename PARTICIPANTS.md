@@ -252,13 +252,17 @@ See also `Dr.C/opencode/WORKSHOP.md`.
 
 ---
 
-## Optional companion tools (recommended)
+## Companion tools
 
-These are **optional but recommended** for the workshop — listening to WAV exports, light editing, and DAW workflows alongside Dr.C. Install **Csound 7 first** (§1). Full steps: `~/Dr.C-URLS/INSTALL-STANDALONE.md` §2.5–2.8.
+**Required:** **CsoundQt 7** and **Cabbage** — install after Csound 7 (§1). Dr.C uses them for **Open in CsoundQt** and **Convert → Cabbage**.
+
+**Optional (recommended):** **Audacity** (listen/edit WAV exports) and **Reaper** (lightweight DAW / VST host).
+
+Full steps: `~/Dr.C-URLS/INSTALL-STANDALONE.md` §2.5–2.8.
 
 **Linux workshop VM (aarch64):** Google Chrome has no official arm64 `.deb`; `scripts/linux-vm-provision.sh` installs **Chromium** (`/usr/bin/chromium-browser`) for **Open in Browser**. Desktop Chrome: [google.com/chrome](https://www.google.com/chrome/).
 
-### CsoundQt 7 — Csound IDE
+### CsoundQt 7 — Csound IDE (required)
 
 **Releases:** [github.com/CsoundQt/CsoundQt/releases](https://github.com/CsoundQt/CsoundQt/releases) (v7 AppImage / beta)
 
@@ -267,7 +271,7 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | macOS | Download `CsoundQt-*-MacOS.dmg` from the v7 release → **Applications**. Dr.C: **Settings → CsoundQt**. |
 | Linux | v7 **AppImage** from GitHub (recommended), or `sudo apt install csoundqt` if your distro ships 7.x. **ARM64:** official v7 AppImage is **x86_64 only** — use macOS or build CsoundQt from source. |
 
-### Cabbage — live plugin UI
+### Cabbage — live plugin UI (required)
 
 **Downloads:** [cabbageaudio.com/download](https://cabbageaudio.com/download/) · [GitHub releases](https://github.com/cabbageaudio/Cabbage/releases)
 
@@ -276,14 +280,14 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | macOS | DMG → drag **Cabbage** to **Applications**. Dr.C: **Settings → Cabbage**. |
 | Linux | [rorywalsh/cabbage](https://github.com/rorywalsh/cabbage/releases) `CabbageLinux-*.zip` (VST3 + rack). **ARM64:** Linux zip is **x86_64**; full **Cabbage** GUI is on **macOS** for this workshop. |
 
-### Audacity — listen and edit exports
+### Audacity — listen and edit exports (optional)
 
 | OS | Install |
 |----|---------|
 | macOS | `brew install --cask audacity` or [audacityteam.org/download](https://www.audacityteam.org/download/) |
 | Linux | `sudo apt install audacity` (Ubuntu 22.04) or [Flatpak](https://flathub.org/apps/org.audacityteam.Audacity) |
 
-### Reaper — lightweight DAW host
+### Reaper — lightweight DAW host (optional)
 
 | OS | Install |
 |----|---------|
