@@ -2,7 +2,7 @@
 
 AI-powered Csound creative tool. Electron app.
 
-**LAC 2026 workshop participants:** start with **[PARTICIPANTS.md](./PARTICIPANTS.md)** (macOS and Linux). Resume chat: **[HOTEL-RESUME.md](./HOTEL-RESUME.md)**. Local LLM: **[LOCAL-LLM.md](./LOCAL-LLM.md)**.
+**LAC 2026 workshop:** platform handouts and QR sheet → [csounder/Dr.C-Workshop-Demo](https://github.com/csounder/Dr.C-Workshop-Demo). App install and launch → **[PARTICIPANTS.md](./PARTICIPANTS.md)**. Local LLM → **[LOCAL-LLM.md](./LOCAL-LLM.md)**.
 
 ## Install (no terminal needed)
 

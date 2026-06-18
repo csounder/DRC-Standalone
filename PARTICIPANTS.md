@@ -1,5 +1,7 @@
 # LAC 2026 — Workshop Participant Guide
 
+**Platform handouts (Mac / Linux / QR):** [csounder/Dr.C-Workshop-Demo](https://github.com/csounder/Dr.C-Workshop-Demo)
+
 **Dr.C Standalone** (GUI) + optional **Dr.C Terminal** (CLI).  
 Branch: **`lac-2026-csound7`** · Version **1.3.1**
 
@@ -323,4 +325,4 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | MIDI demos very quiet | Update to latest `lac-2026-csound7` (velocity 0–1 fix in Player wrap) |
 | Settings → **Web Browser** | Choose Chrome/Safari/Firefox for **Open in Browser** on web app artifacts |
 
-Instructor docs: `WORKSHOP.md`, `TESTING.md`, `VERSIONS.md`
+More in this repo: [WORKSHOP.md](./WORKSHOP.md) (branch notes), [TESTING.md](./TESTING.md), [VERSIONS.md](./VERSIONS.md)

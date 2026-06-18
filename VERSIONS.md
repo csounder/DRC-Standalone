@@ -80,7 +80,6 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 | `src/main/ipc/workshop.ipc.ts` | Load starters from renderer |
 | `scripts/smoke-test.mjs` | **126** automated checks |
 | `scripts/ingest-player-model-demos.mjs` | Refresh Player MIDI demo menu from source folders |
-| `HOTEL-RESUME.md` | Short resume doc for new Cursor chats (token saver) |
 | `scripts/test-platform-launchers.mjs` | cross-platform launcher contract |
 | `scripts/workshop-test.mjs` | smoke + memory + production build |
 | `scripts/launch-workshop-attendee.sh` | Attendee env vars |
@@ -91,12 +90,10 @@ Uncommitted on `~/Dr.C/opencode` as of June 2026:
 
 | Audience | Document |
 |----------|----------|
-| Standalone install (all OS) | `INSTALLATION.md`, `~/Dr.C-URLS/INSTALL-STANDALONE.md` |
-| Terminal install | `~/Dr.C-URLS/INSTALL-TERMINAL.md` |
-| Workshop teaching notes | `WORKSHOP.md` |
-| Your return checklist | `TESTING.md` |
-| GitHub release steps | `RELEASE-CHECKLIST.md` |
-| Session handoff log | `LAC-2026-SESSION-HANDOFF.md`, `HANDOFF.md` |
+| Standalone install (all OS) | `README.md`, `PARTICIPANTS.md` |
+| Workshop handouts (Mac / Linux / QR) | [csounder/Dr.C-Workshop-Demo](https://github.com/csounder/Dr.C-Workshop-Demo) |
+| Branch / feature notes | `WORKSHOP.md` |
+| Verify your build | `TESTING.md` |
 
 ---
 

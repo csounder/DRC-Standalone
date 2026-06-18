@@ -81,7 +81,7 @@ npm test
 
 Quick smoke only (macOS/Linux): `npm run test:smoke`
 
-See also: **`PARTICIPANTS.md`** (attendee handout), **`TESTING.md`** (manual checklist), **`VERSIONS.md`**, **`RELEASE-CHECKLIST.md`**.
+See also: **`PARTICIPANTS.md`** (app install guide), **`TESTING.md`** (verify your build), **`VERSIONS.md`** (product matrix). Workshop handouts: [Dr.C-Workshop-Demo](https://github.com/csounder/Dr.C-Workshop-Demo).
 
 ## Suggested attendee prompt
 
