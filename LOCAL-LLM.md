@@ -88,17 +88,18 @@ Use **Refresh** after the server is running so Dr.C lists models from `/v1/model
 | Option | Cost | Rate limits | Sound-design quality | Setup | Standalone? |
 |--------|------|-------------|----------------------|--------|-------------|
 | **Ollama (local)** | Free | None | Good — better than free Gemini/Groq for many users | Install + server URL + model | Yes |
-| Groq / Gemini (free tier) | Free | Yes (~20–30 req/min) | Variable; often weak for Csound | Paste key in Settings | Yes |
-| **Anthropic (Claude)** | Pay per use | Account limits only | **Best** — Richard's typical cloud choice | Settings → **Anthropic (Claude)** or `ANTHROPIC_API_KEY` in `.env` | Yes |
+| Groq (free tier) | Free | Yes (~30 req/min) | Variable; often weak for Csound | Paste key in Settings | Yes |
+| Gemini (free or paid) | Free tier; paid via AI Studio billing | Yes on free tier (~20 req/min) | Variable on free; better with billing | Same key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — enable billing for paid quotas | Yes |
+| **Anthropic (Claude)** | Pay per use | Account limits only | **Best** — instructor typical | Settings → **Anthropic (Claude)** or `ANTHROPIC_API_KEY` in `.env` | Yes |
+| **OpenAI** | Pay per use | Account limits only | **Best** — instructor typical | Settings → **OpenAI** or `OPENAI_API_KEY` in `.env` | Yes |
 | **OpenRouter (paid defaults)** | Pay per use | Account limits only | **Best** — one key, routes to Claude, GPT, Gemini | Settings or `OPENROUTER_API_KEY` | Yes |
 | OpenRouter `:free` slugs | Free | Yes (50/day without credits) | Variable | [Browse free models](https://openrouter.ai/models?max_price=0) — **not preset in Dr.C Standalone today** | No (future) |
 | **OpenCode Zen** | Free + paid models | Varies by model | Good for Terminal workflow | `/connect` in Dr.C Terminal | **Terminal only** |
-| OpenAI direct | Pay per use | Account limits only | **Best** — strong alternative | Settings or `OPENAI_API_KEY` | Yes |
 | No model | Free | — | Use offline demos only | Web Apps, Player workshop demo | Yes |
 
-**Workshop advice:** Offer **Ollama** as the best free path with no signup. For cloud, **Anthropic** is Richard's typical choice — paste a key in **Settings** or set `ANTHROPIC_API_KEY` in `.env`. **OpenRouter** is a good one-key alternative. Keep Groq/Gemini as optional backups (rate-limit timers apply).
+**Workshop advice:** Offer **Ollama** as the best free path with no signup. **Instructor typical:** **Anthropic** or **OpenAI** (paid) — paste in **Settings → API Keys** or set `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `.env`. **OpenRouter** is a good one-key alternative. **Attendees:** Groq/Gemini as optional free backups (rate-limit timers apply).
 
-**Cloud keys (not local):** [PARTICIPANTS.md §4](./PARTICIPANTS.md#4-agent--llm-optional) · [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+**Cloud keys (not local):** [PARTICIPANTS.md §4](./PARTICIPANTS.md#4-agent--llm-optional) · [Anthropic](https://console.anthropic.com/settings/keys) · [OpenAI](https://platform.openai.com/api-keys)
 
 ---
 

@@ -138,23 +138,25 @@ Dr.C needs a language model for the **Agent** tab. Pick what fits your workshop.
 | Option | Type | Works in Standalone today? | Notes |
 |--------|------|----------------------------|-------|
 | **Ollama** | Local | Yes | **Recommended free path** — no signup, no rate limits |
-| **Anthropic (Claude)** | Cloud paid | Yes | **Richard's typical cloud choice** — best Agent quality for teaching |
+| **Anthropic (Claude)** | Cloud paid | Yes | **Instructor typical** — best Agent quality for teaching |
+| **OpenAI** | Cloud paid | Yes | **Instructor typical** — strong alternative to Claude |
 | OpenRouter | Cloud | Yes | One key, many models (incl. free slugs); paid defaults route to Claude Sonnet |
 | Groq | Cloud free | Yes | `llama-3.3-70b-versatile` · ~30 req/min · backup |
-| Gemini | Cloud free | Yes | `gemini-2.5-flash` · backup when Groq throttles |
+| Gemini | Cloud free or paid | Yes | `gemini-2.5-flash` · same [AI Studio](https://aistudio.google.com/apikey) key; enable billing for paid quotas |
+| Cursor API | Cloud | **No** | [Cursor SDK](https://cursor.com/docs/sdk/typescript) — agent automation for IDE/CI, **not** a drop-in key for Standalone Agent |
 | OpenCode Zen | Cloud | **Terminal only** | Free rotating models at [opencode.ai/docs/zen](https://opencode.ai/docs/zen/) via `/connect` — **not** in Standalone GUI |
 
 ### Best quality: your own API key (recommended for instructors)
 
-**Richard's typical setup:** **[Anthropic](https://console.anthropic.com/settings/keys)** (Claude) — paste in **Settings → Anthropic (Claude)** → **Test**, or set `ANTHROPIC_API_KEY=` in `.env` (dev / git clone).
+**Instructor typical (paid):** **[Anthropic](https://console.anthropic.com/settings/keys)** (Claude) or **[OpenAI](https://platform.openai.com/api-keys)** — paste in **Settings → API Keys** → **Test**, or set `ANTHROPIC_API_KEY=` / `OPENAI_API_KEY=` in `.env` (dev / git clone). **Attendees:** Ollama, Groq, or Gemini (free).
 
 **Alternative — one key, many models:** **[OpenRouter](https://openrouter.ai/keys)** routes to Claude, GPT, Gemini, and more. Add credits at [openrouter.ai/credits](https://openrouter.ai/credits). Paste in **Settings → OpenRouter** → **Test**. Free model slugs: [openrouter.ai/models?max_price=0](https://openrouter.ai/models?max_price=0) (Dr.C defaults to paid Claude Sonnet when credits are available).
 
 | Provider | Cost | Get a key | Env var (optional) |
 |----------|------|-----------|-------------------|
 | **Anthropic (Claude)** | Pay per use | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) | `ANTHROPIC_API_KEY` |
+| **OpenAI** | Pay per use | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` |
 | **OpenRouter** (one key, many models) | Pay per use | [openrouter.ai/keys](https://openrouter.ai/keys) | `OPENROUTER_API_KEY` |
-| OpenAI direct | Pay per use | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` |
 
 Paste keys in **Settings → API Keys** → **Test** (packaged builds) or copy `.env.example` → `.env` for dev.
 
@@ -163,9 +165,13 @@ Paste keys in **Settings → API Keys** → **Test** (packaged builds) or copy `
 | Provider | Cost | Get a key | Model Dr.C uses |
 |----------|------|-----------|-----------------|
 | Groq | Free tier | [console.groq.com/keys](https://console.groq.com/keys) | `llama-3.3-70b-versatile` |
-| Google Gemini | Free tier | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `gemini-2.5-flash` |
+| Google Gemini | Free tier or paid | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `gemini-2.5-flash` |
 
 Free tiers are weak for Csound sound design and hit rate limits (~20–30 requests/minute). Dr.C shows a **countdown timer** when throttled and switches between Groq and Gemini if both keys are saved. **Your own paid key works much better.**
+
+**Gemini paid:** Dr.C uses the same `GEMINI_API_KEY` / Settings field — there is no separate “paid key.” Create a key at [Google AI Studio](https://aistudio.google.com/apikey), paste it in Settings, and enable billing in AI Studio when you need higher quotas or paid-tier models. Free vs paid is billing on Google’s side, not a different Dr.C provider.
+
+**Cursor API:** Cursor offers a `CURSOR_API_KEY` for the [Cursor SDK](https://cursor.com/docs/sdk/typescript) (programmatic Cursor agents in scripts, CI, and automations). It is **not** an OpenAI-compatible chat endpoint and is **not wired into Dr.C Standalone** today. For Agent in the GUI, use Anthropic, OpenAI, OpenRouter, Ollama, Groq, or Gemini instead.
 
 **OpenRouter free models:** OpenRouter also hosts zero-cost model slugs ([browse free models](https://openrouter.ai/models?max_price=0)). Dr.C Standalone does **not** preset those today — it routes OpenRouter keys to paid models (`anthropic/claude-sonnet-4`). Use Ollama or Groq/Gemini for free Standalone Agent use.
 
