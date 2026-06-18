@@ -75,29 +75,14 @@ User-local install path (optional): `~/Applications/Csound/csound` on `PATH` via
 
 ## 2. Get Dr.C Standalone
 
-### Option A — Download installer (easiest)
-
-[GitHub Releases](https://github.com/csounder/DRC-Standalone) on branch **`lac-2026-csound7`**:
-
-| OS | File |
-|----|------|
-| macOS Apple Silicon | `DrC-*-arm64.dmg` |
-| macOS Intel | `DrC-*-x64.dmg` |
-| Linux | `DrC-*.AppImage` |
-
-**macOS first launch:** app is unsigned — **Right-click → Open → Open**, or:
 ```bash
-xattr -cr /Applications/DrC.app
-```
-
-### Option B — Run from source (developers)
-
-```bash
-git clone -b lac-2026-csound7 https://github.com/csounder/DRC-Standalone
-cd Dr.C-Standalone
+git clone -b lac-2026-csound7 https://github.com/csounder/DRC-Standalone.git ~/Dr.C-Standalone
+cd ~/Dr.C-Standalone
 npm install
 cp .env.example .env    # optional — or use Settings UI
 ```
+
+Pre-built installers may be added later; for LAC 2026 use **git clone** on `lac-2026-csound7`.
 
 ---
 
