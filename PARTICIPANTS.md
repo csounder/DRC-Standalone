@@ -75,7 +75,7 @@ User-local install path (optional): `~/Applications/Csound/csound` on `PATH` via
 
 ### Option A — Download installer (easiest)
 
-[GitHub Releases](https://github.com/mateolarreaferro/Dr.C-Standalone/releases) on branch **`lac-2026-csound7`**:
+[GitHub Releases](https://github.com/csounder/DRC-Standalone) on branch **`lac-2026-csound7`**:
 
 | OS | File |
 |----|------|
@@ -91,7 +91,7 @@ xattr -cr /Applications/DrC.app
 ### Option B — Run from source (developers)
 
 ```bash
-git clone -b lac-2026-csound7 https://github.com/mateolarreaferro/Dr.C-Standalone.git
+git clone -b lac-2026-csound7 https://github.com/csounder/DRC-Standalone
 cd Dr.C-Standalone
 npm install
 cp .env.example .env    # optional — or use Settings UI
@@ -237,7 +237,7 @@ For shell-native users — full guide: **`Dr.C/opencode/GET-STARTED.md`**
 | Linux | `Dr.C/opencode/launchers/Dr.C-Terminal.sh` |
 
 ```bash
-git clone https://github.com/mateolarreaferro/Dr.C.git
+git clone https://github.com/csounder/DRC-Standalone
 cd Dr.C/opencode
 bun install
 chmod +x scripts/*.sh launchers/*.sh   # macOS/Linux
@@ -295,8 +295,8 @@ These are **optional but recommended** for the workshop — listening to WAV exp
 | Resource | URL |
 |----------|-----|
 | **One-slide handout (PDF)** | `resources/workshop/LAC-2026-one-slide.pdf` — or **Settings → Copy workshop links** / **Open one-slide PDF** in the app |
-| Dr.C Standalone repo | https://github.com/mateolarreaferro/Dr.C-Standalone |
-| Dr.C Terminal repo | https://github.com/mateolarreaferro/Dr.C |
+| Dr.C Standalone repo | https://github.com/csounder/DRC-Standalone |
+| Dr.C Terminal repo | https://github.com/csounder/DRC-Standalone |
 | Csound 7 releases | https://github.com/csound/csound/releases |
 | Csound download | https://csound.com/download.html |
 | FLOSS Manual | https://flossmanual.csound.com/ |
