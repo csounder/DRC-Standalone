@@ -4,13 +4,13 @@ export const SETUP_GUIDE = {
   sectionTitle: 'Setup guide',
   linksTitle: 'Install & API key links',
   linksBody:
-    'For classes, workshops, and presentations: copy every install URL, API signup link, and local LLM ' +
-    'resource — paste into chat, email, or slides for students.',
-  copyButton: 'Copy setup links',
+    'For classes, workshops, and presentations: copy every git clone command, install URL, API signup link, and local LLM ' +
+    'resource — paste into chat, email, or slides for students. For LAC 2026, install Dr.C from csounder/DRC-Standalone (branch lac-2026-csound7); handouts live in csounder/Dr.C-Workshop-Demo.',
+  copyButton: 'Copy workshop links',
   copyButtonDone: 'Copied!',
   handoutOpen: 'Open one-slide handout',
   handoutReveal: 'Show handout in Finder',
-  clipboardHeader: 'Dr.C — setup links (install, API keys, local LLM)',
+  clipboardHeader: 'Dr.C — workshop links (git clone, install, API keys, local LLM)',
   clipboardPlatforms: 'Platforms: macOS & Linux',
 } as const
 
@@ -28,13 +28,40 @@ export const WORKSHOP_HANDOUT_FILENAME = 'LAC-2026-one-slide.pdf'
 
 export const WORKSHOP_LINK_GROUPS: WorkshopLinkGroup[] = [
   {
-    title: 'Repos & downloads',
+    title: 'Repos & install (git clone)',
     links: [
-      { label: 'Dr.C Standalone (lac-2026-csound7)', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/tree/lac-2026-csound7' },
-      { label: 'Dr.C Standalone releases', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/releases' },
-      { label: 'Dr.C Terminal', url: 'https://github.com/mateolarreaferro/Dr.C' },
-      { label: 'Participant guide (PARTICIPANTS.md)', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/blob/lac-2026-csound7/PARTICIPANTS.md' },
-      { label: 'Local LLM guide (LOCAL-LLM.md)', url: 'https://github.com/mateolarreaferro/Dr.C-Standalone/blob/lac-2026-csound7/LOCAL-LLM.md' },
+      {
+        label: 'Dr.C Standalone repo (lac-2026-csound7)',
+        url: 'https://github.com/csounder/DRC-Standalone/tree/lac-2026-csound7',
+      },
+      {
+        label: 'Dr.C Standalone — git clone',
+        url: 'git clone -b lac-2026-csound7 https://github.com/csounder/DRC-Standalone.git ~/Dr.C-Standalone',
+      },
+      {
+        label: 'Workshop handouts & demos (Dr.C-Workshop-Demo)',
+        url: 'https://github.com/csounder/Dr.C-Workshop-Demo',
+      },
+      {
+        label: 'Workshop bundle — git clone',
+        url: 'git clone https://github.com/csounder/Dr.C-Workshop-Demo.git',
+      },
+      {
+        label: 'Participant guide (PARTICIPANTS.md)',
+        url: 'https://github.com/csounder/DRC-Standalone/blob/lac-2026-csound7/PARTICIPANTS.md',
+      },
+      {
+        label: 'Local LLM guide (LOCAL-LLM.md)',
+        url: 'https://github.com/csounder/DRC-Standalone/blob/lac-2026-csound7/LOCAL-LLM.md',
+      },
+      {
+        label: 'Mac attendee handout',
+        url: 'https://github.com/csounder/Dr.C-Workshop-Demo/blob/main/MAC-ATTENDEE-HANDOUT.md',
+      },
+      {
+        label: 'Linux attendee handout',
+        url: 'https://github.com/csounder/Dr.C-Workshop-Demo/blob/main/LINUX-ATTENDEE-HANDOUT.md',
+      },
     ],
   },
   {
@@ -46,7 +73,6 @@ export const WORKSHOP_LINK_GROUPS: WorkshopLinkGroup[] = [
       { label: 'Opcode index', url: 'https://csound.com/manual/opcodesIndex/' },
       { label: 'CsoundQt 7 releases', url: 'https://github.com/CsoundQt/CsoundQt/releases' },
       { label: 'Node.js 22', url: 'https://nodejs.org/' },
-      { label: 'Bun (Terminal)', url: 'https://bun.sh/' },
     ],
   },
   {
@@ -68,13 +94,6 @@ export const WORKSHOP_LINK_GROUPS: WorkshopLinkGroup[] = [
       { label: 'Ollama model library', url: 'https://ollama.com/library' },
       { label: 'Default model pull', url: 'https://ollama.com/library/qwen2.5-coder:7b' },
       { label: 'LM Studio (local server)', url: 'https://lmstudio.ai/' },
-    ],
-  },
-  {
-    title: 'Dr.C Terminal only',
-    links: [
-      { label: 'OpenCode Zen models', url: 'https://opencode.ai/docs/zen/' },
-      { label: 'Dr.C Terminal GET-STARTED', url: 'https://github.com/mateolarreaferro/Dr.C/blob/main/opencode/GET-STARTED.md' },
     ],
   },
 ]
