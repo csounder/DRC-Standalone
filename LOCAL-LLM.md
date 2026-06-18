@@ -97,9 +97,11 @@ Use **Refresh** after the server is running so Dr.C lists models from `/v1/model
 | **OpenCode Zen** | Free + paid models | Varies by model | Good for Terminal workflow | `/connect` in Dr.C Terminal | **Terminal only** |
 | No model | Free | — | Use offline demos only | Web Apps, Player workshop demo | Yes |
 
-**Workshop advice:** Offer **Ollama** as the best free path with no signup. **Instructor typical:** **Anthropic** or **OpenAI** (paid) — paste in **Settings → API Keys** or set `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `.env`. **OpenRouter** is a good one-key alternative. **Attendees:** Groq/Gemini as optional free backups (rate-limit timers apply).
+**Workshop advice:** Offer **Ollama** as the best free path with no signup. **Instructor typical:** **Anthropic** or **OpenAI** (paid) — paste in **Settings → API Keys** or set `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `.env`. **OpenRouter** is a good one-key alternative. **Attendees:** Groq/Gemini as optional free backups (rate-limit timers apply). **Gemini paid:** same `GEMINI_API_KEY` — enable billing in [Google AI Studio](https://aistudio.google.com/apikey).
 
-**Cloud keys (not local):** [PARTICIPANTS.md §4](./PARTICIPANTS.md#4-agent--llm-optional) · [Anthropic](https://console.anthropic.com/settings/keys) · [OpenAI](https://platform.openai.com/api-keys)
+**Not in Standalone:** **Cursor API** ([Cursor SDK](https://cursor.com/docs/sdk/typescript)) — agent automation for IDE/CI, not a drop-in chat key for Dr.C Agent.
+
+**Cloud keys (not local):** [PARTICIPANTS.md §4](./PARTICIPANTS.md#4-agent--llm-optional) · [Anthropic](https://console.anthropic.com/settings/keys) · [OpenAI](https://platform.openai.com/api-keys) · [Gemini](https://aistudio.google.com/apikey)
 
 ---
 

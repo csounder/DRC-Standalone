@@ -43,12 +43,12 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
   {
     id: 'google',
     label: 'Google AI (Gemini)',
-    tier: 'Free tier',
+    tier: 'Free tier or paid',
     free: true,
     signupUrl: 'https://aistudio.google.com/apikey',
     signupLabel: 'aistudio.google.com/apikey',
     keyPlaceholder: 'AIza...',
-    hint: 'Free tier — quality varies. Dr.C falls back to Groq when Gemini is throttled (if both keys are saved). Your own Anthropic/OpenAI key is strongly recommended.',
+    hint: 'Same AI Studio key for free or paid — enable billing there for higher quotas. Dr.C falls back to Groq when throttled (if both keys are saved). Anthropic/OpenAI is stronger for teaching.',
     soloWarning:
       'Gemini\'s free tier has rate limits (~20 requests/minute). Wait for the countdown, then Try again. ' +
       'Add a Groq key as backup — Dr.C switches automatically. Your own paid API key works best.',
